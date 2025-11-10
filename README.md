@@ -101,6 +101,41 @@ mai-idss-flood/
 - Include tests for new functionality
 - Update documentation as needed
 
+### Gantt Diagram:
+``m̀ermaid
+---
+displayMode: broad
+---
+gantt
+    title PW3 IDSS Project — 3-Week Plan (Broad View)
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %d
+    excludes weekends
+    tickInterval 1week
+    todayMarker stroke-width:3px,stroke:#ff6600,opacity:0.6
+
+    section Week 1
+    Frontend mock-up (1)           :p1w1, 2025-11-10, 5d
+    Data inspection & visualization (2) :p3w1, 2025-11-10, 5d
+    IDSS architecture & influence diagram (1) :p5w1, 2025-11-10, 5d
+    Research & rule-based design (2) :p6w1, 2025-11-10, 5d
+
+    section Week 2 
+    Backend prototype (2)          :p1w2, after p6w1, 5d
+    Model training & metrics (3)   :p4w2, after p3w1, 5d
+    Evaluation framework (1)       :p5w2, after p5w1, 5d
+
+    section Week 3 
+    Integration demo (2.5)       :p1w3, after p1w2 p2w2, 5d
+    Evaluation execution (2.5)   :p4w3, after p5w2, 5d
+    Canva, report outline (1)            :p6w3, after p5w2, 5d
+    Documentation & slides (All)    :done, after p1w3 p4w3 p6w3, 2d
+
+    section Milestones
+    Foundations complete            :milestone, m1, after p6w1, 0d
+    Modeling phase complete         :milestone, m2, after p6w2, 0d
+    Final integration & submission  :milestone, m3, after p6w3, 0d
+```
 ## Team
 
 - Project repository: [alobo01/mai-idss-flood](https://github.com/alobo01/mai-idss-flood)
