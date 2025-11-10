@@ -102,7 +102,7 @@ mai-idss-flood/
 - Update documentation as needed
 
 ### Gantt Diagram:
-``m̀ermaid
+```mermaid
 ---
 displayMode: broad
 ---
