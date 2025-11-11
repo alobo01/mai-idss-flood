@@ -141,16 +141,16 @@ gantt
 
 ### Week 1 — Foundations & Research
 
-**1. Frontend Mock-Up (1 person)**  
+**1. Frontend Mock-Up (Antonio)**
 Design an initial Streamlit interface showing three main user roles: *Administrator*, *Planner*, and *Coordinator*. Include placeholders for a risk map, flood alerts, and resource allocation results. This mock-up defines the future UI structure and interaction flow.
 
-**2. Data Inspection & Visualization (2 person)**  
+**2. Data Inspection & Visualization (Andras, Nour)**  
 Load and explore the dataset. Identify missing values, data distributions, and correlations between key hydrological and meteorological variables. Generate visual summaries (heatmaps, scatterplots, histograms) to guide model design and feature selection.
 
-**3. IDSS Architecture & Influence Diagram (1 person)**  
+**3. IDSS Architecture & Influence Diagram (Thibault)**  
 Draft the high-level system architecture showing data ingestion, model inference, and knowledge-based reasoning. Create an influence diagram illustrating relationships between rainfall, river flow, risk zones, and response actions.
 
-**4. Research & Rule-Based Design (2 people)**  
+**4. Research & Rule-Based Design (Karitas, Sabrina)**  
 Review 5–7 recent papers on flood risk modeling and decision support. Summarize their contributions and gaps. From this analysis, design the **rule-based resource allocation approach** — defining prioritization rules (e.g., hospitals > schools > households) and response thresholds to complement the data-driven model.
 
 ---
