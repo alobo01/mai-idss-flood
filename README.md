@@ -141,7 +141,7 @@ gantt
 
 ### Week 1 — Foundations & Research
 
-**1. Frontend Mock-Up (Antonio)**
+**1. Frontend Mock-Up (Antonio)**  
 Design an initial Streamlit interface showing three main user roles: *Administrator*, *Planner*, and *Coordinator*. Include placeholders for a risk map, flood alerts, and resource allocation results. This mock-up defines the future UI structure and interaction flow.
 
 **2. Data Inspection & Visualization (Andras, Nour)**  
