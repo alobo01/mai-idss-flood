@@ -19,7 +19,7 @@ interface LayerControlsProps {
     gauges: boolean;
     alerts: boolean;
   };
-  onLayerToggle: (layer: keyof typeof layers) => void;
+  onLayerToggle: (layer: keyof LayerControlsProps['layers']) => void;
   timeHorizon: TimeHorizon;
   onTimeHorizonChange: (horizon: TimeHorizon) => void;
   opacity: number;
