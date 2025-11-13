@@ -1,86 +1,124 @@
 # Python
 __pycache__/
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
+pip-wheel-metadata/
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
 env.bak/
 venv.bak/
-.venv/
 
-# PyCharm
-.idea/
+# Byte-compiled / optimized
+*.pyc
+*.pyo
+*.pyd
 
-# VS Code
-.vscode/
+# PyInstaller
+*.spec
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
+# Test / coverage
+.tox/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.hypothesis/
 
-# Data files - excluding all data to keep repository lightweight
-Data/*
+# Type-checkers
+.mypy_cache/
+.pyre/
+
+# -----------------------------
+# Node / Frontend (Vite)
+# -----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite / build outputs
+dist/
+.vite/
+.cache/
+build/
+out/
+
+# Playwright / test outputs
+playwright-report/
+test-results/
+Source/frontend/playwright-report/
+Source/frontend/test-results/
+
+# Package manager lockfiles — keep these tracked (do not ignore) by default
+# e.g. package-lock.json, yarn.lock, pnpm-lock.yaml
+
+# -----------------------------
+# Data and large artifacts
+# -----------------------------
+# Keep repository lightweight: ignore raw data and large model files.
+Data/
 !Data/.gitkeep
-*.csv
-*.xlsx
-*.xls
-# Exclude data JSON files but keep config files
-Data/**/*.json
-*.parquet
-*.feather
+
+Models/
+!Models/.gitkeep
+
+# Common model file extensions anywhere in repo
 *.h5
 *.hdf5
+*.pt
+*.pth
+*.onnx
+*.pb
+*.joblib
 *.pkl
 *.pickle
+
+# Database files
 *.db
 *.sqlite
 *.sqlite3
 
-# Model files - large trained models
-Models/*.h5
-Models/*.pkl
-Models/*.joblib
-Models/*.pt
-Models/*.pth
-Models/*.onnx
-Models/*.pb
-!Models/.gitkeep
+# -----------------------------
+# Docker
+# -----------------------------
+# Ignore local docker-compose override files and Docker state
+docker-compose.override.yml
+.docker/
 
-# Logs
-*.log
-logs/
+# -----------------------------
+# IDEs / Editors
+# -----------------------------
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# OS files
+# -----------------------------
+# OS / misc
+# -----------------------------
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Temporary files
 *.tmp
@@ -89,22 +127,18 @@ Thumbs.db
 *.swo
 *~
 
-# Coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
+# Logs
+logs/
+*.log
 
-# MyPy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Environment files
+.env
+.env.*
+.env.local
 
-# Pyre type checker
-.pyre/
+# Misc caches
+.cache/
+/.parcel-cache/
+.next/
+
+# Keep project-specific tracked files intact (explicit exceptions can be added below)
