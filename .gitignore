@@ -47,7 +47,8 @@ Data/*
 *.csv
 *.xlsx
 *.xls
-*.json
+# Exclude data JSON files but keep config files
+Data/**/*.json
 *.parquet
 *.feather
 *.h5
