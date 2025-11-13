@@ -37,7 +37,7 @@ cd frontend
 docker compose up -d
 
 # Access the application
-open http://localhost:8080
+open http://localhost:18080
 ```
 
 ### Local Development
@@ -67,7 +67,7 @@ services:
       dockerfile: mock-api/Dockerfile
     container_name: flood-api
     ports:
-      - "8081:8080"
+      - "8081:18080"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -258,7 +258,7 @@ docker compose logs -f web
 
 ```bash
 # Check for port conflicts
-netstat -tulpn | grep :8080
+netstat -tulpn | grep :18080
 netstat -tulpn | grep :8081
 
 # Check Docker daemon
@@ -380,9 +380,9 @@ Configure Nginx as load balancer:
 
 ```nginx
 upstream api_servers {
-    server api1:8080;
-    server api2:8080;
-    server api3:8080;
+    server api1:18080;
+    server api2:18080;
+    server api3:18080;
 }
 
 server {

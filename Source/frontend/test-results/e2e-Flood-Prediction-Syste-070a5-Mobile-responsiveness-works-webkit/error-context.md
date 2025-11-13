@@ -4,36 +4,44 @@
 - generic [ref=e3]:
   - banner [ref=e4]:
     - generic [ref=e5]:
-      - button [ref=e6] [cursor=pointer]:
+      - button [active] [ref=e6] [cursor=pointer]:
         - img [ref=e7]
       - generic [ref=e8]:
         - generic [ref=e9]:
           - img [ref=e10]
-          - generic [ref=e12]: Flood Prediction
+          - heading "Flood Prediction" [level=1] [ref=e12]
         - generic [ref=e13]: Planner
       - generic [ref=e14]:
         - button "Toggle dark mode" [ref=e15] [cursor=pointer]:
           - img [ref=e16]
-        - button "Planner" [ref=e22] [cursor=pointer]:
-          - img [ref=e23]
+        - button "Planner" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
           - text: Planner
-  - generic [ref=e26]:
-    - complementary [ref=e27]:
-      - navigation [ref=e28]:
-        - link "Risk Map" [ref=e29]:
+  - generic [ref=e22]:
+    - complementary [ref=e23]:
+      - navigation [ref=e24]:
+        - link "Risk Map" [ref=e25]:
           - /url: /planner/map
-          - img [ref=e30]
-          - generic [ref=e33]: Risk Map
-        - link "Scenarios" [ref=e34]:
+          - img [ref=e26]
+          - generic [ref=e29]: Risk Map
+        - link "Scenarios" [ref=e30]:
           - /url: /planner/scenarios
-          - img [ref=e35]
-          - generic [ref=e38]: Scenarios
-        - link "Alerts" [ref=e39]:
+          - img [ref=e31]
+          - generic [ref=e34]: Scenarios
+        - link "Alerts" [ref=e35]:
           - /url: /planner/alerts
-          - img [ref=e40]
-          - generic [ref=e42]: Alerts
-    - main [ref=e43]:
-      - generic [ref=e45]:
-        - img [ref=e46]
-        - paragraph [ref=e48]: Error loading map data. Please try again.
+          - img [ref=e36]
+          - generic [ref=e38]: Alerts
+    - main [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - heading "Planner Risk Map" [level=1] [ref=e43]
+            - paragraph [ref=e44]: Interactive flood risk assessment and scenario planning
+          - generic [ref=e46]:
+            - img [ref=e47]
+            - generic [ref=e50]: 12h forecast
+        - generic [ref=e52]:
+          - img [ref=e53]
+          - paragraph [ref=e55]: Error loading map data. Please try again.
 ```

@@ -33,25 +33,25 @@ interface AlertsTimelineProps {
 }
 
 const severityColors: Record<AlertSeverity, string> = {
-  Low: 'bg-blue-100 text-blue-800 border-blue-200',
-  Moderate: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  High: 'bg-orange-100 text-orange-800 border-orange-200',
-  Severe: 'bg-red-100 text-red-800 border-red-200',
-  Operational: 'bg-gray-100 text-gray-800 border-gray-200',
+  Low: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800',
+  Moderate: 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800',
+  High: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800',
+  Severe: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800',
+  Operational: 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700',
 };
 
 const statusIcons: Record<AlertStatus, React.ReactNode> = {
-  open: <XCircle className="h-4 w-4 text-red-500" />,
-  acknowledged: <Clock className="h-4 w-4 text-yellow-500" />,
-  resolved: <CheckCircle className="h-4 w-4 text-green-500" />,
+  open: <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />,
+  acknowledged: <Clock className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />,
+  resolved: <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />,
 };
 
 const severityIcons: Record<AlertSeverity, React.ReactNode> = {
-  Low: <AlertTriangle className="h-4 w-4 text-blue-500" />,
-  Moderate: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
-  High: <AlertTriangle className="h-4 w-4 text-orange-500" />,
-  Severe: <AlertTriangle className="h-4 w-4 text-red-500" />,
-  Operational: <AlertTriangle className="h-4 w-4 text-gray-500" />,
+  Low: <AlertTriangle className="h-4 w-4 text-blue-500 dark:text-blue-400" />,
+  Moderate: <AlertTriangle className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />,
+  High: <AlertTriangle className="h-4 w-4 text-orange-500 dark:text-orange-400" />,
+  Severe: <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />,
+  Operational: <AlertTriangle className="h-4 w-4 text-gray-500 dark:text-gray-400" />,
 };
 
 export function AlertsTimeline({
@@ -304,95 +304,142 @@ function AlertItem({
     return zoneMap[alert.zoneId] || alert.zoneId;
   };
 
+  const getTimelineColors = () => {
+    if (alert.status === 'resolved') {
+      return 'border-gray-200 dark:border-gray-600';
+    }
+    switch (alert.severity) {
+      case 'Severe': return 'border-red-500 dark:border-red-400';
+      case 'High': return 'border-orange-500 dark:border-orange-400';
+      case 'Moderate': return 'border-yellow-500 dark:border-yellow-400';
+      case 'Low': return 'border-blue-500 dark:border-blue-400';
+      default: return 'border-gray-500 dark:border-gray-400';
+    }
+  };
+
+  const getDotColors = () => {
+    if (alert.status === 'resolved') {
+      return {
+        border: 'border-gray-300 dark:border-gray-600',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-gray-400 dark:bg-gray-500'
+      };
+    }
+    switch (alert.severity) {
+      case 'Severe': return {
+        border: 'border-red-500 dark:border-red-400',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-red-500 dark:bg-red-400'
+      };
+      case 'High': return {
+        border: 'border-orange-500 dark:border-orange-400',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-orange-500 dark:bg-orange-400'
+      };
+      case 'Moderate': return {
+        border: 'border-yellow-500 dark:border-yellow-400',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-yellow-500 dark:bg-yellow-400'
+      };
+      case 'Low': return {
+        border: 'border-blue-500 dark:border-blue-400',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-blue-500 dark:bg-blue-400'
+      };
+      default: return {
+        border: 'border-gray-500 dark:border-gray-400',
+        background: 'bg-white dark:bg-gray-800',
+        inner: 'bg-gray-500 dark:bg-gray-400'
+      };
+    }
+  };
+
+  const getAlertBackground = () => {
+    if (alert.status === 'resolved') {
+      return 'bg-gray-50/50 border-gray-200/50 dark:bg-gray-900/30 dark:border-gray-700/50';
+    }
+    switch (alert.severity) {
+      case 'Severe': return 'bg-red-50/70 border-red-200/70 dark:bg-red-950/30 dark:border-red-800/50';
+      case 'High': return 'bg-orange-50/70 border-orange-200/70 dark:bg-orange-950/30 dark:border-orange-800/50';
+      case 'Moderate': return 'bg-yellow-50/70 border-yellow-200/70 dark:bg-yellow-950/30 dark:border-yellow-800/50';
+      case 'Low': return 'bg-blue-50/70 border-blue-200/70 dark:bg-blue-950/30 dark:border-blue-800/50';
+      default: return 'bg-gray-50/70 border-gray-200/70 dark:bg-gray-900/30 dark:border-gray-700/50';
+    }
+  };
+
+  const dotColors = getDotColors();
+
   return (
-    <div className={`relative pl-6 pb-4 border-l-2 ${
-      alert.status === 'resolved' ? 'border-gray-300' :
-      alert.severity === 'Severe' ? 'border-red-500' :
-      alert.severity === 'High' ? 'border-orange-500' :
-      alert.severity === 'Moderate' ? 'border-yellow-500' :
-      'border-blue-500'
-    }`}>
-      {/* Timeline dot */}
-      <div className={`absolute -left-2 top-2 w-4 h-4 rounded-full border-2 bg-white ${
-        alert.status === 'resolved' ? 'border-gray-300' :
-        alert.severity === 'Severe' ? 'border-red-500' :
-        alert.severity === 'High' ? 'border-orange-500' :
-        alert.severity === 'Moderate' ? 'border-yellow-500' :
-        'border-blue-500'
+    <div className={`relative pl-8 pb-6 border-l-2 transition-all duration-300 hover:border-opacity-100 ${getTimelineColors()}`}>
+      {/* Enhanced timeline dot with pulse effect for critical alerts */}
+      <div className={`absolute -left-[9px] top-3 w-4 h-4 rounded-full border-2 ${dotColors.border} ${dotColors.background} ${
+        alert.status === 'open' && (alert.severity === 'Severe' || alert.severity === 'High') ? 'animate-pulse' : ''
       }`}>
-        <div className={`w-2 h-2 rounded-full mx-auto mt-0.5 ${
-          alert.status === 'resolved' ? 'bg-gray-300' :
-          alert.severity === 'Severe' ? 'bg-red-500' :
-          alert.severity === 'High' ? 'bg-orange-500' :
-          alert.severity === 'Moderate' ? 'bg-yellow-500' :
-          'bg-blue-500'
-        }`} />
+        <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-[3px] ${dotColors.inner}`} />
       </div>
 
-      {/* Alert content */}
-      <div className={`rounded-lg border p-3 ${
-        alert.status === 'resolved' ? 'bg-gray-50 border-gray-200' :
-        alert.severity === 'Severe' ? 'bg-red-50 border-red-200' :
-        alert.severity === 'High' ? 'bg-orange-50 border-orange-200' :
-        alert.severity === 'Moderate' ? 'bg-yellow-50 border-yellow-200' :
-        'bg-blue-50 border-blue-200'
-      }`}>
+      {/* Enhanced alert card with better shadows and hover effects */}
+      <div className={`rounded-lg border p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${getAlertBackground()}`}>
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-1">
+          <div className="flex-1 min-w-0">
+            {/* Alert header with better spacing */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               {severityIcons[alert.severity]}
-              <h4 className="font-medium text-sm">{alert.title}</h4>
+              <h4 className="font-semibold text-sm leading-tight">{alert.title}</h4>
               <Badge
                 variant={alert.severity === 'Severe' ? 'destructive' : 'secondary'}
-                className="text-xs"
+                className="text-xs px-2 py-0.5 font-medium"
               >
                 {alert.severity}
               </Badge>
               <Badge
                 variant="outline"
-                className="text-xs"
+                className="text-xs px-2 py-0.5"
               >
                 {alert.type}
               </Badge>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
+            {/* Alert description with better typography */}
+            <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{alert.description}</p>
 
-            <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-              <div className="flex items-center space-x-1">
-                <MapPin className="h-3 w-3" />
-                <span>{getAlertLocation(alert)}</span>
+            {/* Enhanced metadata grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{getAlertLocation(alert)}</span>
               </div>
 
               {alert.eta && (
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>ETA: {alert.eta}</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">ETA: {alert.eta}</span>
                 </div>
               )}
 
               {alert.crewId && (
-                <div className="flex items-center space-x-1">
-                  <User className="h-3 w-3" />
-                  <span>{alert.crewId}</span>
+                <div className="flex items-center gap-1.5">
+                  <User className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{alert.crewId}</span>
                 </div>
               )}
 
-              <div className="flex items-center space-x-1">
-                <Clock className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3 w-3 flex-shrink-0" />
                 <span>{format(new Date(alert.timestamp), 'MMM d, HH:mm')}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-1 ml-2">
+          {/* Enhanced action buttons */}
+          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
             {statusIcons[alert.status]}
             {alert.status === 'open' && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => onAcknowledge(alert.id)}
-                className="h-6 px-2 text-xs"
+                className="h-7 px-3 text-xs hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 Acknowledge
               </Button>

@@ -25,7 +25,7 @@ export function AppProvider({ children }: AppProviderProps) {
 
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('flood-prediction-dark-mode');
-    return saved ? JSON.parse(saved) : true;
+    return saved ? JSON.parse(saved) : false;
   });
 
   // Persist changes to localStorage

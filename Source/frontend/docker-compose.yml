@@ -25,7 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: flood-backend
     ports:
-      - "8080:8080"
+      - "18080:18080"
     environment:
       - NODE_ENV=development
     volumes:
@@ -38,7 +38,7 @@ services:
     ports:
       - "80:80"
     environment:
-      - VITE_API_BASE_URL=http://backend:8080
+      - VITE_API_BASE_URL=http://backend:18080
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
       - NODE_ENV=production
     depends_on:

@@ -25,6 +25,7 @@ import {
   Shield,
   TrendingUp
 } from 'lucide-react';
+import { getAdminPath } from '@/lib/routes';
 
 interface AppShellProps {
   children: ReactNode;
@@ -32,10 +33,10 @@ interface AppShellProps {
 
 const navigationConfig = {
   Administrator: [
-    { to: '/admin/regions', icon: MapPin, label: 'Regions' },
-    { to: '/admin/thresholds', icon: Shield, label: 'Thresholds' },
-    { to: '/admin/resources', icon: Layers, label: 'Resources' },
-    { to: '/admin/users', icon: Users, label: 'Users' },
+    { to: getAdminPath('regions'), icon: MapPin, label: 'Regions' },
+    { to: getAdminPath('thresholds'), icon: Shield, label: 'Thresholds' },
+    { to: getAdminPath('resources'), icon: Layers, label: 'Resources' },
+    { to: getAdminPath('users'), icon: Users, label: 'Users' },
   ],
   Planner: [
     { to: '/planner/map', icon: MapPin, label: 'Risk Map' },
@@ -70,7 +71,7 @@ export function AppShell({ children }: AppShellProps) {
 
     // Navigate to appropriate default route for each role
     const defaultRoutes = {
-      Administrator: '/admin/regions',
+      Administrator: getAdminPath('regions'),
       Planner: '/planner/map',
       Coordinator: '/coordinator/ops',
       'Data Analyst': '/analyst/overview',
@@ -99,7 +100,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-6 w-6 text-orange-500" />
-              <span className="font-semibold text-lg">Flood Prediction</span>
+              <h1 className="font-semibold text-lg">Flood Prediction</h1>
             </div>
             {currentRole && (
               <Badge className={`${roleColors[currentRole]} text-white ml-2`}>

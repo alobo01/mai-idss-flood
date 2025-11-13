@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:18080';
+
 test.describe('API Integration Tests', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -22,7 +24,7 @@ test.describe('API Integration Tests', () => {
     ];
 
     for (const endpoint of endpoints) {
-      const response = await request.get(`http://localhost:8080${endpoint}`);
+      const response = await request.get(`${API_BASE_URL}${endpoint}`);
       expect(response.status()).toBe(200);
 
       const data = await response.json();
@@ -33,27 +35,27 @@ test.describe('API Integration Tests', () => {
 
   test('API endpoints return valid JSON data', async ({ request }) => {
     // Test zones endpoint
-    const zonesResponse = await request.get('http://localhost:8080/api/zones');
+    const zonesResponse = await request.get(`${API_BASE_URL}/api/zones`);
     const zonesData = await zonesResponse.json();
     expect(zonesData.type).toBe('FeatureCollection');
     expect(Array.isArray(zonesData.features)).toBe(true);
 
     // Test risk endpoint
-    const riskResponse = await request.get('http://localhost:8080/api/risk?at=2025-11-11T12:00:00Z');
+    const riskResponse = await request.get(`${API_BASE_URL}/api/risk?at=2025-11-11T12:00:00Z`);
     const riskData = await riskResponse.json();
     expect(Array.isArray(riskData)).toBe(true);
     expect(riskData[0]).toHaveProperty('zoneId');
     expect(riskData[0]).toHaveProperty('risk');
 
     // Test resources endpoint
-    const resourcesResponse = await request.get('http://localhost:8080/api/resources');
+    const resourcesResponse = await request.get(`${API_BASE_URL}/api/resources`);
     const resourcesData = await resourcesResponse.json();
     expect(resourcesData).toHaveProperty('depots');
     expect(resourcesData).toHaveProperty('equipment');
     expect(resourcesData).toHaveProperty('crews');
 
     // Test alerts endpoint
-    const alertsResponse = await request.get('http://localhost:8080/api/alerts');
+    const alertsResponse = await request.get(`${API_BASE_URL}/api/alerts`);
     const alertsData = await alertsResponse.json();
     expect(Array.isArray(alertsData)).toBe(true);
     expect(alertsData[0]).toHaveProperty('id');
@@ -61,7 +63,7 @@ test.describe('API Integration Tests', () => {
   });
 
   test('API CORS headers are properly set', async ({ request }) => {
-    const response = await request.get('http://localhost:8080/api/zones');
+    const response = await request.get(`${API_BASE_URL}/api/zones`);
 
     // Check for CORS headers
     const corsHeaders = {
@@ -78,14 +80,14 @@ test.describe('API Integration Tests', () => {
 
   test('API POST endpoints work', async ({ request }) => {
     // Test alert acknowledgement
-    const ackResponse = await request.post('http://localhost:8080/api/alerts/A-1001/ack');
+    const ackResponse = await request.post(`${API_BASE_URL}/api/alerts/A-1001/ack`);
     expect(ackResponse.status()).toBe(200);
 
     const ackData = await ackResponse.json();
     expect(ackData.success).toBe(true);
 
     // Test communication endpoint
-    const commResponse = await request.post('http://localhost:8080/api/comms', {
+    const commResponse = await request.post(`${API_BASE_URL}/api/comms`, {
       data: {
         channel: 'global',
         from: 'Test User',
@@ -100,7 +102,7 @@ test.describe('API Integration Tests', () => {
   });
 
   test('API health check endpoint', async ({ request }) => {
-    const response = await request.get('http://localhost:8080/health');
+    const response = await request.get(`${API_BASE_URL}/health`);
     expect(response.status()).toBe(200);
 
     const data = await response.json();
@@ -110,7 +112,7 @@ test.describe('API Integration Tests', () => {
 
   test('API error handling for missing files', async ({ request }) => {
     // Test non-existent risk file
-    const response = await request.get('http://localhost:8080/api/risk?at=non-existent-timestamp');
+    const response = await request.get(`${API_BASE_URL}/api/risk?at=non-existent-timestamp`);
     expect(response.status()).toBe(200); // Should fallback to default file
 
     const data = await response.json();

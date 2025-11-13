@@ -1,0 +1,57 @@
+[
+  {
+    "id": "G-RIV-12",
+    "name": "River North Gauge",
+    "lat": 40.418,
+    "lng": -3.699,
+    "level_m": 3.2,
+    "trend": "rising",
+    "alert_threshold": 3.5,
+    "critical_threshold": 4.0,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-RIV-08",
+    "name": "River Central Gauge",
+    "lat": 40.416,
+    "lng": -3.705,
+    "level_m": 2.8,
+    "trend": "steady",
+    "alert_threshold": 3.2,
+    "critical_threshold": 3.8,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-RIV-15",
+    "name": "River South Gauge",
+    "lat": 40.409,
+    "lng": -3.712,
+    "level_m": 4.1,
+    "trend": "rising",
+    "alert_threshold": 3.8,
+    "critical_threshold": 4.5,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-STORM-01",
+    "name": "Storm Drain East",
+    "lat": 40.421,
+    "lng": -3.678,
+    "level_m": 1.5,
+    "trend": "falling",
+    "alert_threshold": 2.0,
+    "critical_threshold": 2.5,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-STORM-03",
+    "name": "Storm Drain West",
+    "lat": 40.412,
+    "lng": -3.718,
+    "level_m": 2.2,
+    "trend": "rising",
+    "alert_threshold": 2.0,
+    "critical_threshold": 2.8,
+    "last_updated": "2025-11-11T12:00:00Z"
+  }
+]

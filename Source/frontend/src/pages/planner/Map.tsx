@@ -23,7 +23,7 @@ export function PlannerMap() {
   // Fetch data from API
   const { data: zones, isLoading: zonesLoading, error: zonesError } = useZones();
   const { data: riskData, isLoading: riskLoading, error: riskError } = useRiskData();
-  const { data: alerts, isLoading: alertsLoading } = useAlerts();
+  const { data: alerts, isLoading: alertsLoading, error: alertsError } = useAlerts();
 
   const handleLayerToggle = (layer: keyof typeof layers) => {
     setLayers(prev => ({ ...prev, [layer]: !prev[layer] }));
@@ -37,56 +37,36 @@ export function PlannerMap() {
     setSelectedZone(zoneId);
   };
 
-  // Get selected zone details
   const selectedZoneData = zones?.features.find(zone => zone.properties.id === selectedZone);
   const selectedRiskData = riskData?.find(risk => risk.zoneId === selectedZone);
   const selectedZoneAlerts = alerts?.filter(alert => alert.zoneId === selectedZone);
+  const isLoading = zonesLoading || riskLoading || alertsLoading;
+  const hasError = Boolean(zonesError || riskError || alertsError);
 
-  if (zonesLoading || riskLoading || alertsLoading) {
+  const renderContent = () => {
+    if (hasError) {
+      return (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center text-red-600">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+            <p>Error loading map data. Please try again.</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!zones || !riskData || !alerts || isLoading) {
+      return (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Clock className="h-8 w-8 animate-spin mx-auto mb-2" />
+            <p>Loading map data...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Clock className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p>Loading map data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (zonesError || riskError) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center text-red-600">
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
-          <p>Error loading map data. Please try again.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Planner Risk Map</h1>
-          <p className="text-muted-foreground">
-            Interactive flood risk assessment and scenario planning
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
-            <span>{timeHorizon} forecast</span>
-          </Badge>
-          {selectedZone && (
-            <Badge variant="secondary" className="flex items-center space-x-1">
-              <MapPin className="h-3 w-3" />
-              <span>{selectedZoneData?.properties.name}</span>
-            </Badge>
-          )}
-        </div>
-      </div>
-
       <Tabs defaultValue="map" className="space-y-4">
         <TabsList>
           <TabsTrigger value="map">Risk Map</TabsTrigger>
@@ -96,7 +76,7 @@ export function PlannerMap() {
 
         <TabsContent value="map" className="space-y-4">
           <MapView
-            zones={zones!}
+            zones={zones}
             riskData={riskData}
             selectedZone={selectedZone}
             onZoneSelect={handleZoneSelect}
@@ -297,6 +277,33 @@ export function PlannerMap() {
           </Card>
         </TabsContent>
       </Tabs>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Planner Risk Map</h1>
+          <p className="text-muted-foreground">
+            Interactive flood risk assessment and scenario planning
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Badge variant="outline" className="flex items-center space-x-1">
+            <Clock className="h-3 w-3" />
+            <span>{timeHorizon} forecast</span>
+          </Badge>
+          {selectedZone && (
+            <Badge variant="secondary" className="flex items-center space-x-1">
+              <MapPin className="h-3 w-3" />
+              <span>{selectedZoneData?.properties.name}</span>
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {renderContent()}
     </div>
   );
 }

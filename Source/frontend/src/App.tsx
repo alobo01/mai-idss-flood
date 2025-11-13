@@ -1,7 +1,9 @@
+import { Fragment } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
 import { RoleSelector } from '@/components/RoleSelector';
 import { useAppContext } from '@/contexts/AppContext';
+import { ADMIN_BASE_PATH, ADMIN_PATH_ALIASES, getAdminPath } from '@/lib/routes';
 
 // Placeholder page components
 import { PlannerMap } from '@/pages/planner/Map';
@@ -19,6 +21,7 @@ import { MapTestPage } from '@/components/MapTestPage';
 
 function App() {
   const { currentRole } = useAppContext();
+  const adminDefaultPath = getAdminPath('regions');
 
   if (!currentRole) {
     return <RoleSelector />;
@@ -31,7 +34,7 @@ function App() {
         <Route path="/" element={
           <Navigate
             to={
-              currentRole === 'Administrator' ? '/admin/regions' :
+              currentRole === 'Administrator' ? adminDefaultPath :
               currentRole === 'Data Analyst' ? '/analyst/overview' :
               currentRole === 'Coordinator' ? '/coordinator/ops' :
               '/planner/map'
@@ -39,6 +42,14 @@ function App() {
             replace
           />
         } />
+
+        {ADMIN_PATH_ALIASES.map((basePath) => (
+          <Route
+            key={`${basePath}-root`}
+            path={basePath}
+            element={<Navigate to={adminDefaultPath} replace />}
+          />
+        ))}
 
         {/* Planner Routes */}
         <Route path="/planner/map" element={<PlannerMap />} />
@@ -49,11 +60,15 @@ function App() {
         <Route path="/coordinator/ops" element={<CoordinatorOps />} />
         <Route path="/coordinator/resources" element={<CoordinatorResources />} />
 
-        {/* Administrator Routes */}
-        <Route path="/admin/regions" element={<AdminRegions />} />
-        <Route path="/admin/thresholds" element={<AdminThresholds />} />
-        <Route path="/admin/resources" element={<AdminResources />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
+        {/* Administrator Routes (support legacy /admin paths) */}
+        {ADMIN_PATH_ALIASES.map((basePath) => (
+          <Fragment key={basePath}>
+            <Route path={`${basePath}/regions`} element={<AdminRegions />} />
+            <Route path={`${basePath}/thresholds`} element={<AdminThresholds />} />
+            <Route path={`${basePath}/resources`} element={<AdminResources />} />
+            <Route path={`${basePath}/users`} element={<AdminUsers />} />
+          </Fragment>
+        ))}
         
         {/* Data Analyst Routes */}
         <Route path="/analyst/overview" element={<AnalystOverview />} />

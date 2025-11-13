@@ -16,7 +16,7 @@ Common issues, solutions, and frequently asked questions for the Flood Predictio
 
 2. **Verify Service Health**:
    ```bash
-   curl http://localhost:8080/health
+   curl http://localhost:18080/health
    # Should return: {"status":"ok","database":"connected"}
    ```
 
@@ -54,21 +54,21 @@ Common issues, solutions, and frequently asked questions for the Flood Predictio
 **Symptoms**: 404 errors, CORS issues, blank API documentation
 
 **Common Causes**:
-1. **Wrong Port**: API is on port 8080, not 3000
+1. **Wrong Port**: API is on port 18080, not 3000
 2. **Service Naming**: Docker services renamed from 'api' to 'backend'
 3. **Proxy Configuration**: nginx needs backend service reference
 
 **Solutions**:
 1. **Use Correct URLs**:
-   - API: `http://localhost:8080/*`
-   - Documentation: `http://localhost:8080/api-docs/`
+   - API: `http://localhost:18080/*`
+   - Documentation: `http://localhost:18080/api-docs/`
    - Frontend: `http://localhost/`
 
 2. **Check nginx Configuration**:
    ```bash
    # Verify nginx proxy passes to backend service
    docker compose exec frontend grep proxy_pass /etc/nginx/nginx.conf
-   # Should show: proxy_pass http://backend:8080
+   # Should show: proxy_pass http://backend:18080
    ```
 
 3. **Rebuild Containers**:
@@ -97,7 +97,7 @@ Common issues, solutions, and frequently asked questions for the Flood Predictio
    curl -H "Origin: http://localhost" \
         -H "Access-Control-Request-Method: GET" \
         -H "Access-Control-Request-Headers: X-Requested-With" \
-        -X OPTIONS http://localhost:8080/api/zones
+        -X OPTIONS http://localhost:18080/api/zones
    ```
 
 ## 📊 Documentation Issues
@@ -110,7 +110,7 @@ Common issues, solutions, and frequently asked questions for the Flood Predictio
 **Solution**: Use direct backend access
 ```bash
 # Direct access to backend Swagger UI
-http://localhost:8080/api-docs/
+http://localhost:18080/api-docs/
 
 # Or use frontend proxy (if configured)
 http://localhost/api-docs/
@@ -122,7 +122,7 @@ http://localhost/api-docs/
 **Solutions**:
 1. **Check Spec Endpoint**:
    ```bash
-   curl http://localhost:8080/api/openapi.json
+   curl http://localhost:18080/api/openapi.json
    # Should return JSON specification
    ```
 
@@ -191,7 +191,7 @@ http://localhost/api-docs/
 2. **Validate GeoJSON**:
    ```bash
    # Validate GeoJSON format
-   curl http://localhost:8080/api/zones | python3 -m json.tool
+   curl http://localhost:18080/api/zones | python3 -m json.tool
    ```
 
 ## 🔧 Performance Issues
@@ -257,7 +257,7 @@ http://localhost/api-docs/
    ```javascript
    // Verify test configuration matches service URLs
    const baseURL = 'http://localhost';  // Frontend URL
-   const apiURL = 'http://localhost:8080';  // API URL
+   const apiURL = 'http://localhost:18080';  // API URL
    ```
 
 ### API Testing Failures
@@ -266,20 +266,20 @@ http://localhost/api-docs/
 **Debugging Steps**:
 1. **Verbose curl Output**:
    ```bash
-   curl -v http://localhost:8080/health
+   curl -v http://localhost:18080/health
    # Shows full request/response headers
    ```
 
 2. **Check Response Headers**:
    ```bash
-   curl -I http://localhost:8080/api/zones
+   curl -I http://localhost:18080/api/zones
    # Check Content-Type and status codes
    ```
 
 3. **Test with Different Methods**:
    ```bash
    # Test POST endpoints with sample data
-   curl -X POST http://localhost:8080/api/comms \
+   curl -X POST http://localhost:18080/api/comms \
         -H "Content-Type: application/json" \
         -d '{"channel":"sms","from":"test","to":"test","message":"test"}'
    ```
@@ -311,8 +311,8 @@ http://localhost/api-docs/
 **Solutions**:
 1. **Find Process Using Port**:
    ```bash
-   lsof -i :8080
-   # Shows process using port 8080
+   lsof -i :18080
+   # Shows process using port 18080
    ```
 
 2. **Kill Conflicting Process**:
@@ -329,7 +329,7 @@ http://localhost/api-docs/
 docker compose ps
 
 # 2. Test health endpoint
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 
 # 3. Check logs
 docker compose logs backend
@@ -338,13 +338,13 @@ docker compose logs backend
 docker compose exec backend npm run test-db
 
 # 5. Verify sample endpoint
-curl http://localhost:8080/api/zones
+curl http://localhost:18080/api/zones
 ```
 
 ### Frontend-API Communication
 ```bash
 # 1. Test direct API access
-curl http://localhost:8080/api/zones
+curl http://localhost:18080/api/zones
 
 # 2. Test through nginx proxy
 curl http://localhost/api/zones
@@ -353,7 +353,7 @@ curl http://localhost/api/zones
 docker compose exec frontend nginx -t
 
 # 4. Test CORS preflight
-curl -X OPTIONS http://localhost:8080/api/zones
+curl -X OPTIONS http://localhost:18080/api/zones
 ```
 
 ## 🆘 Getting Help

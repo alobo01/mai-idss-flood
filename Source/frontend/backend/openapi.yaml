@@ -1,0 +1,1078 @@
+openapi: 3.0.3
+info:
+  title: Flood Prediction API
+  description: |
+    ## PostgreSQL-backed REST API for Flood Prediction System
+
+    This API provides comprehensive access to flood prediction data including:
+    - Geographic zones with risk assessments
+    - Real-time alerts and communications
+    - Resource deployment tracking
+    - Infrastructure monitoring
+    - Response planning tools
+
+    **Authentication**: Currently no authentication required (development mode)
+
+    **Base URL**: `http://localhost:18080`
+
+    **Documentation**: Available at `/api-docs`
+
+    **Database**: PostgreSQL with PostGIS for geospatial data
+  version: 2.0.0
+  contact:
+    name: Flood Prediction System
+    email: admin@flood-prediction.local
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:18080
+    description: Development server
+  - url: https://api.flood-prediction.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: System health and status endpoints
+  - name: Zones
+    description: Geographic zone management and visualization
+  - name: Risk
+    description: Risk assessment and prediction data
+  - name: Assets
+    description: Critical infrastructure and assets
+  - name: Resources
+    description: Emergency resources and deployment
+  - name: Alerts
+    description: System alerts and notifications
+  - name: Communications
+    description: Communication logs and messaging
+  - name: Gauges
+    description: River gauge monitoring data
+  - name: Damage
+    description: Damage assessment and reporting
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health and database connectivity
+      operationId: getHealth
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          description: System unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/zones:
+    get:
+      tags:
+        - Zones
+      summary: Get all zones
+      description: Retrieve all geographic zones as GeoJSON feature collection
+      operationId: getZones
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoJSONFeatureCollection'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/risk:
+    get:
+      tags:
+        - Risk
+      summary: Get risk assessments
+      description: Retrieve risk assessments for specific time and horizon
+      operationId: getRiskAssessments
+      parameters:
+        - name: at
+          in: query
+          description: Forecast timestamp (ISO 8601 or hyphenated format)
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2025-11-11T12:00:00Z"
+        - name: timeHorizon
+          in: query
+          description: Time horizon for prediction
+          required: false
+          schema:
+            type: string
+            enum: [6h, 12h, 18h, 24h, 48h, 72h]
+            default: "12h"
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/RiskAssessment'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/assets:
+    get:
+      tags:
+        - Assets
+      summary: Get assets
+      description: Retrieve critical assets with optional zone filtering
+      operationId: getAssets
+      parameters:
+        - name: zoneId
+          in: query
+          description: Filter by zone ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/resources:
+    get:
+      tags:
+        - Resources
+      summary: Get resources
+      description: Retrieve emergency resources with deployment status
+      operationId: getResources
+      parameters:
+        - name: status
+          in: query
+          description: Filter by resource status
+          required: false
+          schema:
+            type: string
+            enum: [available, deployed, standby, maintenance]
+        - name: type
+          in: query
+          description: Filter by resource type
+          required: false
+          schema:
+            type: string
+            enum: [emergency_crew, fire_crew, medical_crew, engineering_crew, equipment]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/alerts:
+    get:
+      tags:
+        - Alerts
+      summary: Get alerts
+      description: Retrieve system alerts with filtering options
+      operationId: getAlerts
+      parameters:
+        - name: severity
+          in: query
+          description: Filter by severity level
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: acknowledged
+          in: query
+          description: Filter by acknowledgment status
+          required: false
+          schema:
+            type: boolean
+        - name: zoneId
+          in: query
+          description: Filter by zone ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Maximum number of alerts to return
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/alerts/{id}/ack:
+    post:
+      tags:
+        - Alerts
+      summary: Acknowledge alert
+      description: Mark an alert as acknowledged
+      operationId: acknowledgeAlert
+      parameters:
+        - name: id
+          in: path
+          description: Alert ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Acknowledgment details
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acknowledgedBy:
+                  type: string
+                  description: Name of person acknowledging
+                  example: "John Doe"
+              required:
+                - acknowledgedBy
+      responses:
+        '200':
+          description: Alert acknowledged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertAckResponse'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/comms:
+    get:
+      tags:
+        - Communications
+      summary: Get communications
+      description: Retrieve communication logs with filtering
+      operationId: getCommunications
+      parameters:
+        - name: channel
+          in: query
+          description: Filter by communication channel
+          required: false
+          schema:
+            type: string
+            enum: [sms, email, radio, phone, social, public]
+        - name: priority
+          in: query
+          description: Filter by priority level
+          required: false
+          schema:
+            type: string
+            enum: [low, normal, high, urgent]
+        - name: limit
+          in: query
+          description: Maximum number of communications to return
+          required: false
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Communication'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Communications
+      summary: Create communication
+      description: Create a new communication record
+      operationId: createCommunication
+      requestBody:
+        description: Communication details
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  enum: [sms, email, radio, phone, social, public]
+                  description: Communication channel
+                  example: "sms"
+                from:
+                  type: string
+                  description: Sender information
+                  example: "Emergency Command Center"
+                to:
+                  type: string
+                  description: Recipient information
+                  example: "All Zone Residents"
+                message:
+                  type: string
+                  description: Message content
+                  example: "Evacuation order issued for Riverside North"
+                direction:
+                  type: string
+                  enum: [inbound, outbound]
+                  default: outbound
+                  description: Communication direction
+                priority:
+                  type: string
+                  enum: [low, normal, high, urgent]
+                  default: normal
+                  description: Message priority
+              required:
+                - channel
+                - from
+                - to
+                - message
+      responses:
+        '201':
+          description: Communication created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunicationResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/gauges:
+    get:
+      tags:
+        - Gauges
+      summary: Get river gauges
+      description: Retrieve river gauge monitoring data
+      operationId: getGauges
+      parameters:
+        - name: status
+          in: query
+          description: Filter by gauge status
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, maintenance, error]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Gauge'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/damage-index:
+    get:
+      tags:
+        - Damage
+      summary: Get damage index
+      description: Retrieve damage assessments and index calculations
+      operationId: getDamageIndex
+      parameters:
+        - name: zoneId
+          in: query
+          description: Filter by zone ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: assetType
+          in: query
+          description: Filter by asset type
+          required: false
+          schema:
+            type: string
+            enum: [hospital, school, power_plant, bridge, road, water_treatment]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DamageIndex'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/plan:
+    get:
+      tags:
+        - Response Plans
+      summary: Get response plans
+      description: Retrieve emergency response plans
+      operationId: getResponsePlans
+      parameters:
+        - name: status
+          in: query
+          description: Filter by plan status
+          required: false
+          schema:
+            type: string
+            enum: [draft, active, archived]
+        - name: type
+          in: query
+          description: Filter by plan type
+          required: false
+          schema:
+            type: string
+            enum: [evacuation, shelter, medical, infrastructure, communication]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResponsePlan'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-13T11:00:00.000Z"
+        database:
+          type: string
+          enum: [connected, disconnected]
+          example: "connected"
+        version:
+          type: string
+          example: "2.0.0"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Internal server error"
+        message:
+          type: string
+          example: "Database connection failed"
+        details:
+          type: string
+          description: Detailed error information (development only)
+
+    GeoJSONFeatureCollection:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+          example: "FeatureCollection"
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [Feature]
+              geometry:
+                $ref: '#/components/schemas/GeoJSONGeometry'
+              properties:
+                $ref: '#/components/schemas/ZoneProperties'
+
+    GeoJSONGeometry:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [Polygon]
+          example: "Polygon"
+        coordinates:
+          type: array
+          description: Polygon coordinates
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+              minItems: 2
+                maxItems: 2
+
+    ZoneProperties:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000001"
+        name:
+          type: string
+          example: "Riverside North"
+        description:
+          type: string
+          example: "Northern riverside residential area"
+        population:
+          type: integer
+          example: 12450
+        area_km2:
+          type: number
+          format: decimal
+          example: 15.2
+
+    RiskAssessment:
+      type: object
+      properties:
+        riskLevel:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          example: 0.75
+        timeHorizon:
+          type: string
+          enum: [6h, 12h, 18h, 24h, 48h, 72h]
+          example: "12h"
+        forecastTime:
+          type: string
+          format: date-time
+          example: "2025-11-13T23:00:00.000Z"
+        zoneName:
+          type: string
+          example: "Riverside North"
+        population:
+          type: integer
+          example: 12450
+        areaKm2:
+          type: number
+          format: decimal
+          example: 15.2
+        riskFactors:
+          type: object
+          properties:
+            precipitation:
+              type: number
+              example: 45.2
+            riverLevel:
+              type: number
+              example: 3.8
+            soilSaturation:
+              type: number
+              example: 87
+            temperature:
+              type: number
+              example: 15.5
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "10000000-0000-0000-0000-000000000001"
+        zoneId:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000001"
+        zoneName:
+          type: string
+          example: "Riverside North"
+        name:
+          type: string
+          example: "Hospital HN1"
+        type:
+          type: string
+          enum: [hospital, school, power_plant, bridge, road, water_treatment, government, commercial]
+          example: "hospital"
+        criticality:
+          type: string
+          enum: [low, medium, high, critical]
+          example: "critical"
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [Point]
+            coordinates:
+              type: array
+              items:
+                type: number
+              minItems: 2
+              maxItems: 2
+              example: [-3.705, 40.415]
+        address:
+          type: string
+          example: "123 Riverside Ave"
+        capacity:
+          type: integer
+          example: 200
+        metadata:
+          type: object
+          example:
+            emergency_services: true
+            floors: 5
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "20000000-0000-0000-0000-000000000001"
+        name:
+          type: string
+          example: "Emergency Team Alpha"
+        type:
+          type: string
+          enum: [emergency_crew, fire_crew, medical_crew, engineering_crew, equipment]
+          example: "emergency_crew"
+        status:
+          type: string
+          enum: [available, deployed, standby, maintenance]
+          example: "available"
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [Point]
+            coordinates:
+              type: array
+              items:
+                type: number
+              minItems: 2
+              maxItems: 2
+              example: [-3.695, 40.405]
+        capacity:
+          type: integer
+          example: 12
+        capabilities:
+          type: array
+          items:
+            type: string
+          example: ["medical", "rescue", "evacuation"]
+        contactInfo:
+          type: object
+          example:
+            phone: "+1-555-0001"
+            email: "alpha@emergency.gov"
+        deployment:
+          type: object
+          nullable: true
+          properties:
+            zoneId:
+              type: string
+              format: uuid
+            zoneName:
+              type: string
+            deploymentTime:
+              type: string
+              format: date-time
+            returnTime:
+              type: string
+              format: date-time
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "30000000-0000-0000-0000-000000000001"
+        zoneId:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000001"
+        zoneName:
+          type: string
+          example: "Riverside North"
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+          example: "high"
+        alertType:
+          type: string
+          enum: [flood_warning, infrastructure, weather, information, evacuation]
+          example: "flood_warning"
+        title:
+          type: string
+          example: "Flood Warning - Riverside North"
+        message:
+          type: string
+          example: "River levels rising rapidly. Prepare for possible evacuation."
+        acknowledged:
+          type: boolean
+          example: false
+        acknowledgedBy:
+          type: string
+          nullable: true
+          example: "operator1"
+        acknowledgedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolved:
+          type: boolean
+          example: false
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          example:
+            source: "river_gauge"
+            threshold_exceeded: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-13T10:00:00.000Z"
+
+    AlertAckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Alert acknowledged successfully"
+        alert:
+          $ref: '#/components/schemas/Alert'
+
+    Communication:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "40000000-0000-0000-0000-000000000001"
+        channel:
+          type: string
+          enum: [sms, email, radio, phone, social, public]
+          example: "sms"
+        sender:
+          type: string
+          example: "Emergency Command Center"
+        recipient:
+          type: string
+          example: "All Zone Residents"
+        message:
+          type: string
+          example: "Evacuation order issued for Riverside North"
+        direction:
+          type: string
+          enum: [inbound, outbound]
+          example: "outbound"
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          example: "high"
+        status:
+          type: string
+          enum: [pending, sent, delivered, failed]
+          example: "sent"
+        metadata:
+          type: object
+          example:
+            delivery_attempts: 1
+            response_received: false
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-11-13T10:15:00.000Z"
+
+    CommunicationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        communication:
+          $ref: '#/components/schemas/Communication'
+
+    Gauge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "50000000-0000-0000-0000-000000000001"
+        name:
+          type: string
+          example: "River Gauge RG01"
+        location:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [Point]
+            coordinates:
+              type: array
+              items:
+                type: number
+              minItems: 2
+              maxItems: 2
+              example: [-3.700, 40.420]
+        riverName:
+          type: string
+          example: "Manzanares River"
+        gaugeType:
+          type: string
+          enum: [water_level, flow_rate, precipitation]
+          example: "water_level"
+        unit:
+          type: string
+          example: "meters"
+        alertThreshold:
+          type: number
+          format: decimal
+          example: 4.5
+        warningThreshold:
+          type: number
+          format: decimal
+          example: 3.5
+        status:
+          type: string
+          enum: [active, inactive, maintenance, error]
+          example: "active"
+        recentReadings:
+          type: array
+          items:
+            type: object
+            properties:
+              readingValue:
+                type: number
+                format: decimal
+                example: 3.2
+              readingTime:
+                type: string
+                format: date-time
+                example: "2025-11-13T10:00:00.000Z"
+              qualityFlag:
+                type: string
+                enum: [good, suspect, bad]
+                example: "good"
+        metadata:
+          type: object
+          example:
+            elevation: 650.5
+            basin: "Manzanares Basin"
+
+    DamageIndex:
+      type: object
+      properties:
+        zoneId:
+          type: string
+          format: uuid
+          example: "00000000-0000-0000-0000-000000000001"
+        zoneName:
+          type: string
+          example: "Riverside North"
+        damageIndex:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 25
+        totalAssets:
+          type: integer
+          example: 15
+        damagedAssets:
+          type: integer
+          example: 3
+        estimatedCost:
+          type: number
+          format: decimal
+          example: 150000.50
+        assessments:
+          type: array
+          items:
+            type: object
+            properties:
+              assetId:
+                type: string
+                format: uuid
+              assetName:
+                type: string
+                example: "Main Bridge"
+              assetType:
+                type: string
+                example: "bridge"
+              damageLevel:
+                type: number
+                format: decimal
+                minimum: 0
+                maximum: 1
+                example: 0.3
+              damageType:
+                type: string
+                enum: [structural, water_damage, debris, electrical, access]
+                example: "structural"
+              estimatedCost:
+                type: number
+                format: decimal
+                example: 50000.00
+              status:
+                type: string
+                enum: [reported, assessed, repaired]
+                example: "assessed"
+              assessmentTime:
+                type: string
+                format: date-time
+                example: "2025-11-13T09:30:00.000Z"
+
+    ResponsePlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "60000000-0000-0000-0000-000000000001"
+        name:
+          type: string
+          example: "Zone Evacuation Plan - Riverside North"
+        description:
+          type: string
+          example: "Comprehensive evacuation plan for Riverside North zone"
+        type:
+          type: string
+          enum: [evacuation, shelter, medical, infrastructure, communication]
+          example: "evacuation"
+        triggerConditions:
+          type: array
+          items:
+            type: string
+          example: ["river_level > 4.0m", "rainfall > 50mm/24h"]
+        recommendedActions:
+          type: array
+          items:
+            type: string
+          example: ["Issue evacuation order", "Open emergency shelters", "Deploy rescue teams"]
+        requiredResources:
+          type: array
+          items:
+            type: string
+          example: ["emergency_crews", "transportation", "medical_supplies"]
+        estimatedDuration:
+          type: string
+          example: "6-12 hours"
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          example: "high"
+        status:
+          type: string
+          enum: [draft, active, archived]
+          example: "active"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-10-01T08:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-11-01T14:30:00.000Z"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (when implemented)
+
+security:
+  - ApiKeyAuth: []
+  - {}

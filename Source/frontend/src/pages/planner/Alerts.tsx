@@ -117,17 +117,17 @@ export function PlannerAlerts() {
                   {Object.entries(alertTrends).map(([severity, count]) => {
                     const total = Object.values(alertTrends).reduce((sum, c) => sum + c, 0);
                     const percentage = total > 0 ? (count / total) * 100 : 0;
-                    const colorClass = severity === 'Severe' ? 'bg-red-500' :
-                                     severity === 'High' ? 'bg-orange-500' :
-                                     severity === 'Moderate' ? 'bg-yellow-500' :
-                                     'bg-blue-500';
+                    const colorClass = severity === 'Severe' ? 'bg-red-500 dark:bg-red-400' :
+                                     severity === 'High' ? 'bg-orange-500 dark:bg-orange-400' :
+                                     severity === 'Moderate' ? 'bg-yellow-500 dark:bg-yellow-400' :
+                                     'bg-blue-500 dark:bg-blue-400';
 
                     return (
                       <div key={severity} className="flex items-center space-x-3">
                         <div className="w-16 text-sm font-medium">{severity}</div>
-                        <div className="flex-1 bg-gray-200 rounded-full h-4 relative">
+                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative overflow-hidden">
                           <div
-                            className={`${colorClass} h-4 rounded-full transition-all duration-300`}
+                            className={`${colorClass} h-4 rounded-full transition-all duration-300 ease-out`}
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
@@ -152,9 +152,9 @@ export function PlannerAlerts() {
                       return acc;
                     }, {} as Record<string, number>)
                   ).map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div key={type} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                       <span className="text-sm font-medium">{type}</span>
-                      <Badge variant="secondary">{count}</Badge>
+                      <Badge variant="secondary" className="bg-gray-100 dark:bg-gray-700">{count}</Badge>
                     </div>
                   ))}
                 </div>
@@ -169,22 +169,22 @@ export function PlannerAlerts() {
               <CardContent>
                 {resources && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Available Crews</span>
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        {resources.crews.filter(c => c.status === 'Available').length}
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                      <span className="text-sm font-medium text-green-800 dark:text-green-200">Available Crews</span>
+                      <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        {resources.crews.filter(c => c.status === 'ready').length}
                       </Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Deployed Crews</span>
-                      <Badge variant="default" className="bg-orange-100 text-orange-800">
-                        {resources.crews.filter(c => c.status === 'Deployed').length}
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                      <span className="text-sm font-medium text-orange-800 dark:text-orange-200">Deployed Crews</span>
+                      <Badge variant="default" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+                        {resources.crews.filter(c => c.status === 'working' || c.status === 'enroute').length}
                       </Badge>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Available Equipment</span>
-                      <Badge variant="default" className="bg-blue-100 text-blue-800">
-                        {resources.equipment.filter(e => e.status === 'Available').length}
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Available Equipment</span>
+                      <Badge variant="default" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                        {resources.equipment.filter(e => e.status === 'available').length}
                       </Badge>
                     </div>
                   </div>
@@ -199,24 +199,24 @@ export function PlannerAlerts() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 text-sm">
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <div className="font-medium text-yellow-800">⚠️ High Activity Detected</div>
-                    <div className="text-yellow-700 mt-1">
+                  <div className="p-3 bg-yellow-50/70 border border-yellow-200/70 dark:bg-yellow-950/30 dark:border-yellow-800/50 rounded-lg">
+                    <div className="font-medium text-yellow-800 dark:text-yellow-200">⚠️ High Activity Detected</div>
+                    <div className="text-yellow-700 dark:text-yellow-300 mt-1">
                       {recentAlerts.length > 10 ? 'Elevated alert volume in the last 24h' : 'Normal alert volume'}
                     </div>
                   </div>
                   {highSeverityAlerts > 5 && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded">
-                      <div className="font-medium text-red-800">🚨 Critical Alert Load</div>
-                      <div className="text-red-700 mt-1">
+                    <div className="p-3 bg-red-50/70 border border-red-200/70 dark:bg-red-950/30 dark:border-red-800/50 rounded-lg">
+                      <div className="font-medium text-red-800 dark:text-red-200">🚨 Critical Alert Load</div>
+                      <div className="text-red-700 dark:text-red-300 mt-1">
                         Multiple high-severity alerts requiring immediate coordination
                       </div>
                     </div>
                   )}
                   {acknowledgedAlerts > activeAlerts && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded">
-                      <div className="font-medium text-green-800">✅ Good Response Rate</div>
-                      <div className="text-green-700 mt-1">
+                    <div className="p-3 bg-green-50/70 border border-green-200/70 dark:bg-green-950/30 dark:border-green-800/50 rounded-lg">
+                      <div className="font-medium text-green-800 dark:text-green-200">✅ Good Response Rate</div>
+                      <div className="text-green-700 dark:text-green-300 mt-1">
                         Teams responding efficiently to incoming alerts
                       </div>
                     </div>

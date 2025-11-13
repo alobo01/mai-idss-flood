@@ -9,32 +9,52 @@
       - generic [ref=e8]:
         - generic [ref=e9]:
           - img [ref=e10]
-          - generic [ref=e12]: Flood Prediction
+          - heading "Flood Prediction" [level=1] [ref=e12]
         - generic [ref=e13]: Administrator
       - generic [ref=e14]:
         - button "Toggle dark mode" [ref=e15] [cursor=pointer]:
           - img [ref=e16]
-        - button "Administrator" [ref=e22] [cursor=pointer]:
-          - img [ref=e23]
+        - button "Administrator" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
           - text: Administrator
-  - generic [ref=e26]:
-    - complementary [ref=e27]:
-      - navigation [ref=e28]:
-        - link "Regions" [ref=e29] [cursor=pointer]:
-          - /url: /admin/regions
-          - img [ref=e30]
-          - generic [ref=e33]: Regions
-        - link "Thresholds" [ref=e34] [cursor=pointer]:
-          - /url: /admin/thresholds
+  - generic [ref=e22]:
+    - complementary [ref=e23]:
+      - navigation [ref=e24]:
+        - link "Regions" [ref=e25] [cursor=pointer]:
+          - /url: /administrator/regions
+          - img [ref=e26]
+          - generic [ref=e29]: Regions
+        - link "Thresholds" [ref=e30] [cursor=pointer]:
+          - /url: /administrator/thresholds
+          - img [ref=e31]
+          - generic [ref=e33]: Thresholds
+        - link "Resources" [ref=e34] [cursor=pointer]:
+          - /url: /administrator/resources
           - img [ref=e35]
-          - generic [ref=e37]: Thresholds
-        - link "Resources" [ref=e38] [cursor=pointer]:
-          - /url: /admin/resources
-          - img [ref=e39]
-          - generic [ref=e43]: Resources
-        - link "Users" [ref=e44] [cursor=pointer]:
-          - /url: /admin/users
-          - img [ref=e45]
-          - generic [ref=e50]: Users
-    - main [ref=e51]
+          - generic [ref=e39]: Resources
+        - link "Users" [ref=e40] [cursor=pointer]:
+          - /url: /administrator/users
+          - img [ref=e41]
+          - generic [ref=e46]: Users
+    - main [ref=e47]:
+      - generic [ref=e48]:
+        - heading "Regions Manager" [level=1] [ref=e49]
+        - generic [ref=e52]:
+          - img [ref=e53]
+          - generic [ref=e55]:
+            - heading "Zone Management" [level=3] [ref=e56]
+            - paragraph [ref=e57]: Use the interactive map editor to create, edit, and manage flood prediction zones. Draw new zones, edit existing boundaries, and configure zone properties like population and critical infrastructure assets.
+            - generic [ref=e58]:
+              - strong [ref=e59]: "Features:"
+              - text: Drawing tools • Zone property editing • Import/Export GeoJSON • Real-time validation
+        - generic [ref=e62]:
+          - img [ref=e63]
+          - generic [ref=e65]:
+            - heading "Error" [level=3] [ref=e66]
+            - list [ref=e67]:
+              - listitem [ref=e68]: Unexpected token '<', "<!doctype "... is not valid JSON
+        - generic [ref=e71]:
+          - img [ref=e72]
+          - paragraph [ref=e74]: Failed to load zones data
+          - paragraph [ref=e75]: Please refresh the page to try again
 ```

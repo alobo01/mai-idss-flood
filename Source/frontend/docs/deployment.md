@@ -75,16 +75,16 @@ npm run dev
 ### Development URLs
 
 - **Frontend**: http://localhost:5173
-- **Mock API**: http://localhost:8080
-- **API Health**: http://localhost:8080/health
+- **Mock API**: http://localhost:18080
+- **API Health**: http://localhost:18080/health
 
 ### Development Configuration
 
 ```env
 # .env.development
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:18080
 VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-VITE_WS_URL=ws://localhost:8080
+VITE_WS_URL=ws://localhost:18080
 VITE_ENVIRONMENT=development
 VITE_LOG_LEVEL=debug
 ```
@@ -123,7 +123,7 @@ services:
       - "5173:80"
     environment:
       - NODE_ENV=production
-      - VITE_API_BASE_URL=http://api:8080
+      - VITE_API_BASE_URL=http://api:18080
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     depends_on:
       api:
@@ -140,17 +140,17 @@ services:
       dockerfile: Dockerfile
     container_name: flood-api
     ports:
-      - "8080:8080"
+      - "18080:18080"
     environment:
       - NODE_ENV=production
-      - PORT=8080
+      - PORT=18080
     volumes:
       - ./public/mock:/data:ro
     restart: unless-stopped
     networks:
       - flood-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:18080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -592,7 +592,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
+          target: env.VITE_API_BASE_URL || 'http://localhost:18080',
           changeOrigin: true,
         },
       },
@@ -776,7 +776,7 @@ docker stats
 
 ```bash
 # Test health endpoint manually
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 
 # Check container health
 docker compose ps
@@ -793,7 +793,7 @@ docker network ls
 docker network inspect flood-prediction_flood-network
 
 # Test API connectivity
-curl -v http://localhost:8080/api/zones
+curl -v http://localhost:18080/api/zones
 
 # Check DNS resolution
 nslookup api.flood-prediction.example.com

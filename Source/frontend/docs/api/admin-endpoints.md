@@ -10,7 +10,7 @@ The Administrator API provides programmatic access to all system management func
 
 ```
 Production: https://your-domain.com/api/admin
-Development: http://localhost:8080/api/admin
+Development: http://localhost:18080/api/admin
 ```
 
 ## 🔐 Authentication
@@ -719,7 +719,7 @@ X-RateLimit-Reset: 1640995200
 
 ```bash
 # 1. Create a new planner user
-curl -X POST http://localhost:8080/api/admin/users \
+curl -X POST http://localhost:18080/api/admin/users \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -734,7 +734,7 @@ curl -X POST http://localhost:8080/api/admin/users \
   }'
 
 # 2. Create equipment for the user's zones
-curl -X POST http://localhost:8080/api/admin/resources/equipment \
+curl -X POST http://localhost:18080/api/admin/resources/equipment \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -746,7 +746,7 @@ curl -X POST http://localhost:8080/api/admin/resources/equipment \
   }'
 
 # 3. Set up alert rules for their zones
-curl -X POST http://localhost:8080/api/admin/alerts/rules \
+curl -X POST http://localhost:18080/api/admin/alerts/rules \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -764,13 +764,13 @@ curl -X POST http://localhost:8080/api/admin/alerts/rules \
 
 ```bash
 # Export current configuration
-curl -X GET http://localhost:8080/api/admin/export/thresholds \
+curl -X GET http://localhost:18080/api/admin/export/thresholds \
   -H "Authorization: Bearer $TOKEN" \
   -o thresholds_backup.json
 
 # Update thresholds in bulk
 cat new_thresholds.json | jq '.risk[]' | while read threshold; do
-  curl -X POST http://localhost:8080/api/admin/thresholds/risk \
+  curl -X POST http://localhost:18080/api/admin/thresholds/risk \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d "$threshold"
@@ -783,7 +783,7 @@ done
 Verify the API is running:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 ```
 
 ### Authentication Test
@@ -791,13 +791,13 @@ Test authentication:
 
 ```bash
 # Login
-TOKEN=$(curl -X POST http://localhost:8080/api/auth/login \
+TOKEN=$(curl -X POST http://localhost:18080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin.flood", "password": "password"}' \
   | jq -r '.token')
 
 # Test authenticated request
-curl -X GET http://localhost:8080/api/admin/users \
+curl -X GET http://localhost:18080/api/admin/users \
   -H "Authorization: Bearer $TOKEN"
 ```
 

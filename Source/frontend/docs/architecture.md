@@ -71,7 +71,7 @@ Services:
 
   - api:
       image: flood-api:latest
-      ports: ["8080:8080"]
+      ports: ["18080:18080"]
       technology: Node.js + Express
 
   - database: (Future)

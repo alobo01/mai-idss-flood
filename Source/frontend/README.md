@@ -23,8 +23,8 @@ npm run dev
 
 **Applications will be available at:**
 - Frontend: http://localhost:5173
-- Mock API: http://localhost:8080
-- API Health: http://localhost:8080/health
+- Mock API: http://localhost:18080
+- API Health: http://localhost:18080/health
 
 ### Using Docker (Production Setup)
 
@@ -37,8 +37,8 @@ docker compose -f docker-compose.prod.yml up --build
 
 **Applications will be available at:**
 - Frontend: http://localhost
-- API Server: http://localhost:8080
-- API Documentation: http://localhost:8080/api-docs/
+- API Server: http://localhost:18080
+- API Documentation: http://localhost:18080/api-docs/
 
 ## 📋 Overview
 
@@ -252,8 +252,8 @@ docker compose -f docker-compose.prod.yml up --build
 
 ### Health Checks
 - Frontend health: `http://localhost`
-- API health: `http://localhost:8080/health`
-- API Documentation: `http://localhost:8080/api-docs/`
+- API health: `http://localhost:18080/health`
+- API Documentation: `http://localhost:18080/api-docs/`
 - Automatic service dependencies and restarts
 
 ## 📈 Performance

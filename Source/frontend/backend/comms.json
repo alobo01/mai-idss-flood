@@ -1,0 +1,58 @@
+[
+  {
+    "id": "M-1",
+    "channel": "global",
+    "from": "Coordinator",
+    "text": "All crews check radios and report readiness status",
+    "timestamp": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "M-2",
+    "channel": "task:Z-ALFA",
+    "from": "C-A1",
+    "text": "Starting pump deployment at Riverside North",
+    "timestamp": "2025-11-11T12:18:00Z"
+  },
+  {
+    "id": "M-3",
+    "channel": "global",
+    "from": "Coordinator",
+    "text": "Weather alert: Heavy rainfall expected in next 2-3 hours",
+    "timestamp": "2025-11-11T12:25:00Z"
+  },
+  {
+    "id": "M-4",
+    "channel": "task:Z-ECHO",
+    "from": "C-C2",
+    "text": "En route to Riverside South with pump P-003",
+    "timestamp": "2025-11-11T12:30:00Z"
+  },
+  {
+    "id": "M-5",
+    "channel": "task:Z-ALFA",
+    "from": "C-A1",
+    "text": "Road blocked near Hospital HN1, requesting clearance team",
+    "timestamp": "2025-11-11T12:35:00Z"
+  },
+  {
+    "id": "M-6",
+    "channel": "global",
+    "from": "Coordinator",
+    "text": "Bravo Crew: Priority assignment to clear Hospital HN1 access",
+    "timestamp": "2025-11-11T12:40:00Z"
+  },
+  {
+    "id": "M-7",
+    "channel": "task:Z-CHARLIE",
+    "from": "C-B3",
+    "text": "Access protection barriers in place at Residential Heights",
+    "timestamp": "2025-11-11T12:45:00Z"
+  },
+  {
+    "id": "M-8",
+    "channel": "task:Z-ECHO",
+    "from": "C-C2",
+    "text": "Pump operational at Riverside South, water level stabilizing",
+    "timestamp": "2025-11-11T12:55:00Z"
+  }
+]

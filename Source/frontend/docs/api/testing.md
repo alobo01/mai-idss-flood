@@ -5,8 +5,8 @@ Comprehensive guide for testing the Flood Prediction API endpoints, including au
 ## 🧪 Testing Overview
 
 ### Testing Environment
-- **Base URL**: `http://localhost:8080`
-- **Documentation**: `http://localhost:8080/api-docs/`
+- **Base URL**: `http://localhost:18080`
+- **Documentation**: `http://localhost:18080/api-docs/`
 - **Database**: PostgreSQL with test data populated
 
 ### Testing Strategies
@@ -19,9 +19,9 @@ Comprehensive guide for testing the Flood Prediction API endpoints, including au
 
 ### Using Swagger UI
 
-The interactive Swagger UI at `http://localhost:8080/api-docs/` provides the easiest way to test the API:
+The interactive Swagger UI at `http://localhost:18080/api-docs/` provides the easiest way to test the API:
 
-1. **Open Documentation**: Navigate to `http://localhost:8080/api-docs/`
+1. **Open Documentation**: Navigate to `http://localhost:18080/api-docs/`
 2. **Select Endpoint**: Click on any endpoint to expand it
 3. **Try It Out**: Click the "Try it out" button
 4. **Execute**: Click "Execute" to send a real request
@@ -33,30 +33,30 @@ Basic curl commands for testing API endpoints:
 
 #### Health Check
 ```bash
-curl -v http://localhost:8080/health
+curl -v http://localhost:18080/health
 ```
 
 #### Get All Zones
 ```bash
-curl -v http://localhost:8080/api/zones
+curl -v http://localhost:18080/api/zones
 ```
 
 #### Filtered Requests
 ```bash
 # Get high severity alerts
-curl -v "http://localhost:8080/api/alerts?severity=high"
+curl -v "http://localhost:18080/api/alerts?severity=high"
 
 # Get available resources
-curl -v "http://localhost:8080/api/resources?status=available"
+curl -v "http://localhost:18080/api/resources?status=available"
 
 # Get risk assessments for 24h horizon
-curl -v "http://localhost:8080/api/risk?timeHorizon=24h"
+curl -v "http://localhost:18080/api/risk?timeHorizon=24h"
 ```
 
 #### POST Requests
 ```bash
 # Send communication
-curl -X POST http://localhost:8080/api/comms \
+curl -X POST http://localhost:18080/api/comms \
   -H "Content-Type: application/json" \
   -d '{
     "channel": "sms",
@@ -67,7 +67,7 @@ curl -X POST http://localhost:8080/api/comms \
   }'
 
 # Acknowledge alert
-curl -X POST http://localhost:8080/api/alerts/30000000-0000-0000-0000-000000000001/ack \
+curl -X POST http://localhost:18080/api/alerts/30000000-0000-0000-0000-000000000001/ack \
   -H "Content-Type: application/json" \
   -d '{"acknowledgedBy":"John Doe"}'
 ```
@@ -78,12 +78,12 @@ Use browser developer tools for testing:
 
 ```javascript
 // Test GET request
-fetch('http://localhost:8080/api/zones')
+fetch('http://localhost:18080/api/zones')
   .then(response => response.json())
   .then(data => console.log(data));
 
 // Test POST request
-fetch('http://localhost:8080/api/comms', {
+fetch('http://localhost:18080/api/comms', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ npm install axios mocha chai
 const axios = require('axios');
 const { expect } = require('chai');
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = 'http://localhost:18080';
 
 describe('Flood Prediction API Tests', () => {
 
@@ -331,7 +331,7 @@ import requests
 import pytest
 import json
 
-API_BASE = "http://localhost:8080"
+API_BASE = "http://localhost:18080"
 
 class TestFloodPredictionAPI:
 
@@ -517,7 +517,7 @@ test.describe('API Integration', () => {
     await page.goto('http://localhost');
 
     // Wait for API to be available
-    const response = await page.request.get('http://localhost:8080/health');
+    const response = await page.request.get('http://localhost:18080/health');
     expect(response.status()).toBe(200);
   });
 
@@ -529,7 +529,7 @@ test.describe('API Integration', () => {
     await page.waitForSelector('[data-testid="leaflet-map"]');
 
     // Check if zones are loaded (by checking if map features exist)
-    const zonesResponse = await page.request.get('http://localhost:8080/api/zones');
+    const zonesResponse = await page.request.get('http://localhost:18080/api/zones');
     expect(zonesResponse.status()).toBe(200);
 
     const zonesData = zonesResponse.json();
@@ -542,7 +542,7 @@ test.describe('API Integration', () => {
     await page.click('[data-testid="alerts-link"]');
 
     // Check if alerts are loaded
-    const alertsResponse = await page.request.get('http://localhost:8080/api/alerts');
+    const alertsResponse = await page.request.get('http://localhost:18080/api/alerts');
     expect(alertsResponse.status()).toBe(200);
 
     // Test alert acknowledgment
@@ -556,7 +556,7 @@ test.describe('API Integration', () => {
         await ackButton.click();
 
         // Verify acknowledgment in UI
-        const updatedAlertsResponse = await page.request.get(`http://localhost:8080/api/alerts/${alert.id}`);
+        const updatedAlertsResponse = await page.request.get(`http://localhost:18080/api/alerts/${alert.id}`);
         const updatedAlert = updatedAlertsResponse.json();
         expect(updatedAlert.acknowledged).toBe(true);
       }
@@ -574,7 +574,7 @@ test.describe('API Integration', () => {
       await sendButton.click();
 
       // Verify communication was created via API
-      const commsResponse = await page.request.get('http://localhost:8080/api/comms');
+      const commsResponse = await page.request.get('http://localhost:18080/api/comms');
       expect(commsResponse.status()).toBe(200);
       expect(commsResponse.json()).toBeInstanceOf(Array);
     }
@@ -598,7 +598,7 @@ Create a load testing script:
 import http from 'k6/http';
 import { check } from 'k6';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = 'http://localhost:18080';
 
 export let options = {
   stages: [
@@ -712,7 +712,7 @@ docker compose up --build
 
 ```bash
 # Check database connection
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 
 # Should return:
 # {
@@ -759,7 +759,7 @@ docker compose logs postgres
 **Solution**: Check if database is populated:
 ```bash
 # Check zones count
-curl http://localhost:8080/api/zones | jq '.features | length'
+curl http://localhost:18080/api/zones | jq '.features | length'
 
 # If 0, repopulate database
 cd ../scripts && node populate-database.js

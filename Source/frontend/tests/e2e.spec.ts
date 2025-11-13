@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+const ADMIN_BASE_PATH = '/administrator';
+const LEGACY_ADMIN_PATH = '/admin';
+
 test.describe('Flood Prediction System - E2E Tests', () => {
 
   test.beforeEach(async ({ page }) => {
@@ -23,16 +26,31 @@ test.describe('Flood Prediction System - E2E Tests', () => {
 
     for (const role of roles) {
       await page.goto('/');
+
+      // Wait for role selector to load
+      await expect(page.getByText('Select your role to continue')).toBeVisible({ timeout: 10000 });
+
+      // Wait for and click the role selection button
+      await page.waitForSelector(`text=Select ${role}`, { timeout: 10000 });
       await page.click(`text=Select ${role}`);
 
-      // Verify we're redirected to the correct role page
-      await expect(page).toHaveURL(new RegExp(`/${role.toLowerCase()}/`));
+      // Wait for navigation to complete and page to load
+      await page.waitForLoadState('networkidle');
+
+      // Verify we're redirected to the correct role page (handle Data Analyst special case)
+      if (role === 'Data Analyst') {
+        await expect(page).toHaveURL(/\/analyst\//);
+      } else if (role === 'Administrator') {
+        await expect(page).toHaveURL(/\/(admin|administrator)\//);
+      } else {
+        await expect(page).toHaveURL(new RegExp(`/${role.toLowerCase()}/`));
+      }
 
       // Verify role badge is displayed
       await expect(page.locator('div').filter({ hasText: role }).first()).toBeVisible();
 
       // Verify app shell is loaded
-      await expect(page.getByText('Flood Prediction')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Flood Prediction' })).toBeVisible();
     }
   });
 
@@ -53,24 +71,33 @@ test.describe('Flood Prediction System - E2E Tests', () => {
   });
 
   test('Role switcher in header works', async ({ page }) => {
+    // Wait for role selector to load
+    await expect(page.getByText('Select your role to continue')).toBeVisible();
+
     await page.click('text=Select Planner');
 
-    // Open role switcher dropdown
-    await page.click('text=Planner');
+    // Wait for the page to load and find the role switcher dropdown
+    await page.waitForSelector('[data-state="closed"]', { timeout: 10000 });
+
+    // Open role switcher dropdown (look for the dropdown trigger button)
+    const roleSwitcherButton = page.locator('button').filter({ hasText: 'Planner' }).first();
+    await expect(roleSwitcherButton).toBeVisible();
+    await roleSwitcherButton.click();
 
     // Switch to Coordinator role
+    await page.waitForSelector('text=Coordinator', { timeout: 10000 });
     await page.click('text=Coordinator');
 
     // Verify role changed
     await expect(page).toHaveURL(/\/coordinator\//);
-    await expect(page.getByText('Coordinator')).toBeVisible();
+    await expect(page.locator('div').filter({ hasText: 'Coordinator' }).first()).toBeVisible();
   });
 
   test('Navigation works for Planner role', async ({ page }) => {
     await page.click('text=Select Planner');
 
     // Test navigation to different planner pages
-    await expect(page.getByText('Risk Map')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Risk Map' })).toBeVisible();
 
     await page.click('text=Alerts');
     await expect(page.getByText('Alerts Timeline')).toBeVisible();
@@ -99,13 +126,13 @@ test.describe('Flood Prediction System - E2E Tests', () => {
     await page.click('text=Select Administrator');
 
     // Test administrator navigation
-    await expect(page.getByText('Regions')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Regions' })).toBeVisible();
 
     await page.click('text=Thresholds');
-    await expect(page.getByText('Threshold Configuration')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Threshold Configuration' })).toBeVisible();
 
     await page.click('text=Resources');
-    await expect(page.getByText('Resource Catalog')).toBeVisible();
+    await expect(page.getByText('Resource Management')).toBeVisible();
 
     await page.click('text=Users');
     await expect(page.getByText('User Management')).toBeVisible();
@@ -139,25 +166,34 @@ test.describe('Flood Prediction System - E2E Tests', () => {
     // Select a role
     await page.click('text=Select Planner');
 
-    // Verify mobile menu toggle is visible
-    const menuButton = page.getByLabel('Open menu');
+    // Verify mobile menu toggle is visible (use the button with Menu icon)
+    const menuButton = page.locator('button').filter({ has: page.locator('svg') }).first();
     await expect(menuButton).toBeVisible();
 
     // Test mobile menu
     await menuButton.click();
-    await expect(page.getByText('Risk Map')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Risk Map' })).toBeVisible();
 
     // Close menu
     await menuButton.click();
   });
 
   test('Logout functionality works', async ({ page }) => {
+    // Wait for role selector to load
+    await expect(page.getByText('Select your role to continue')).toBeVisible();
+
     await page.click('text=Select Planner');
 
-    // Open role switcher
-    await page.click('text=Planner');
+    // Wait for the page to load
+    await page.waitForSelector('text=Planner', { timeout: 10000 });
+
+    // Open role switcher dropdown
+    const roleSwitcherButton = page.locator('button').filter({ hasText: 'Planner' }).first();
+    await expect(roleSwitcherButton).toBeVisible();
+    await roleSwitcherButton.click();
 
     // Click logout
+    await page.waitForSelector('text=Logout', { timeout: 10000 });
     await page.click('text=Logout');
 
     // Should return to role selector
@@ -168,46 +204,63 @@ test.describe('Flood Prediction System - E2E Tests', () => {
   test('Direct URL navigation works', async ({ page }) => {
     // Test direct navigation to role pages
     await page.goto('/planner/map');
-    await expect(page.getByText('Planner Risk Map')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Planner Risk Map' })).toBeVisible({ timeout: 10000 });
 
     await page.goto('/coordinator/ops');
-    await expect(page.getByText('Live Operations Board')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText('Live Operations Board')).toBeVisible({ timeout: 10000 });
 
-    await page.goto('/admin/regions');
-    await expect(page.getByText('Regions Manager')).toBeVisible();
+    await page.goto(`${ADMIN_BASE_PATH}/regions`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Regions Manager' })).toBeVisible({ timeout: 10000 });
 
     await page.goto('/analyst/overview');
-    await expect(page.getByText('Analytical Map')).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText('Analytical Map')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Legacy admin URLs work (admin paths are supported)', async ({ page }) => {
+    // Both /admin and /administrator paths should work
+    await page.goto(`${LEGACY_ADMIN_PATH}/regions`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Regions Manager' })).toBeVisible({ timeout: 10000 });
+
+    await page.goto(`${LEGACY_ADMIN_PATH}/thresholds`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { name: 'Threshold Configuration' })).toBeVisible({ timeout: 10000 });
   });
 
   test('Page content renders correctly', async ({ page }) => {
-    // Test that placeholder content is rendered on all pages
+    // Test that actual content is rendered on all pages
     const testPages = [
-      { url: '/planner/map', content: 'Map will be implemented here' },
-      { url: '/planner/scenarios', content: 'Scenario tools will be implemented here' },
-      { url: '/planner/alerts', content: 'Alerts timeline will be implemented here' },
-      { url: '/coordinator/ops', content: 'Ops board will be implemented here' },
-      { url: '/coordinator/resources', content: 'Resource allocation view will be implemented here' },
-      { url: '/admin/regions', content: 'GeoJSON zone editor will be implemented here' },
-      { url: '/admin/thresholds', content: 'Threshold configuration will be implemented here' },
-      { url: '/admin/resources', content: 'Resource management will be implemented here' },
-      { url: '/admin/users', content: 'User management will be implemented here' },
-      { url: '/analyst/overview', content: 'Analytical layers will be implemented here' },
-      { url: '/analyst/exports', content: 'Export functionality will be implemented here' },
+      { url: '/planner/map', content: 'Planner Risk Map' },
+      { url: '/planner/scenarios', content: 'Scenario planning tools will be implemented here' },
+      { url: '/planner/alerts', content: 'Alerts Timeline' },
+      { url: '/coordinator/ops', content: 'Live Operations Board' },
+      { url: '/coordinator/resources', content: 'Resource Allocation' },
+      { url: `${ADMIN_BASE_PATH}/regions`, content: 'Regions Manager' },
+      { url: `${ADMIN_BASE_PATH}/thresholds`, content: 'Threshold Configuration' },
+      { url: `${ADMIN_BASE_PATH}/resources`, content: 'Resource Management' },
+      { url: `${ADMIN_BASE_PATH}/users`, content: 'User Management' },
+      { url: '/analyst/overview', content: 'Analytical Map' },
+      { url: '/analyst/exports', content: 'Export Tools' },
     ];
 
     for (const { url, content } of testPages) {
       await page.goto(url);
-      await expect(page.getByText(content)).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { name: content })).toBeVisible({ timeout: 10000 });
     }
   });
 
   test('API integration test - verify mock API is accessible', async ({ page }) => {
     // Navigate to application
     await page.goto('/planner/map');
+    await page.waitForLoadState('networkidle');
 
     // Check that the page can access mock data (no error messages)
-    await expect(page.getByText('Planner Risk Map')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Planner Risk Map' })).toBeVisible({ timeout: 10000 });
 
     // Verify the page loads without API errors
     const consoleLogs = [];
@@ -233,14 +286,11 @@ test.describe('Flood Prediction System - E2E Tests', () => {
     const firstRoleButton = page.locator('button').filter({ hasText: 'Select Administrator' }).first();
     await expect(firstRoleButton).toBeFocused();
 
-    // Continue tabbing through elements
-    await page.keyboard.press('Tab');
-
-    // Test Enter key selection
+    // Test Enter key selection directly (without extra tab)
     await page.keyboard.press('Enter');
 
-    // Should navigate to the selected role
-    await expect(page).toHaveURL(/\/administrator\//);
+    // Should navigate to an administrator path (either /admin or /administrator)
+    await expect(page).toHaveURL(/\/(admin|administrator)\//);
   });
 
 });

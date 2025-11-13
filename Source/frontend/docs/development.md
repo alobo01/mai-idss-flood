@@ -113,9 +113,9 @@ nano .env.development
 
 ```env
 # .env.development
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:18080
 VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-VITE_WS_URL=ws://localhost:8080
+VITE_WS_URL=ws://localhost:18080
 VITE_ENVIRONMENT=development
 VITE_LOG_LEVEL=debug
 VITE_ENABLE_MOCK_API=true
@@ -1199,7 +1199,7 @@ docker compose up --build
 
 # Check port conflicts
 lsof -ti:5173
-lsof -ti:8080
+lsof -ti:18080
 ```
 
 ### Performance Issues

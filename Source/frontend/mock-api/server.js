@@ -4,19 +4,33 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 18080;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:80', 'http://localhost'],
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
 }));
+app.use((req, res, next) => {
+  res.header('access-control-allow-origin', '*');
+  res.header('access-control-allow-methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('access-control-allow-headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.json());
 
-// Data storage paths - the mock data is mounted at /srv/public/mock in the container
-const dataPath = path.join('/srv', 'public', 'mock');
+// Data storage paths - allow override for local dev
+const containerDataPath = path.join('/srv', 'public', 'mock');
+const localDataPath = path.join(__dirname, '..', 'public', 'mock');
+const dataPath = process.env.MOCK_DATA_PATH
+  ? path.resolve(process.env.MOCK_DATA_PATH)
+  : (fs.existsSync(containerDataPath) ? containerDataPath : localDataPath);
+
+console.log(`[Mock API] Using data directory: ${dataPath}`);
 
 // Helper functions
 const readJsonFile = (filename) => {
@@ -24,7 +38,7 @@ const readJsonFile = (filename) => {
     const filePath = path.join(dataPath, filename);
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (error) {
-    console.error(`Error reading ${filename}:`, error);
+    console.error(`Error reading ${filename} from ${dataPath}:`, error);
     return null;
   }
 };
@@ -32,10 +46,11 @@ const readJsonFile = (filename) => {
 const writeJsonFile = (filename, data) => {
   try {
     const filePath = path.join(dataPath, filename);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
     return true;
   } catch (error) {
-    console.error(`Error writing ${filename}:`, error);
+    console.error(`Error writing ${filename} to ${dataPath}:`, error);
     return false;
   }
 };
@@ -222,6 +237,28 @@ app.get('/api/plan', (req, res) => {
 app.get('/api/comms', (req, res) => {
   const commsData = readJsonFile('comms.json');
   res.json(commsData);
+});
+
+app.post('/api/comms', (req, res) => {
+  const { channel, from, text } = req.body;
+
+  if (!channel || !from || !text) {
+    return res.status(400).json({ error: 'channel, from, and text are required' });
+  }
+
+  const commsData = readJsonFile('comms.json') || [];
+  const newMessage = {
+    id: generateId('COMM'),
+    channel,
+    from,
+    text,
+    timestamp: new Date().toISOString(),
+  };
+
+  commsData.push(newMessage);
+  writeJsonFile('comms.json', commsData);
+
+  res.json({ success: true, ...newMessage });
 });
 
 // Administrator API endpoints

@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -56,8 +61,11 @@ export default defineConfig({
   webServer: [
     {
       command: 'cd mock-api && npm start',
-      port: 8080,
+      port: 18080,
       reuseExistingServer: !process.env.CI,
+      env: {
+        MOCK_DATA_PATH: path.resolve(__dirname, 'public/mock'),
+      },
     },
     {
       command: 'npm run dev',

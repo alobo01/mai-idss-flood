@@ -494,24 +494,24 @@ All endpoints return consistent error responses:
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 
 # Get all zones
-curl http://localhost:8080/api/zones
+curl http://localhost:18080/api/zones
 
 # Get high-severity alerts
-curl "http://localhost:8080/api/alerts?severity=high"
+curl "http://localhost:18080/api/alerts?severity=high"
 
 # Get available resources
-curl "http://localhost:8080/api/resources?status=available"
+curl "http://localhost:18080/api/resources?status=available"
 
 # Acknowledge an alert
-curl -X POST http://localhost:8080/api/alerts/30000000-0000-0000-0000-000000000001/ack \
+curl -X POST http://localhost:18080/api/alerts/30000000-0000-0000-0000-000000000001/ack \
   -H "Content-Type: application/json" \
   -d '{"acknowledgedBy":"John Doe"}'
 
 # Send communication
-curl -X POST http://localhost:8080/api/comms \
+curl -X POST http://localhost:18080/api/comms \
   -H "Content-Type: application/json" \
   -d '{
     "channel": "sms",
@@ -527,7 +527,7 @@ curl -X POST http://localhost:8080/api/comms \
 ```typescript
 // API Client Example
 class FloodPredictionAPI {
-  private baseUrl = 'http://localhost:8080';
+  private baseUrl = 'http://localhost:18080';
 
   async getZones() {
     const response = await fetch(`${this.baseUrl}/api/zones`);

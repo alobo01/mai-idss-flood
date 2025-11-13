@@ -6,14 +6,14 @@ Complete documentation for the Flood Prediction System REST API with PostgreSQL 
 
 ### Access the API
 
-- **Base URL**: `http://localhost:8080`
-- **Interactive Documentation**: `http://localhost:8080/api-docs/`
-- **Health Check**: `http://localhost:8080/health`
-- **OpenAPI Spec**: `http://localhost:8080/api/openapi.json`
+- **Base URL**: `http://localhost:18080`
+- **Interactive Documentation**: `http://localhost:18080/api-docs/`
+- **Health Check**: `http://localhost:18080/health`
+- **OpenAPI Spec**: `http://localhost:18080/api/openapi.json`
 
 ### Try It Now
 
-1. **Open** `http://localhost:8080/api-docs/` in your browser
+1. **Open** `http://localhost:18080/api-docs/` in your browser
 2. **Click** on any endpoint to expand it
 3. **Click** "Try it out" button
 4. **Execute** to see real database responses
@@ -166,7 +166,7 @@ The API manages comprehensive flood prediction data including:
 ## 🧪 Testing
 
 ### Using Swagger UI
-The interactive Swagger UI at `http://localhost:8080/api-docs/` provides:
+The interactive Swagger UI at `http://localhost:18080/api-docs/` provides:
 - **Try It Now** functionality for all endpoints
 - **Parameter validation** with examples
 - **Response examples** with actual database data
@@ -175,16 +175,16 @@ The interactive Swagger UI at `http://localhost:8080/api-docs/` provides:
 ### curl Examples
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 
 # Get all zones
-curl http://localhost:8080/api/zones
+curl http://localhost:18080/api/zones
 
 # Get recent alerts
-curl http://localhost:8080/api/alerts?limit=10
+curl http://localhost:18080/api/alerts?limit=10
 
 # Get resources by status
-curl http://localhost:8080/api/resources?status=available
+curl http://localhost:18080/api/resources?status=available
 ```
 
 ### Testing Tools
@@ -203,7 +203,7 @@ DB_NAME=flood_prediction
 DB_USER=flood_user
 DB_PASSWORD=flood_password
 NODE_ENV=development
-PORT=8080
+PORT=18080
 ```
 
 ### Database Connection
