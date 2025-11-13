@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: flood-postgres
+    environment:
+      - POSTGRES_DB=flood_prediction
+      - POSTGRES_USER=flood_user
+      - POSTGRES_PASSWORD=flood_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flood_user -d flood_prediction"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./mock-api
+      dockerfile: Dockerfile
+    container_name: flood-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./public/mock:/srv/public/mock
+    restart: unless-stopped
+
+  web:
+    build: .
+    container_name: flood-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8080
+      - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: flood-network
