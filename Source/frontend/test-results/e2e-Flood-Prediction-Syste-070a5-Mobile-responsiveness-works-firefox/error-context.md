@@ -1,0 +1,47 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button [active] [ref=e6] [cursor=pointer]:
+        - img [ref=e7]
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - img [ref=e13]
+          - heading "Flood Prediction" [level=1] [ref=e17]
+        - generic [ref=e18]: Planner
+      - generic [ref=e19]:
+        - button "Toggle dark mode" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+        - button "Planner" [ref=e23] [cursor=pointer]:
+          - img [ref=e24]
+          - text: Planner
+  - generic [ref=e27]:
+    - complementary [ref=e28]:
+      - navigation [ref=e29]:
+        - link "Risk Map" [ref=e30] [cursor=pointer]:
+          - /url: /planner/map
+          - img [ref=e31]
+          - generic [ref=e34]: Risk Map
+        - link "Scenarios" [ref=e35] [cursor=pointer]:
+          - /url: /planner/scenarios
+          - img [ref=e36]
+          - generic [ref=e39]: Scenarios
+        - link "Alerts" [ref=e40] [cursor=pointer]:
+          - /url: /planner/alerts
+          - img [ref=e41]
+          - generic [ref=e45]: Alerts
+    - main [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - heading "Planner Risk Map" [level=1] [ref=e50]
+            - paragraph [ref=e51]: Interactive flood risk assessment and scenario planning
+          - generic [ref=e53]:
+            - img [ref=e54]
+            - generic [ref=e57]: 12h forecast
+        - generic [ref=e59]:
+          - img [ref=e60]
+          - paragraph [ref=e64]: Error loading map data. Please try again.
+```

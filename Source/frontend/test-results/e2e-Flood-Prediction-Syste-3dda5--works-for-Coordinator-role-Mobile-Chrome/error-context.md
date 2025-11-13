@@ -1,0 +1,125 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button [ref=e6] [cursor=pointer]:
+        - img [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - img [ref=e10]
+          - heading "Flood Prediction" [level=1] [ref=e12]
+        - generic [ref=e13]: Coordinator
+      - generic [ref=e14]:
+        - button "Toggle dark mode" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+        - button "Coordinator" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+          - text: Coordinator
+  - generic [ref=e22]:
+    - complementary [ref=e23]:
+      - navigation [ref=e24]:
+        - link "Ops Board" [ref=e25] [cursor=pointer]:
+          - /url: /coordinator/ops
+          - img [ref=e26]
+          - generic [ref=e32]: Ops Board
+        - link "Resources" [ref=e33] [cursor=pointer]:
+          - /url: /coordinator/resources
+          - img [ref=e34]
+          - generic [ref=e38]: Resources
+    - main [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - heading "Live Operations Center" [level=1] [ref=e42]
+          - paragraph [ref=e43]: Real-time coordination and monitoring
+        - generic [ref=e44]:
+          - tablist [ref=e45]:
+            - tab "Dashboard" [selected] [ref=e46] [cursor=pointer]:
+              - img [ref=e47]
+              - generic [ref=e49]: Dashboard
+            - tab "Alerts Timeline" [ref=e50] [cursor=pointer]:
+              - img [ref=e51]
+              - generic [ref=e53]: Alerts Timeline
+            - tab "Communications" [ref=e54] [cursor=pointer]:
+              - img [ref=e55]
+              - generic [ref=e61]: Communications
+          - tabpanel "Dashboard" [ref=e62]:
+            - generic [ref=e63]:
+              - generic [ref=e64]:
+                - generic [ref=e65]:
+                  - heading "Live Operations Board" [level=1] [ref=e66]
+                  - paragraph [ref=e67]: Real-time flood response coordination
+                - generic [ref=e68]:
+                  - generic [ref=e69]: Current Time
+                  - generic [ref=e70]: 20:10:30
+                  - generic [ref=e71]: Nov 13, 2025
+              - generic [ref=e72]:
+                - generic [ref=e75]:
+                  - generic [ref=e76]:
+                    - paragraph [ref=e77]: Active Alerts
+                    - paragraph [ref=e78]: "0"
+                    - paragraph [ref=e79]: 0 severe
+                  - generic [ref=e80]:
+                    - img [ref=e82]
+                    - generic [ref=e84]:
+                      - img [ref=e85]
+                      - generic [ref=e88]: 9%
+                - generic [ref=e91]:
+                  - generic [ref=e92]:
+                    - paragraph [ref=e93]: Crews Deployed
+                    - paragraph [ref=e94]: "0"
+                    - paragraph [ref=e95]: 0 available
+                  - img [ref=e98]
+                - generic [ref=e105]:
+                  - generic [ref=e106]:
+                    - paragraph [ref=e107]: Critical Gauges
+                    - paragraph [ref=e108]: "0"
+                    - paragraph [ref=e109]: of 0 total
+                  - img [ref=e112]
+                - generic [ref=e117]:
+                  - generic [ref=e118]:
+                    - paragraph [ref=e119]: Recent Communications
+                    - paragraph [ref=e120]: "0"
+                    - paragraph [ref=e121]: last 10 minutes
+                  - img [ref=e124]
+              - generic [ref=e126]:
+                - generic [ref=e127]:
+                  - heading "Critical Alerts" [level=3] [ref=e129]:
+                    - img [ref=e130]
+                    - generic [ref=e132]: Critical Alerts
+                  - generic [ref=e135]:
+                    - img [ref=e136]
+                    - paragraph [ref=e138]: No critical alerts
+                - heading "River Gauges" [level=3] [ref=e141]:
+                  - img [ref=e142]
+                  - generic [ref=e145]: River Gauges
+                - generic [ref=e147]:
+                  - heading "Recent Communications" [level=3] [ref=e149]:
+                    - img [ref=e150]
+                    - generic [ref=e156]: Recent Communications
+                  - generic [ref=e159]:
+                    - img [ref=e160]
+                    - paragraph [ref=e162]: No recent communications
+              - generic [ref=e163]:
+                - heading "Resource Status" [level=3] [ref=e165]:
+                  - img [ref=e166]
+                  - generic [ref=e171]: Resource Status
+                - generic [ref=e173]:
+                  - generic [ref=e174]:
+                    - heading "Crew Status" [level=4] [ref=e175]
+                    - generic [ref=e176]:
+                      - generic [ref=e177]:
+                        - generic [ref=e178]: "Ready:"
+                        - generic [ref=e179]: "0"
+                      - generic [ref=e180]:
+                        - generic [ref=e181]: "Deployed:"
+                        - generic [ref=e182]: "0"
+                  - heading "Equipment Status" [level=4] [ref=e184]
+                  - generic [ref=e185]:
+                    - heading "Active Zones" [level=4] [ref=e186]
+                    - generic [ref=e188]: No active zones
+                  - generic [ref=e189]:
+                    - heading "System Health" [level=4] [ref=e190]
+                    - generic [ref=e193]: All systems operational
+```
