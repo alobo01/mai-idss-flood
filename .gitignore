@@ -76,7 +76,8 @@ Source/frontend/test-results/
 # Data and large artifacts
 # -----------------------------
 # Keep repository lightweight: ignore raw data and large model files.
-Data/
+Data/*.json
+Data/*.csv
 !Data/.gitkeep
 
 Models/

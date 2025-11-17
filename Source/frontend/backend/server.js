@@ -715,6 +715,751 @@ app.get('/api/resources', async (req, res) => {
   }
 });
 
+// Helper for admin permissions
+const getRolePermissions = (role) => {
+  const permissions = {
+    Administrator: ['system_config', 'user_management', 'threshold_management', 'zone_management', 'risk_assessment', 'resource_deployment'],
+    Planner: ['risk_assessment', 'scenario_planning', 'alert_management', 'zone_viewing', 'reporting'],
+    Coordinator: ['resource_deployment', 'crew_management', 'communications', 'alert_management', 'zone_viewing'],
+    'Data Analyst': ['data_export', 'reporting', 'analytics', 'zone_viewing'],
+  };
+
+  return permissions[role] || ['zone_viewing'];
+};
+
+const mapAdminUserRow = (row) => ({
+  id: row.id,
+  username: row.username,
+  email: row.email,
+  firstName: row.first_name,
+  lastName: row.last_name,
+  role: row.role,
+  department: row.department,
+  phone: row.phone,
+  location: row.location,
+  status: row.status,
+  zones: row.zones || [],
+  permissions: row.permissions || [],
+  createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+  updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
+  lastLogin: row.last_login instanceof Date ? row.last_login.toISOString() : row.last_login,
+});
+
+const mapRiskThresholdRow = (row) => ({
+  id: row.id,
+  name: row.name,
+  band: row.band,
+  minRisk: Number(row.min_risk),
+  maxRisk: Number(row.max_risk),
+  color: row.color,
+  description: row.description,
+  autoAlert: row.auto_alert,
+});
+
+const mapGaugeThresholdRow = (row) => ({
+  id: row.id,
+  gaugeCode: row.gauge_code,
+  gaugeName: row.gauge_name,
+  alertThreshold: row.alert_threshold != null ? Number(row.alert_threshold) : null,
+  criticalThreshold: row.critical_threshold != null ? Number(row.critical_threshold) : null,
+  unit: row.unit,
+  description: row.description,
+});
+
+const mapAlertRuleRow = (row) => ({
+  id: row.id,
+  name: row.name,
+  triggerType: row.trigger_type,
+  triggerValue: row.trigger_value,
+  severity: row.severity,
+  enabled: row.enabled,
+  channels: row.channels || [],
+  cooldownMinutes: row.cooldown_minutes != null ? Number(row.cooldown_minutes) : null,
+  description: row.description,
+});
+
+const buildAdminResourceExport = (rows) => {
+  const exportData = {
+    depots: [],
+    equipment: [],
+    crews: [],
+  };
+
+  rows.forEach((row) => {
+    const location = parsePoint(row.location);
+    const capabilities = row.capabilities || {};
+    const contact = row.contact_info || {};
+
+    if (row.type === 'depot') {
+      exportData.depots.push({
+        id: row.code,
+        name: row.name,
+        status: row.status,
+        lat: location.lat,
+        lng: location.lng,
+        capacity: row.capacity != null ? Number(row.capacity) : null,
+        manager: contact.manager || capabilities.manager || null,
+        phone: contact.phone || null,
+        address: contact.address || null,
+        zones: Array.isArray(capabilities.zones) ? capabilities.zones : [],
+      });
+      return;
+    }
+
+    if (row.type === 'equipment') {
+      exportData.equipment.push({
+        id: row.code,
+        type: capabilities.type || row.name,
+        subtype: capabilities.subtype || null,
+        capacity: capabilities.capacity_lps || row.capacity,
+        units: capabilities.units || null,
+        status: row.status,
+        depot: capabilities.depot || null,
+      });
+      return;
+    }
+
+    if (row.type === 'crew') {
+      exportData.crews.push({
+        id: row.code,
+        name: row.name,
+        status: row.status,
+        teamSize: capabilities.team_size || row.capacity,
+        skills: capabilities.skills || [],
+        depot: capabilities.depot || null,
+      });
+    }
+  });
+
+  return exportData;
+};
+
+// Administrative resource endpoints (read-only for dashboard)
+app.get('/api/admin/resources/depots', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        code,
+        name,
+        status,
+        capacity,
+        capabilities,
+        contact_info,
+        ST_AsGeoJSON(location, 6) AS location
+      FROM resources
+      WHERE LOWER(type) = 'depot'
+      ORDER BY name
+    `);
+
+    const depots = rows.map(row => {
+      const location = parsePoint(row.location);
+      const capabilities = row.capabilities || {};
+      const contact = row.contact_info || {};
+
+      return {
+        id: row.code || row.id,
+        name: row.name,
+        lat: location.lat,
+        lng: location.lng,
+        address: contact.address || null,
+        capacity: row.capacity != null ? Number(row.capacity) : null,
+        manager: contact.manager || capabilities.manager || null,
+        phone: contact.phone || null,
+        operatingHours: contact.operating_hours || null,
+        status: row.status,
+        zones: Array.isArray(capabilities.zones) ? capabilities.zones : [],
+      };
+    });
+
+    res.json(depots);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Failed to load depots',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+app.get('/api/admin/resources/equipment', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        code,
+        name,
+        status,
+        capacity,
+        capabilities,
+        contact_info
+      FROM resources
+      WHERE LOWER(type) = 'equipment'
+      ORDER BY code
+    `);
+
+    const equipment = rows.map(row => {
+      const capabilities = row.capabilities || {};
+      const contact = row.contact_info || {};
+
+      return {
+        id: row.code || row.id,
+        type: capabilities.type || row.name,
+        subtype: capabilities.subtype || null,
+        capacity_lps: capabilities.capacity_lps != null ? Number(capabilities.capacity_lps) : null,
+        units: capabilities.units != null ? Number(capabilities.units) : null,
+        depot: capabilities.depot || 'Unassigned',
+        status: row.status,
+        serialNumber: capabilities.serial_number || contact.serial_number || null,
+        manufacturer: capabilities.manufacturer || null,
+        model: capabilities.model || null,
+      };
+    });
+
+    res.json(equipment);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Failed to load equipment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+app.get('/api/admin/resources/crews', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        code,
+        name,
+        status,
+        capacity,
+        capabilities,
+        contact_info,
+        ST_AsGeoJSON(location, 6) AS location
+      FROM resources
+      WHERE LOWER(type) = 'crew'
+      ORDER BY name
+    `);
+
+    const crews = rows.map(row => {
+      const location = parsePoint(row.location);
+      const capabilities = row.capabilities || {};
+      const contact = row.contact_info || {};
+
+      const teamSize = capabilities.team_size != null
+        ? Number(capabilities.team_size)
+        : (row.capacity != null ? Number(row.capacity) : null);
+
+      return {
+        id: row.code || row.id,
+        name: row.name,
+        skills: Array.isArray(capabilities.skills) ? capabilities.skills : [],
+        depot: capabilities.depot || 'Unassigned',
+        status: row.status,
+        lat: location.lat,
+        lng: location.lng,
+        teamSize,
+        leader: capabilities.leader || contact.manager || null,
+        phone: contact.phone || null,
+        certifications: Array.isArray(capabilities.certifications) ? capabilities.certifications : [],
+      };
+    });
+
+    res.json(crews);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Failed to load crews',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Administrative user management
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM admin_users ORDER BY created_at DESC');
+    res.json(rows.map(mapAdminUserRow));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to load users', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.post('/api/admin/users', async (req, res) => {
+  const required = ['username', 'email', 'firstName', 'lastName', 'role', 'department', 'status'];
+  const missing = required.filter(field => !req.body?.[field]);
+  if (missing.length) {
+    return res.status(400).json({ error: 'Missing required fields', missing });
+  }
+
+  try {
+    const { username, email, firstName, lastName, role, department, phone, location, status, zones = [], permissions } = req.body;
+
+    const existing = await pool.query('SELECT 1 FROM admin_users WHERE username = $1 OR email = $2', [username, email]);
+    if (existing.rowCount > 0) {
+      return res.status(409).json({ error: 'Username or email already exists' });
+    }
+
+    const inserted = await pool.query(
+      `INSERT INTO admin_users (username, email, first_name, last_name, role, department, phone, location, status, zones, permissions)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [
+        username,
+        email,
+        firstName,
+        lastName,
+        role,
+        department,
+        phone || null,
+        location || null,
+        status || 'active',
+        zones,
+        permissions && permissions.length ? permissions : getRolePermissions(role),
+      ]
+    );
+
+    res.status(201).json(mapAdminUserRow(inserted.rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to create user', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.put('/api/admin/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const existing = await pool.query('SELECT * FROM admin_users WHERE id::text = $1', [userId]);
+    if (!existing.rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const row = existing.rows[0];
+    const nextRole = req.body.role ?? row.role;
+    let nextPermissions;
+    if (Array.isArray(req.body.permissions)) {
+      nextPermissions = req.body.permissions.length ? req.body.permissions : getRolePermissions(nextRole);
+    } else if (req.body.role) {
+      nextPermissions = getRolePermissions(nextRole);
+    } else {
+      nextPermissions = row.permissions || getRolePermissions(nextRole);
+    }
+
+    const zones = Array.isArray(req.body.zones) ? req.body.zones : (row.zones || []);
+
+    const { rows } = await pool.query(
+      `UPDATE admin_users
+       SET email = COALESCE($1, email),
+           first_name = COALESCE($2, first_name),
+           last_name = COALESCE($3, last_name),
+           role = COALESCE($4, role),
+           department = COALESCE($5, department),
+           phone = COALESCE($6, phone),
+           location = COALESCE($7, location),
+           status = COALESCE($8, status),
+           zones = $9,
+           permissions = $10,
+           updated_at = NOW()
+       WHERE id::text = $11
+       RETURNING *`,
+      [
+        req.body.email,
+        req.body.firstName,
+        req.body.lastName,
+        req.body.role,
+        req.body.department,
+        req.body.phone,
+        req.body.location,
+        req.body.status,
+        zones,
+        nextPermissions && nextPermissions.length ? nextPermissions : getRolePermissions(nextRole),
+        userId,
+      ]
+    );
+
+    res.json(mapAdminUserRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to update user', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.delete('/api/admin/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const { rows } = await pool.query('SELECT role FROM admin_users WHERE id::text = $1', [userId]);
+    if (!rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (rows[0].role === 'Administrator') {
+      const adminCount = await pool.query(`SELECT COUNT(*)::int AS count FROM admin_users WHERE role = 'Administrator'`);
+      if (Number(adminCount.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last administrator' });
+      }
+    }
+
+    await pool.query('DELETE FROM admin_users WHERE id::text = $1', [userId]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to delete user', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+// Risk thresholds
+app.get('/api/admin/thresholds/risk', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM admin_risk_thresholds ORDER BY min_risk ASC');
+    res.json(rows.map(mapRiskThresholdRow));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to load thresholds', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.post('/api/admin/thresholds/risk', async (req, res) => {
+  const { name, band, minRisk, maxRisk, color, description, autoAlert } = req.body || {};
+  if (name == null || band == null || minRisk == null || maxRisk == null) {
+    return res.status(400).json({ error: 'name, band, minRisk, and maxRisk are required' });
+  }
+  if (minRisk >= maxRisk || minRisk < 0 || maxRisk > 1) {
+    return res.status(400).json({ error: 'Invalid risk values' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO admin_risk_thresholds (name, band, min_risk, max_risk, color, description, auto_alert)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name, band, minRisk, maxRisk, color || null, description || null, autoAlert ?? false]
+    );
+    res.status(201).json(mapRiskThresholdRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to create threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.put('/api/admin/thresholds/risk/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, band, minRisk, maxRisk, color, description, autoAlert } = req.body || {};
+
+  if (minRisk != null && maxRisk != null) {
+    if (minRisk >= maxRisk || minRisk < 0 || maxRisk > 1) {
+      return res.status(400).json({ error: 'Invalid risk values' });
+    }
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE admin_risk_thresholds
+       SET name = COALESCE($1, name),
+           band = COALESCE($2, band),
+           min_risk = COALESCE($3, min_risk),
+           max_risk = COALESCE($4, max_risk),
+           color = COALESCE($5, color),
+           description = COALESCE($6, description),
+           auto_alert = COALESCE($7, auto_alert),
+           updated_at = NOW()
+       WHERE id::text = $8 RETURNING *`,
+      [name, band, minRisk, maxRisk, color, description, autoAlert, id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Threshold not found' });
+    }
+
+    res.json(mapRiskThresholdRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to update threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.delete('/api/admin/thresholds/risk/:id', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM admin_risk_thresholds WHERE id::text = $1', [req.params.id]);
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Threshold not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to delete threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+// Gauge thresholds
+app.get('/api/admin/thresholds/gauges', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM admin_gauge_thresholds ORDER BY gauge_name');
+    res.json(rows.map(mapGaugeThresholdRow));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to load gauge thresholds', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.post('/api/admin/thresholds/gauges', async (req, res) => {
+  const { gaugeCode, gaugeName, alertThreshold, criticalThreshold, unit, description } = req.body || {};
+  if (!gaugeCode || !gaugeName) {
+    return res.status(400).json({ error: 'gaugeCode and gaugeName are required' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO admin_gauge_thresholds (gauge_code, gauge_name, alert_threshold, critical_threshold, unit, description)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [gaugeCode, gaugeName, alertThreshold, criticalThreshold, unit || 'meters', description || null]
+    );
+    res.status(201).json(mapGaugeThresholdRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to create gauge threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.put('/api/admin/thresholds/gauges/:id', async (req, res) => {
+  const { id } = req.params;
+  const { gaugeCode, gaugeName, alertThreshold, criticalThreshold, unit, description } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE admin_gauge_thresholds
+       SET gauge_code = COALESCE($1, gauge_code),
+           gauge_name = COALESCE($2, gauge_name),
+           alert_threshold = COALESCE($3, alert_threshold),
+           critical_threshold = COALESCE($4, critical_threshold),
+           unit = COALESCE($5, unit),
+           description = COALESCE($6, description),
+           updated_at = NOW()
+       WHERE id::text = $7 RETURNING *`,
+      [gaugeCode, gaugeName, alertThreshold, criticalThreshold, unit, description, id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Gauge threshold not found' });
+    }
+    res.json(mapGaugeThresholdRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to update gauge threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.delete('/api/admin/thresholds/gauges/:id', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM admin_gauge_thresholds WHERE id::text = $1', [req.params.id]);
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Gauge threshold not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to delete gauge threshold', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+// Alert rules
+app.get('/api/admin/alerts/rules', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM admin_alert_rules ORDER BY created_at DESC');
+    res.json(rows.map(mapAlertRuleRow));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to load alert rules', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.post('/api/admin/alerts/rules', async (req, res) => {
+  const { name, triggerType, triggerValue, severity, enabled, channels, cooldownMinutes, description } = req.body || {};
+  if (!name || !triggerType || !triggerValue || !severity) {
+    return res.status(400).json({ error: 'name, triggerType, triggerValue, and severity are required' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO admin_alert_rules (name, trigger_type, trigger_value, severity, enabled, channels, cooldown_minutes, description)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name, triggerType, triggerValue, severity, enabled ?? true, channels && channels.length ? channels : ['Dashboard'], cooldownMinutes ?? 60, description || null]
+    );
+    res.status(201).json(mapAlertRuleRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to create alert rule', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.put('/api/admin/alerts/rules/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, triggerType, triggerValue, severity, enabled, channels, cooldownMinutes, description } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE admin_alert_rules
+       SET name = COALESCE($1, name),
+           trigger_type = COALESCE($2, trigger_type),
+           trigger_value = COALESCE($3, trigger_value),
+           severity = COALESCE($4, severity),
+           enabled = COALESCE($5, enabled),
+           channels = COALESCE($6, channels),
+           cooldown_minutes = COALESCE($7, cooldown_minutes),
+           description = COALESCE($8, description),
+           updated_at = NOW()
+       WHERE id::text = $9 RETURNING *`,
+      [name, triggerType, triggerValue, severity, enabled, channels, cooldownMinutes, description, id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Alert rule not found' });
+    }
+    res.json(mapAlertRuleRow(rows[0]));
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to update alert rule', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+app.delete('/api/admin/alerts/rules/:id', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM admin_alert_rules WHERE id::text = $1', [req.params.id]);
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Alert rule not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to delete alert rule', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+// Zone management
+app.put('/api/admin/zones', async (req, res) => {
+  const { geojson } = req.body || {};
+  if (!geojson || geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features)) {
+    return res.status(400).json({ error: 'Invalid GeoJSON payload' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const feature of geojson.features) {
+      const props = feature.properties || {};
+      const code = props.id || props.code;
+      if (!code || !feature.geometry) {
+        throw new Error('Each feature must include an id/code and geometry');
+      }
+
+      const updateResult = await client.query(
+        `UPDATE zones
+         SET name = COALESCE($2, name),
+             description = COALESCE($3, description),
+             population = COALESCE($4, population),
+             area_km2 = COALESCE($5, area_km2),
+             admin_level = COALESCE($6, admin_level),
+             critical_assets = COALESCE($7, critical_assets),
+             geometry = ST_SetSRID(ST_GeomFromGeoJSON($8), 4326),
+             updated_at = NOW()
+         WHERE code = $1`,
+        [
+          code,
+          props.name || null,
+          props.description || null,
+          props.population || null,
+          props.area_km2 || null,
+          props.admin_level || null,
+          props.critical_assets || [],
+          JSON.stringify(feature.geometry),
+        ]
+      );
+      if (updateResult.rowCount === 0) {
+        throw new Error(`Zone with code ${code} not found`);
+      }
+    }
+    await client.query('COMMIT');
+
+    res.json({ success: true, zones: geojson });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to update zones', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  } finally {
+    client.release();
+  }
+});
+
+// Export helpers
+app.get('/api/admin/export/:type', async (req, res) => {
+  const { type } = req.params;
+  try {
+    let data;
+    let filename = `${type}.json`;
+
+    switch (type) {
+      case 'users': {
+        const { rows } = await pool.query('SELECT * FROM admin_users ORDER BY created_at DESC');
+        data = rows.map(mapAdminUserRow);
+        filename = 'users.json';
+        break;
+      }
+      case 'thresholds': {
+        const [risk, gauges, alertsRules] = await Promise.all([
+          pool.query('SELECT * FROM admin_risk_thresholds ORDER BY min_risk'),
+          pool.query('SELECT * FROM admin_gauge_thresholds ORDER BY gauge_name'),
+          pool.query('SELECT * FROM admin_alert_rules ORDER BY name'),
+        ]);
+        data = {
+          risk: risk.rows.map(mapRiskThresholdRow),
+          gauges: gauges.rows.map(mapGaugeThresholdRow),
+          alerts: alertsRules.rows.map(mapAlertRuleRow),
+        };
+        filename = 'thresholds.json';
+        break;
+      }
+      case 'resources': {
+        const { rows } = await pool.query(`
+          SELECT code, name, type, status, capacity, capabilities, contact_info, ST_AsGeoJSON(location, 6) AS location
+          FROM resources
+          ORDER BY type, name
+        `);
+        data = buildAdminResourceExport(rows);
+        filename = 'resources.json';
+        break;
+      }
+      case 'zones': {
+        const { rows } = await pool.query(`
+          SELECT code, name, description, population, area_km2, admin_level, critical_assets, ST_AsGeoJSON(geometry, 6) AS geometry
+          FROM zones
+          ORDER BY name
+        `);
+        data = {
+          type: 'FeatureCollection',
+          features: rows.map((row) => ({
+            type: 'Feature',
+            geometry: JSON.parse(row.geometry),
+            properties: {
+              id: row.code,
+              name: row.name,
+              description: row.description,
+              population: row.population,
+              area_km2: row.area_km2,
+              admin_level: row.admin_level,
+              critical_assets: row.critical_assets || [],
+            },
+          })),
+        };
+        filename = 'zones.geojson';
+        break;
+      }
+      default:
+        return res.status(400).json({ error: 'Invalid export type' });
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.json(data);
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Failed to export data', details: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
 app.get('/api/risk', async (req, res) => {
   try {
     const { at, timeHorizon } = req.query;

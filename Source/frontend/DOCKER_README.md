@@ -1,6 +1,6 @@
 # Docker Compose Setup
 
-This document explains the Docker Compose setup for the Flood Prediction System, including the new mock API service with admin endpoints.
+This document explains the Docker Compose setup for the Flood Prediction System, which now exposes a single PostgreSQL-backed API.
 
 ## Services
 
@@ -18,44 +18,23 @@ This document explains the Docker Compose setup for the Flood Prediction System,
 - **Health Check**: Verifies API endpoints are responding
 - **Environment**: Production mode with database configuration
 
-### 3. Mock API Service ⭐ *New*
-- **Container**: `flood-mock-api`
-- **Port**: `3001`
-- **Purpose**: Mock API with admin endpoints for development and testing
-- **Health Check**: Monitors `/health` endpoint
-- **Features**:
-  - `/api/zones` - GeoJSON zone data
-  - `/api/admin/users` - User management endpoints
-  - `/api/admin/resources/*` - Resource management endpoints
-  - Full CRUD operations for admin functions
-
-### 4. Frontend Web Application
+### 3. Frontend Web Application
 - **Container**: `flood-frontend`
 - **Port**: `80` (nginx serving built React app)
 - **Purpose**: Production frontend application
-- **Dependencies**: Requires both backend and mock-api to be healthy
+- **Dependencies**: Waits for the backend API to be healthy
 - **Environment**:
-  - `VITE_API_BASE_URL=http://mock-api:3001`
+  - `VITE_API_BASE_URL=http://backend:18080`
   - `VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Mock API      │    │   PostgreSQL    │
-│   (Port 80)     │◄──►│   (Port 3001)   │◄──►│   (Port 5433)   │
-│   React App     │    │   Admin Endpoints│    │   Database      │
-│   Role Switching│    │   Mock Data     │    │   PostGIS       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                ▲
-                                │
-                                │
-                       ┌─────────────────┐
-                       │   Backend       │
-                       │   (Port 18080)   │
-                       │   Production    │
-                       │   Alternative   │
-                       └─────────────────┘
+┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+│   Frontend      │  HTTP  │   Backend API   │  SQL   │   PostgreSQL    │
+│   (Port 80)     │◄──────►│   (Port 18080)  │◄──────►│   (Port 5433)   │
+│   React + nginx │        │   Express/PG    │        │   PostGIS       │
+└─────────────────┘        └─────────────────┘        └─────────────────┘
 ```
 
 ## New Features
@@ -68,7 +47,7 @@ Administrators can now switch between different role views:
 - **Data Analyst**: Analytics and reporting
 
 ### Admin Endpoints
-The mock API provides comprehensive admin functionality:
+The API provides comprehensive admin functionality:
 - **User Management**: Create, update, delete users
 - **Resource Management**: Manage depots, equipment, and crews
 - **Zone Management**: Edit geographic zones
@@ -95,39 +74,30 @@ docker compose -f docker-compose.yml up -d --build
 ```
 
 ### Accessing Services
-- **Frontend**: http://localhost:80
-- **Mock API**: http://localhost:3001
-- **Backend API**: http://localhost:18080
+- **Frontend**: http://localhost
+- **API**: http://localhost:18080
 - **Database**: localhost:5433
 
-### Mock API Endpoints
+### API Endpoints
 ```bash
 # Health check
-curl http://localhost:3001/health
+curl http://localhost:18080/health
 
 # Zones data
-curl http://localhost:3001/api/zones
-
-# Admin users
-curl http://localhost:3001/api/admin/users
+curl http://localhost:18080/api/zones
 
 # Admin resources
-curl http://localhost:3001/api/admin/resources/depots
-curl http://localhost:3001/api/admin/resources/equipment
-curl http://localhost:3001/api/admin/resources/crews
+curl http://localhost:18080/api/admin/resources/depots
+curl http://localhost:18080/api/admin/resources/equipment
+curl http://localhost:18080/api/admin/resources/crews
 ```
 
 ## Environment Variables
 
 ### Frontend
-- `VITE_API_BASE_URL`: API base URL (mock-api:3001)
+- `VITE_API_BASE_URL`: API base URL (backend:18080)
 - `VITE_MAP_TILES_URL`: Map tile server URL
 - `NODE_ENV`: Environment mode (production)
-
-### Mock API
-- `PORT`: Server port (3001)
-- `NODE_ENV`: Environment mode (production)
-- `MOCK_DATA_PATH`: Path to mock data files
 
 ### Backend
 - `PORT`: Server port (18080)
@@ -141,26 +111,24 @@ curl http://localhost:3001/api/admin/resources/crews
 
 All services include health checks:
 - **PostgreSQL**: Database connectivity
-- **Mock API**: HTTP health endpoint
 - **Backend**: HTTP health endpoint
-- **Frontend**: Waits for API services to be healthy
+- **Frontend**: Waits for backend health check to pass
 
 ## Data Persistence
 
 - **PostgreSQL**: Volume `postgres_data` for database persistence
-- **Mock Data**: Bind mount `./public/mock:/app/public/mock:ro`
-- **No persistence**: Frontend and API containers are stateless
+- **Frontend/backend**: Stateless containers rebuilt from source
 
 ## Security
 
-- **CORS**: Mock API allows cross-origin requests
+- **CORS**: API allows cross-origin requests
 - **Network**: All services communicate within Docker network `flood-network`
 - **Ports**: Only necessary ports exposed to host
 
 ## Troubleshooting
 
 ### Common Issues
-1. **Port conflicts**: Check if ports 80, 3001, 18080, 5433 are available
+1. **Port conflicts**: Check if ports 80, 18080, 5433 are available
 2. **Health check failures**: Verify service dependencies and logs
 3. **Build failures**: Check Dockerfile and package.json files
 
@@ -170,15 +138,14 @@ All services include health checks:
 docker compose ps
 
 # View service logs
-docker compose logs mock-api
+docker compose logs backend
 docker compose logs web
 
 # Execute shell in container
-docker compose exec mock-api sh
 docker compose exec web sh
 
 # Rebuild specific service
-docker compose up --build mock-api
+docker compose up --build backend
 ```
 
 ## Development Workflow

@@ -137,7 +137,7 @@ Three-tier resource management system:
 
 ### API Integration
 
-#### Mock API Server
+#### API Server
 Complete Express.js server with the following endpoints:
 
 **User Management**
@@ -219,13 +219,12 @@ Complete Express.js server with the following endpoints:
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Start the development server: `npm run dev`
-4. Start the mock API server: `npm run api`
+4. Start the API server: `npm run api`
 5. Or run both together: `npm run dev:full`
 
 ### Development Scripts
 - `npm run dev` - Start frontend development server
-- `npm run api` - Start mock API server
-- `npm run api:dev` - Start API with nodemon for hot reload
+- `npm run api` - Start API server
 - `npm run dev:full` - Start both frontend and API simultaneously
 - `npm run build` - Build for production
 - `npm run test` - Run Playwright end-to-end tests
@@ -251,7 +250,7 @@ The system comes with comprehensive sample data:
 - Sample user accounts with different roles
 
 ### Data Persistence
-- Mock API server stores data in memory during runtime
+- API server stores data in memory during runtime
 - Zone data is saved to `public/mock/zones.geojson`
 - All other data resets when server restarts
 - Export functionality available for data backup

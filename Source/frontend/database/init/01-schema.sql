@@ -166,6 +166,67 @@ CREATE TABLE response_plans (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Administrator managed users
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    department VARCHAR(150),
+    phone VARCHAR(50),
+    location VARCHAR(150),
+    status VARCHAR(30) DEFAULT 'active',
+    zones TEXT[] DEFAULT ARRAY[]::TEXT[],
+    permissions TEXT[] DEFAULT ARRAY[]::TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_login TIMESTAMP WITH TIME ZONE
+);
+
+-- Administrator configured risk thresholds
+CREATE TABLE admin_risk_thresholds (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    band VARCHAR(50) NOT NULL,
+    min_risk DECIMAL(4,2) NOT NULL CHECK (min_risk >= 0 AND min_risk <= 1),
+    max_risk DECIMAL(4,2) NOT NULL CHECK (max_risk >= 0 AND max_risk <= 1),
+    color VARCHAR(10),
+    description TEXT,
+    auto_alert BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Administrator configured gauge thresholds
+CREATE TABLE admin_gauge_thresholds (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    gauge_code VARCHAR(50) NOT NULL,
+    gauge_name VARCHAR(150) NOT NULL,
+    alert_threshold DECIMAL(6,2),
+    critical_threshold DECIMAL(6,2),
+    unit VARCHAR(20) DEFAULT 'meters',
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Administrator alert automation rules
+CREATE TABLE admin_alert_rules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
+    trigger_type VARCHAR(100) NOT NULL,
+    trigger_value VARCHAR(150) NOT NULL,
+    severity VARCHAR(50) NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    channels TEXT[] DEFAULT ARRAY['Dashboard']::TEXT[],
+    cooldown_minutes INTEGER DEFAULT 60,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_zones_geometry ON zones USING GIST (geometry);
 CREATE INDEX idx_zones_code ON zones (code);
@@ -200,4 +261,16 @@ CREATE TRIGGER update_gauges_updated_at BEFORE UPDATE ON gauges
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_response_plans_updated_at BEFORE UPDATE ON response_plans
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_admin_users_updated_at BEFORE UPDATE ON admin_users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_admin_risk_thresholds_updated_at BEFORE UPDATE ON admin_risk_thresholds
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_admin_gauge_thresholds_updated_at BEFORE UPDATE ON admin_gauge_thresholds
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_admin_alert_rules_updated_at BEFORE UPDATE ON admin_alert_rules
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

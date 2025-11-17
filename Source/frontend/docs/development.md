@@ -118,7 +118,7 @@ VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 VITE_WS_URL=ws://localhost:18080
 VITE_ENVIRONMENT=development
 VITE_LOG_LEVEL=debug
-VITE_ENABLE_MOCK_API=true
+VITE_ENABLE_API=true
 ```
 
 ### 3. Database Bootstrap
@@ -143,10 +143,8 @@ This seeds every table (zones, risk, alerts, resources, gauges, plan, comms) usi
 # Start development server (terminal 1)
 npm run dev
 
-# Start mock API server (terminal 2)
-cd mock-api
-npm install
-npm start
+# Start API server (terminal 2)
+npm run api
 
 # Alternative: Use Docker for complete environment
 docker compose up --build
@@ -220,7 +218,7 @@ flood-prediction-frontend/
 │   ├── e2e/                     # End-to-end tests
 │   ├── integration/             # Integration tests
 │   └── utils/                   # Test utilities
-├── mock-api/                    # Mock API server
+├── api/                    # API server
 │   ├── server.js
 │   ├── package.json
 │   └── data/
@@ -1267,7 +1265,7 @@ The Administrator portal is now fully functional with complete database manageme
    - **FormDialog**: Modal forms with comprehensive validation
    - **UI Components**: Complete shadcn/ui component library
 
-3. **Mock API Server**
+3. **API Server**
    - Express.js server with 30+ administrator endpoints
    - Complete CRUD operations for all resources
    - Data validation and business logic enforcement
@@ -1281,8 +1279,8 @@ npm run dev:full
 
 # Individual services
 npm run dev          # Frontend only
-npm run api           # Mock API server
-npm run api:dev       # API with hot reload
+npm run api           # API server
+npm run api           # API with hot reload
 
 # Testing and building
 npm run test          # E2E tests
@@ -1306,9 +1304,9 @@ npm run build         # Production build
    - Resource Management (`/admin/resources`)
    - Region Management (`/admin/regions`)
 
-### Mock API Endpoints
+### API Endpoints
 
-The mock API server provides complete administrator functionality:
+The API server provides complete administrator functionality:
 
 - **User Management**: `/api/admin/users/*`
 - **Threshold Management**: `/api/admin/thresholds/*`

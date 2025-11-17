@@ -85,7 +85,7 @@ tests/
 │   ├── utils.spec.ts      # Utility function tests
 │   └── hooks.spec.ts      # Custom hook tests
 ├── fixtures/              # Test data and fixtures
-│   ├── mockData.ts        # Mock API responses
+│   ├── mockData.ts        # API responses
 │   └── testUsers.ts       # Test user configurations
 └── utils/                 # Test utilities and helpers
     ├── testHelpers.ts     # Common test functions
@@ -482,7 +482,7 @@ test.describe('API Integration Tests', () => {
   });
 
   test('handles API errors gracefully', async ({ page }) => {
-    // Mock API failure
+    // Simulated API failure
     await page.route('/api/zones', route => route.fulfill({
       status: 500,
       contentType: 'application/json',

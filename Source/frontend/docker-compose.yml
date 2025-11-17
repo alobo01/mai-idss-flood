@@ -38,40 +38,17 @@ services:
       - postgres
     restart: unless-stopped
 
-  mock-api:
-    build:
-      context: ./mock-api
-      dockerfile: Dockerfile
-    container_name: flood-mock-api
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - MOCK_DATA_PATH=/app/public/mock
-    volumes:
-      - ./public/mock:/app/public/mock:ro
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
   web:
     build: .
     container_name: flood-frontend
     ports:
       - "80:80"
     environment:
-      - VITE_API_BASE_URL=http://mock-api:3001
+      - VITE_API_BASE_URL=/api
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
       - NODE_ENV=production
     depends_on:
       backend:
-        condition: service_healthy
-      mock-api:
         condition: service_healthy
     restart: unless-stopped
 

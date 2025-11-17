@@ -54,7 +54,7 @@ The Flood Prediction Frontend is a modern web application designed for real-time
 ┌─────────────────────────────────────────────────────────────┐
 │                    Services Layer                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │   Mock API      │  │  Real-Time WS   │  │   File Store │ │
+│  │   API      │  │  Real-Time WS   │  │   File Store │ │
 │  │  (Express.js)   │  │   Simulation    │  │   (JSON)     │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
@@ -69,14 +69,14 @@ Services:
       ports: ["5173:80"]
       technology: React + nginx
 
-  - api:
-      image: flood-api:latest
+  - backend:
+      image: flood-backend:latest
       ports: ["18080:18080"]
-      technology: Node.js + Express
+      technology: Node.js + Express + PostgreSQL client
 
-  - database: (Future)
-      image: postgres:latest
-      ports: ["5432:5432"]
+  - database:
+      image: postgis/postgis:15-3.3
+      ports: ["5433:5432"]
       technology: PostgreSQL + PostGIS
 
 Networks:
@@ -157,10 +157,10 @@ const routes = [
 
 ## Backend Architecture
 
-### Mock API Structure
+### API Structure
 
 ```
-mock-api/
+api/
 ├── server.js           # Express server setup
 ├── routes/             # API route definitions
 │   ├── zones.js        # Geographic zones

@@ -54,7 +54,7 @@
 
 ### API Status
 - ✅ Frontend: `http://localhost` - Healthy
-- ✅ API: `http://localhost:8080` - Healthy
+- ✅ API: `http://localhost:18080` - Healthy
 - ✅ Zones endpoint: Returns valid GeoJSON FeatureCollection
 - ✅ Risk endpoint: Returns risk prediction data
 

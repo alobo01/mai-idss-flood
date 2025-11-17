@@ -345,7 +345,7 @@ export const Crew = z.object({
 
 **Env (frontend):**
 
-* `VITE_API_BASE_URL` (default `http://localhost:8080` or `http://api:8080` in Compose)
+* `VITE_API_BASE_URL` (default `http://localhost:18080` or `http://backend:18080` in Compose)
 * `VITE_MAP_TILES_URL` (defaults to OSM)
 
 ---
@@ -370,7 +370,7 @@ EXPOSE 80
 CMD ["nginx","-g","daemon off;"]
 ```
 
-### 9.2 Mock API (Express, static JSON)
+### 9.2 API (Express, static JSON)
 
 **server.js**
 
@@ -391,27 +391,27 @@ app.get('/api/resources', (_,res)=>res.sendFile('/data/resources.json'));
 app.get('/api/plan', (_,res)=>res.sendFile('/data/plan_draft.json'));
 app.get('/api/alerts', (_,res)=>res.sendFile('/data/alerts.json'));
 app.get('/api/comms', (_,res)=>res.sendFile('/data/comms.json'));
-app.listen(8080, ()=>console.log('Mock API on :8080'));
+app.listen(18080, ()=>console.log('API on :18080'));
 ```
 
 **Dockerfile**
 
 ```Dockerfile
-# ./mock-api/Dockerfile
+# ./api/Dockerfile
 FROM node:20-alpine
 WORKDIR /srv
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY server.js ./
 COPY public/mock /data
-EXPOSE 8080
+EXPOSE 18080
 CMD ["node","server.js"]
 ```
 
 **package.json (api)**
 
 ```json
-{ "name":"mock-api","type":"module","dependencies": {"express":"^4.19.2","cors":"^2.8.5"} }
+{ "name":"api","type":"module","dependencies": {"express":"^4.19.2","cors":"^2.8.5"} }
 ```
 
 ### 9.3 docker-compose
@@ -420,12 +420,12 @@ CMD ["node","server.js"]
 version: "3.9"
 services:
   api:
-    build: ./mock-api
-    ports: ["8080:8080"]
+    build: ./api
+    ports: ["18080:18080"]
   web:
     build: ./frontend
     environment:
-      - VITE_API_BASE_URL=http://api:8080
+      - VITE_API_BASE_URL=http://backend:18080
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     ports: ["5173:80"]
     depends_on: [api]

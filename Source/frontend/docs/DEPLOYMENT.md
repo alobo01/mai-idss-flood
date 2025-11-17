@@ -24,7 +24,7 @@ This guide covers deployment options for the Flood Prediction Frontend applicati
 
 - **Minimum**: 2GB RAM, 1 CPU core
 - **Recommended**: 4GB RAM, 2+ CPU cores
-- **Storage**: 500MB for application + mock data
+- **Storage**: 500MB for application + sample data
 
 ## Quick Start
 
@@ -49,8 +49,8 @@ npm install
 # Start development server
 npm run dev
 
-# Start mock API (in another terminal)
-cd mock-api && node server.js
+# Start API (in another terminal)
+npm run api
 ```
 
 ## Docker Deployment
@@ -61,15 +61,34 @@ The provided `docker-compose.yml` is configured for production use:
 
 ```yaml
 services:
-  api:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: flood-postgres
+    environment:
+      - POSTGRES_DB=flood_prediction
+      - POSTGRES_USER=flood_user
+      - POSTGRES_PASSWORD=flood_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
     build:
-      context: .
-      dockerfile: mock-api/Dockerfile
-    container_name: flood-api
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flood-backend
     ports:
       - "8081:18080"
     environment:
       - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=flood_user
+      - DB_PASSWORD=flood_password
+      - DB_NAME=flood_prediction
+    depends_on:
+      - postgres
     restart: unless-stopped
 
   web:
@@ -77,10 +96,18 @@ services:
     container_name: flood-frontend
     ports:
       - "8080:80"
+    environment:
+      - VITE_API_BASE_URL=http://backend:18080
+      - NODE_ENV=production
     depends_on:
-      - api
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 ```
+
+volumes:
+  postgres_data:
+    driver: local
 
 ### Building and Running
 
@@ -98,9 +125,9 @@ docker compose down
 ### Container Architecture
 
 - **Frontend Container**: Nginx serving optimized static files
-- **API Container**: Node.js Express server with mock data
+- **Backend Container**: Node.js Express server connected to PostgreSQL
 - **Network**: Internal Docker network for service communication
-- **Health Checks**: Built-in health monitoring
+- **Health Checks**: Backend health gate keeps frontend from starting early
 
 ## Production Build
 
@@ -319,7 +346,7 @@ services:
 
 - Enable response compression
 - Implement API rate limiting
-- Use Redis for caching (when replacing mock API)
+- Use Redis for caching (when replacing the API)
 - Monitor response times
 
 #### 3. Container Optimization

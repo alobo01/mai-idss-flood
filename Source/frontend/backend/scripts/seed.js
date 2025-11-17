@@ -5,7 +5,7 @@
  *
  * Imports the mock JSON data (zones, alerts, resources, gauges, risk, plan, comms)
  * into the PostgreSQL/PostGIS database so every environment can operate with
- * the same dataset as the standalone mock API.
+ * the same dataset as the standalone API.
  */
 
 import fs from 'fs';

@@ -156,7 +156,7 @@ export function ZoneEditor({
 
     // Add existing zones to drawn items for editing
     zones.features.forEach(feature => {
-      const layer = L.geoJSON(feature.geometry, {
+      const layer = L.geoJSON(feature.geometry as any, {
         style: {
           color: '#3388ff',
           weight: 2,
@@ -508,7 +508,7 @@ export function ZoneEditor({
         drawnItemsRef.current.clearLayers();
 
         importedData.features.forEach(feature => {
-          const layer = L.geoJSON(feature.geometry, {
+          const layer = L.geoJSON(feature.geometry as any, {
             style: {
               color: '#3388ff',
               weight: 2,
@@ -767,7 +767,7 @@ export function ZoneEditor({
 
                   {/* Render existing zones */}
                   <GeoJSON
-                    data={zones}
+                    data={zones as any}
                     style={getZoneStyle}
                     onEachFeature={(feature, layer) => {
                       layer.on({
