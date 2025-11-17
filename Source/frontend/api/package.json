@@ -1,7 +1,7 @@
 {
-  "name": "flood-mock-api",
+  "name": "flood-api",
   "version": "1.0.0",
-  "description": "Mock API server for flood prediction system",
+  "description": "API server for flood prediction system",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -16,7 +16,7 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["mock", "api", "flood", "prediction"],
+  "keywords": ["api", "flood", "prediction"],
   "author": "",
   "license": "ISC"
 }

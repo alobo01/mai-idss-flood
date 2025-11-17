@@ -1,13 +1,10 @@
 
-// API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
-
 import { useState, useEffect } from 'react';
 import { ZoneEditor } from '@/components/ZoneEditor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Info } from 'lucide-react';
 import type { GeoJSON } from '@/types';
+import { buildApiUrl } from '@/lib/apiBase';
 
 export function AdminRegions() {
   const [zones, setZones] = useState<GeoJSON | null>(null);
@@ -19,7 +16,7 @@ export function AdminRegions() {
     const loadZones = async () => {
       try {
         setLoading(true);
-          const response = await fetch(`${API_BASE_URL}/api/zones`);
+          const response = await fetch(buildApiUrl('/zones'));
 
         if (!response.ok) {
           throw new Error(`Failed to load zones: ${response.statusText}`);

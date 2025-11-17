@@ -8,9 +8,7 @@ import { DataTable } from '@/components/DataTable';
 import { FormDialog, FormField } from '@/components/Forms/FormDialog';
 import { EquipmentStatus, CrewStatus } from '@/types';
 import { Package, Users, MapPin, Plus, Edit, Trash2, Wrench, Truck, AlertTriangle, Info } from 'lucide-react';
-
-// API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { buildApiUrl } from '@/lib/apiBase';
 
 
 // API data types
@@ -72,9 +70,9 @@ export function AdminResources() {
 
         // Fetch from admin endpoints
         const [depotsResponse, equipmentResponse, crewsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/admin/resources/depots`),
-          fetch(`${API_BASE_URL}/api/admin/resources/equipment`),
-          fetch(`${API_BASE_URL}/api/admin/resources/crews`)
+          fetch(buildApiUrl('/admin/resources/depots')),
+          fetch(buildApiUrl('/admin/resources/equipment')),
+          fetch(buildApiUrl('/admin/resources/crews'))
         ]);
 
         if (!depotsResponse.ok || !equipmentResponse.ok || !crewsResponse.ok) {

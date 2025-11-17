@@ -30,7 +30,7 @@ const dataPath = process.env.MOCK_DATA_PATH
   ? path.resolve(process.env.MOCK_DATA_PATH)
   : (fs.existsSync(containerDataPath) ? containerDataPath : localDataPath);
 
-console.log(`[Mock API] Using data directory: ${dataPath}`);
+console.log(`[API] Using data directory: ${dataPath}`);
 
 // Helper functions
 const readJsonFile = (filename) => {
@@ -767,7 +767,7 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Mock API server running on port ${PORT}`);
+  console.log(`🚀 API server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔧 Admin endpoints available at /api/admin/`);
 });

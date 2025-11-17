@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:18080';
+import { buildApiUrl } from '@/lib/apiBase';
 
 // Generic fetch function
 const apiFetch = async <T>(endpoint: string): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`);
+  const response = await fetch(buildApiUrl(endpoint));
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -17,7 +16,7 @@ const apiFetch = async <T>(endpoint: string): Promise<T> => {
 export const useZones = () => {
   return useQuery({
     queryKey: ['zones'],
-    queryFn: () => apiFetch('/api/zones'),
+    queryFn: () => apiFetch('/zones'),
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 };
@@ -27,7 +26,7 @@ export const useRisk = (timestamp?: string) => {
   const timeParam = timestamp ? `?at=${timestamp}` : '';
   return useQuery({
     queryKey: ['risk', timestamp],
-    queryFn: () => apiFetch(`/api/risk${timeParam}`),
+    queryFn: () => apiFetch(`/risk${timeParam}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
@@ -36,7 +35,7 @@ export const useRisk = (timestamp?: string) => {
 export const useDamageIndex = () => {
   return useQuery({
     queryKey: ['damage-index'],
-    queryFn: () => apiFetch('/api/damage-index'),
+    queryFn: () => apiFetch('/damage-index'),
     staleTime: 15 * 60 * 1000, // 15 minutes
   });
 };
@@ -45,7 +44,7 @@ export const useDamageIndex = () => {
 export const useResources = () => {
   return useQuery({
     queryKey: ['resources'],
-    queryFn: () => apiFetch('/api/resources'),
+    queryFn: () => apiFetch('/resources'),
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 };
@@ -54,7 +53,7 @@ export const useResources = () => {
 export const usePlan = () => {
   return useQuery({
     queryKey: ['plan'],
-    queryFn: () => apiFetch('/api/plan'),
+    queryFn: () => apiFetch('/plan'),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
@@ -63,7 +62,7 @@ export const usePlan = () => {
 export const useAlerts = () => {
   return useQuery({
     queryKey: ['alerts'],
-    queryFn: () => apiFetch('/api/alerts'),
+    queryFn: () => apiFetch('/alerts'),
     refetchInterval: 30 * 1000, // Refresh every 30 seconds
   });
 };
@@ -72,7 +71,7 @@ export const useAlerts = () => {
 export const useCommunications = () => {
   return useQuery({
     queryKey: ['communications'],
-    queryFn: () => apiFetch('/api/comms'),
+    queryFn: () => apiFetch('/comms'),
     refetchInterval: 10 * 1000, // Refresh every 10 seconds
   });
 };
@@ -81,7 +80,7 @@ export const useCommunications = () => {
 export const useGauges = () => {
   return useQuery({
     queryKey: ['gauges'],
-    queryFn: () => apiFetch('/api/gauges'),
+    queryFn: () => apiFetch('/gauges'),
     refetchInterval: 15 * 1000, // Refresh every 15 seconds
   });
 };

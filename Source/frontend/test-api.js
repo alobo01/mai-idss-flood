@@ -15,14 +15,14 @@ async function testAPI() {
       console.log('✗ /api/resources failed:', resourcesResponse.status);
     }
 
-    // Test admin users endpoint
-    console.log('Testing /api/admin/users...');
-    const usersResponse = await fetch('http://localhost:18080/api/admin/users');
-    if (usersResponse.ok) {
-      const users = await usersResponse.json();
-      console.log('✓ /api/admin/users works, found users:', users.length);
+    // Test admin depots endpoint
+    console.log('Testing /api/admin/resources/depots...');
+    const depotsResponse = await fetch('http://localhost:18080/api/admin/resources/depots');
+    if (depotsResponse.ok) {
+      const depots = await depotsResponse.json();
+      console.log('✓ /api/admin/resources/depots works, found depots:', depots.length);
     } else {
-      console.log('✗ /api/admin/users failed:', usersResponse.status);
+      console.log('✗ /api/admin/resources/depots failed:', depotsResponse.status);
     }
 
   } catch (error) {

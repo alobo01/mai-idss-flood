@@ -243,7 +243,7 @@ export function MapView({
             {/* GeoJSON zones layer */}
             {layers.zones && (
               <GeoJSON
-                data={zones}
+                data={zones as any}
                 style={getZoneStyle}
                 onEachFeature={handleZoneClick}
                 eventHandlers={{

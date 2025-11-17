@@ -92,7 +92,7 @@ test.describe('Edge Cases Tests', () => {
     await page.goto('/planner/map');
     await page.waitForLoadState('networkidle');
 
-    // Now mock API failures by intercepting only API requests
+    // Now simulate API failures by intercepting only API requests
     await page.route('**/api/**', route => route.abort());
 
     // Page should still load basic UI elements even when API fails

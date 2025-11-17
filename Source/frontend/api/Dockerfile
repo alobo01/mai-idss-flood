@@ -8,7 +8,7 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy mock-api files
+# Copy API files
 COPY . .
 
 # Expose port

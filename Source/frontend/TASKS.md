@@ -177,10 +177,10 @@ This document contains precise, testable tasks to implement the flood prediction
   - **Test**: Data loads from mock files without errors ✅
   - **Acceptance**: Loading states display during data fetch ✅
 
-- [x] **Task**: Create mock API service
+- [x] **Task**: Create API service
   - **Features**: Express server serving static JSON files, CORS support
   - **Test**: API endpoints return correct JSON data ✅
-  - **Acceptance**: All mock endpoints are accessible ✅
+  - **Acceptance**: All endpoints are accessible ✅
 
 ### 5.2 State Management ✅ COMPLETED
 - [x] **Task**: Implement application state context
@@ -233,7 +233,7 @@ This document contains precise, testable tasks to implement the flood prediction
   - **Acceptance**: Container serves application correctly ✅
 
 - [x] **Task**: Set up docker-compose
-  - **Test**: Both frontend and mock API start together ✅
+  - **Test**: Both frontend and API start together ✅
   - **Acceptance**: Application accessible at http://localhost:5173 ✅
 
 ## Phase 8: Documentation & Deployment
@@ -262,7 +262,7 @@ This document contains precise, testable tasks to implement the flood prediction
 
 ### 9.2 Endpoint Parity
 - [ ] **Task**: Implement database-backed routes for risk assessments, assets, communications, gauges, deployments, and admin CRUD
-  - **Test**: Requests return rows from PostgreSQL instead of JSON files (`mock-api/server.js` parity)
+  - **Test**: Requests return rows from PostgreSQL instead of JSON files (`api/server.js` parity)
   - **Acceptance**: All endpoints documented under `docs/api` exist in `backend/server.js`
 
 - [ ] **Task**: Add integration tests that hit the API against a seeded Postgres instance
@@ -293,7 +293,7 @@ This document contains precise, testable tasks to implement the flood prediction
 
 ### Integration Success
 - [ ] Docker compose builds and runs successfully
-- [ ] Mock API serves all required endpoints
+- [ ] API serves all required endpoints
 - [ ] Frontend connects to API without CORS errors
 - [ ] Demo script showcases all planned features
 

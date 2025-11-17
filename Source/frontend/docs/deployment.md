@@ -19,7 +19,7 @@ Comprehensive deployment guide for the Flood Prediction Frontend application in 
 
 The Flood Prediction Frontend supports multiple deployment strategies optimized for different use cases:
 
-- **Development**: Hot-reload local development with mock API
+- **Development**: Hot-reload local development with the API
 - **Docker**: Containerized deployment with orchestration
 - **Production**: Optimized builds with CDN and load balancing
 - **Cloud**: Managed services and auto-scaling
@@ -62,10 +62,8 @@ npm install
 # 3. Install Playwright browsers (for testing)
 npx playwright install
 
-# 4. Start mock API (in terminal 1)
-cd mock-api
-npm install
-npm start
+# 4. Start API (in terminal 1)
+npm run api
 
 # 5. Start frontend (in terminal 2)
 cd ..
@@ -75,7 +73,7 @@ npm run dev
 ### Development URLs
 
 - **Frontend**: http://localhost:5173
-- **Mock API**: http://localhost:18080
+- **API**: http://localhost:18080
 - **API Health**: http://localhost:18080/health
 
 ### Development Configuration
@@ -114,6 +112,44 @@ docker compose down
 version: "3.9"
 
 services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: flood-postgres
+    environment:
+      - POSTGRES_DB=flood_prediction
+      - POSTGRES_USER=flood_user
+      - POSTGRES_PASSWORD=flood_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flood-backend
+    ports:
+      - "18080:18080"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=flood_user
+      - DB_PASSWORD=flood_password
+      - DB_NAME=flood_prediction
+    restart: unless-stopped
+    networks:
+      - flood-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:18080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   web:
     build:
       context: .
@@ -123,38 +159,14 @@ services:
       - "5173:80"
     environment:
       - NODE_ENV=production
-      - VITE_API_BASE_URL=http://api:18080
+      - VITE_API_BASE_URL=http://backend:18080
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     depends_on:
-      api:
+      backend:
         condition: service_healthy
-    volumes:
-      - ./public/mock:/usr/share/nginx/html/mock:ro
     restart: unless-stopped
     networks:
       - flood-network
-
-  api:
-    build:
-      context: ./mock-api
-      dockerfile: Dockerfile
-    container_name: flood-api
-    ports:
-      - "18080:18080"
-    environment:
-      - NODE_ENV=production
-      - PORT=18080
-    volumes:
-      - ./public/mock:/data:ro
-    restart: unless-stopped
-    networks:
-      - flood-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:18080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 networks:
   flood-network:
@@ -164,8 +176,9 @@ networks:
         - subnet: 172.20.0.0/16
 
 volumes:
-  mock-data:
+  postgres_data:
     driver: local
+
 ```
 
 ### Multi-Stage Dockerfile
@@ -750,11 +763,11 @@ npm audit fix
 ```bash
 # Check container logs
 docker compose logs web
-docker compose logs api
+docker compose logs backend
 
 # Inspect container
 docker compose exec web sh
-docker compose exec api sh
+docker compose exec backend sh
 
 # Rebuild containers
 docker compose build --no-cache

@@ -425,7 +425,7 @@ test.describe('Flood Prediction System - E2E Tests', () => {
     }
   });
 
-  test('API integration test - verify mock API is accessible', async ({ page }) => {
+  test('API integration test - verify API is accessible', async ({ page }) => {
     // Set planner role in localStorage to bypass role selector
     await page.addInitScript(() => {
       localStorage.setItem('flood-prediction-role', 'Planner');
@@ -435,7 +435,7 @@ test.describe('Flood Prediction System - E2E Tests', () => {
     await page.goto('/planner/map');
     await page.waitForLoadState('networkidle');
 
-    // Check that the page can access mock data (no error messages)
+    // Check that the page can access API data (no error messages)
     await expect(page.getByRole('heading', { name: 'Planner Risk Map' })).toBeVisible({ timeout: 10000 });
 
     // Verify the page loads without API errors

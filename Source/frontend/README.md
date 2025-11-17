@@ -22,7 +22,7 @@ docker compose up -d postgres
 (cd backend && DB_HOST=localhost DB_PORT=5433 npm run db:migrate && npm run db:seed)
 
 # 4. Run the API and frontend locally
-(cd backend && DB_HOST=localhost DB_PORT=5433 npm run dev)
+npm run api          # starts the PostgreSQL-backed API
 npm run dev
 ```
 

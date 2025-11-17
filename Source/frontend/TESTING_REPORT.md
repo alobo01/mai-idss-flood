@@ -51,7 +51,7 @@ This document contains the comprehensive testing results for the Flood Predictio
 
 ### Phase 5: Data Management & State ✅
 - [x] React Query API hooks implementation
-- [x] Mock API service with Express.js
+- [x] API service with Express.js
 - [x] Application state context
 - [x] Data loading and caching strategies
 
@@ -64,7 +64,7 @@ This document contains the comprehensive testing results for the Flood Predictio
 
 ### Phase 7: Docker Configuration ✅
 - [x] Frontend Dockerfile with nginx
-- [x] Mock API Dockerfile
+- [x] API Dockerfile
 - [x] Docker Compose configuration
 - [x] Multi-service orchestration
 - [x] Health checks and dependencies
@@ -119,7 +119,7 @@ This document contains the comprehensive testing results for the Flood Predictio
 2. **Role-Based Authentication System**
 3. **Responsive UI with Dark Mode**
 4. **Type-Safe Data Management**
-5. **Mock API Service**
+5. **API Service**
 6. **Docker Containerization**
 7. **Comprehensive Testing**
 
@@ -162,7 +162,7 @@ docker compose up --build
 
 # Application available at:
 # http://localhost:5173 (Frontend)
-# http://localhost:8080 (API)
+# http://localhost:18080 (API)
 ```
 
 ## 📈 **Quality Assurance**
@@ -192,7 +192,7 @@ docker compose up --build
 - [x] Responsive, mobile-friendly interface
 - [x] Dark mode with system preference detection
 - [x] Type-safe data management
-- [x] Mock API with realistic flood prediction data
+- [x] API with realistic flood prediction data
 - [x] Docker-ready deployment configuration
 - [x] Comprehensive test coverage
 

@@ -208,7 +208,7 @@ async function main() {
 
     console.log('\n🎯 Database populate script completed successfully!');
     console.log('\n🚀 You can now start the API server:');
-    console.log('   cd mock-api && node server.js');
+    console.log('   cd backend && node server.js');
     console.log('\n🌐 Or use Docker Compose:');
     console.log('   docker compose up -d');
 

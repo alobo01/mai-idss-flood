@@ -148,8 +148,8 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
     1000,
-    '{"lat": 40.4167, "lng": -3.7033, "storage_units": 5}',
-    '{"address": "123 Logistics Ave"}'
+    '{"lat": 40.4167, "lng": -3.7033, "storage_units": 5, "zones": ["Z-ALFA", "Z-CHARLIE"]}',
+    '{"address": "123 Logistics Ave", "manager": "Elena Ruiz", "phone": "+1-555-2010", "operating_hours": "24/7"}'
 ),
 (
     '770e8400-e29b-41d4-a716-446655440011'::UUID,
@@ -159,8 +159,8 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
     800,
-    '{"lat": 40.4190, "lng": -3.6800, "storage_units": 4}',
-    '{"address": "45 Riverbank Rd"}'
+    '{"lat": 40.4190, "lng": -3.6800, "storage_units": 4, "zones": ["Z-BRAVO"]}',
+    '{"address": "45 Riverbank Rd", "manager": "Marcus Lee", "phone": "+1-555-2011", "operating_hours": "06:00-22:00"}'
 ),
 (
     '770e8400-e29b-41d4-a716-446655440012'::UUID,
@@ -170,8 +170,8 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
     650,
-    '{"lat": 40.4080, "lng": -3.7150, "storage_units": 3}',
-    '{"address": "300 Delta Ave"}'
+    '{"lat": 40.4080, "lng": -3.7150, "storage_units": 3, "zones": ["Z-DELTA"]}',
+    '{"address": "300 Delta Ave", "manager": "Priya Desai", "phone": "+1-555-2012", "operating_hours": "24/7"}'
 ),
 (
     '770e8400-e29b-41d4-a716-446655440020'::UUID,
@@ -181,7 +181,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
     300,
-    '{"depot": "D-CENTRAL", "type": "Pump", "capacity_lps": 300}',
+    '{"depot": "D-CENTRAL", "type": "Pump", "subtype": "High Volume", "capacity_lps": 300, "units": 2, "manufacturer": "HydroFlow", "model": "HF-300", "serial_number": "HF300-001"}',
     '{}'
 ),
 (
@@ -192,7 +192,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
     250,
-    '{"depot": "D-EAST", "type": "Pump", "capacity_lps": 250}',
+    '{"depot": "D-EAST", "type": "Pump", "subtype": "Medium Volume", "capacity_lps": 250, "units": 2, "manufacturer": "HydroFlow", "model": "HF-250", "serial_number": "HF250-004"}',
     '{}'
 ),
 (
@@ -203,7 +203,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
     400,
-    '{"depot": "D-SOUTH", "type": "Pump", "capacity_lps": 400}',
+    '{"depot": "D-SOUTH", "type": "Pump", "subtype": "High Volume", "capacity_lps": 400, "units": 1, "manufacturer": "Riverside Pumps", "model": "RP-400", "serial_number": "RP-400-002"}',
     '{}'
 ),
 (
@@ -214,7 +214,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
     800,
-    '{"depot": "D-EAST", "type": "Sandbags", "units": 800}',
+    '{"depot": "D-EAST", "type": "Sandbags", "subtype": "Standard", "units": 800, "manufacturer": "BarrierWorks"}',
     '{}'
 ),
 (
@@ -225,7 +225,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
     1200,
-    '{"depot": "D-CENTRAL", "type": "Sandbags", "units": 1200}',
+    '{"depot": "D-CENTRAL", "type": "Sandbags", "subtype": "Heavy Duty", "units": 1200, "manufacturer": "BarrierWorks"}',
     '{}'
 ),
 (
@@ -236,7 +236,40 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'available',
     ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
     600,
-    '{"depot": "D-SOUTH", "type": "Sandbags", "units": 600}',
+    '{"depot": "D-SOUTH", "type": "Sandbags", "subtype": "Standard", "units": 600, "manufacturer": "BarrierWorks"}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440040'::UUID,
+    'G-100',
+    'Generator Unit G-100',
+    'equipment',
+    'maintenance',
+    ST_SetSRID(ST_MakePoint(-3.7045, 40.4175), 4326),
+    75,
+    '{"depot": "D-CENTRAL", "type": "Generator", "subtype": "Portable", "output_kw": 75, "manufacturer": "GridFlex", "model": "GF-75", "serial_number": "GF75-010"}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440041'::UUID,
+    'RB-05',
+    'Rescue Boat RB-05',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.6785, 40.4210), 4326),
+    6,
+    '{"depot": "D-EAST", "type": "Rescue Boat", "subtype": "Swiftwater", "units": 1, "manufacturer": "RiverGuard", "model": "RG-6", "serial_number": "RG6-005"}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440042'::UUID,
+    'MC-01',
+    'Mobile Command Van',
+    'equipment',
+    'deployed',
+    ST_SetSRID(ST_MakePoint(-3.7060, 40.4150), 4326),
+    1,
+    '{"depot": "D-CENTRAL", "type": "Command", "subtype": "Mobile Center", "units": 1, "manufacturer": "CommandWorks", "model": "CX-1", "serial_number": "CX1-001"}',
     '{}'
 ),
 (
@@ -247,7 +280,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'ready',
     ST_SetSRID(ST_MakePoint(-3.7050, 40.4172), 4326),
     12,
-    '{"skills": ["pumping", "evacuation"], "depot": "D-CENTRAL"}',
+    '{"skills": ["pumping", "evacuation"], "depot": "D-CENTRAL", "leader": "Captain Maya Ortiz", "team_size": 12, "certifications": ["swiftwater", "medical"]}',
     '{"phone": "555-0101", "radio": "Channel 1"}'
 ),
 (
@@ -258,7 +291,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'ready',
     ST_SetSRID(ST_MakePoint(-3.6820, 40.4201), 4326),
     10,
-    '{"skills": ["roadblock", "rescue"], "depot": "D-EAST"}',
+    '{"skills": ["roadblock", "rescue"], "depot": "D-EAST", "leader": "Lt. Nolan Hayes", "team_size": 10, "certifications": ["swiftwater"]}',
     '{"phone": "555-0102", "radio": "Channel 2"}'
 ),
 (
@@ -269,7 +302,7 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'ready',
     ST_SetSRID(ST_MakePoint(-3.7128, 40.4095), 4326),
     8,
-    '{"skills": ["pumping", "medical"], "depot": "D-SOUTH"}',
+    '{"skills": ["pumping", "medical"], "depot": "D-SOUTH", "leader": "Chief Erin Walsh", "team_size": 8, "certifications": ["medical"]}',
     '{"phone": "555-0103", "radio": "Channel 3"}'
 ),
 (
@@ -280,9 +313,61 @@ INSERT INTO resources (id, code, name, type, status, location, capacity, capabil
     'ready',
     ST_SetSRID(ST_MakePoint(-3.7021, 40.4168), 4326),
     8,
-    '{"skills": ["evacuation", "logistics"], "depot": "D-CENTRAL"}',
+    '{"skills": ["evacuation", "logistics"], "depot": "D-CENTRAL", "leader": "Lt. Chen Park", "team_size": 8, "certifications": ["incident_command"]}',
     '{"phone": "555-0104", "radio": "Channel 4"}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440034'::UUID,
+    'C-E5',
+    'Echo Crew',
+    'crew',
+    'ready',
+    ST_SetSRID(ST_MakePoint(-3.6840, 40.4185), 4326),
+    9,
+    '{"skills": ["medical", "communications"], "depot": "D-EAST", "leader": "Lt. Ava Kim", "team_size": 9, "certifications": ["medical", "uas"]}',
+    '{"phone": "555-0105", "radio": "Channel 5"}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440035'::UUID,
+    'C-F7',
+    'Foxtrot Crew',
+    'crew',
+    'rest',
+    ST_SetSRID(ST_MakePoint(-3.7110, 40.4075), 4326),
+    7,
+    '{"skills": ["logistics", "shelter"], "depot": "D-SOUTH", "leader": "Sgt. Hugo Alvarez", "team_size": 7, "certifications": ["logistics"]}',
+    '{"phone": "555-0106", "radio": "Channel 6"}'
 );
+
+-- Insert administrator users
+INSERT INTO admin_users (id, username, email, first_name, last_name, role, department, phone, location, status, zones, permissions, last_login)
+VALUES
+('110e8400-e29b-41d4-a716-446655440001'::UUID, 'admin.flood', 'admin@floodsystem.gov', 'Sarah', 'Johnson', 'Administrator', 'System Administration', '+1-555-0101', 'Central Office', 'active', ARRAY['Z-ALFA','Z-BRAVO','Z-CHARLIE','Z-DELTA'], ARRAY['system_config','user_management','threshold_management','zone_management'], NOW() - INTERVAL '1 day'),
+('110e8400-e29b-41d4-a716-446655440002'::UUID, 'planner.martinez', 'm.martinez@floodsystem.gov', 'Maria', 'Martinez', 'Planner', 'Risk Analysis', '+1-555-0102', 'Regional Office North', 'active', ARRAY['Z-ALFA','Z-BRAVO'], ARRAY['risk_assessment','scenario_planning','alert_management'], NOW() - INTERVAL '6 hours'),
+('110e8400-e29b-41d4-a716-446655440003'::UUID, 'coordinator.lee', 'k.lee@floodsystem.gov', 'Kevin', 'Lee', 'Coordinator', 'Operations Command', '+1-555-0103', 'Operations Center', 'active', ARRAY['Z-CHARLIE','Z-DELTA'], ARRAY['resource_deployment','crew_management','communications'], NOW() - INTERVAL '2 hours'),
+('110e8400-e29b-41d4-a716-446655440004'::UUID, 'analyst.thompson', 'l.thompson@floodsystem.gov', 'Lena', 'Thompson', 'Data Analyst', 'Analytics Bureau', '+1-555-0104', 'Central Office', 'active', ARRAY['Z-ALFA','Z-BRAVO','Z-CHARLIE','Z-DELTA'], ARRAY['analytics','reporting','zone_viewing'], NULL);
+
+-- Insert risk thresholds
+INSERT INTO admin_risk_thresholds (id, name, band, min_risk, max_risk, color, description, auto_alert)
+VALUES
+('210e8400-e29b-41d4-a716-446655440001'::UUID, 'Low Risk', 'Low', 0.00, 0.25, '#22c55e', 'Normal operating conditions', FALSE),
+('210e8400-e29b-41d4-a716-446655440002'::UUID, 'Moderate Risk', 'Moderate', 0.25, 0.50, '#f59e0b', 'Monitor closely, prepare for action', FALSE),
+('210e8400-e29b-41d4-a716-446655440003'::UUID, 'High Risk', 'High', 0.50, 0.75, '#ef4444', 'Take precautionary measures', TRUE),
+('210e8400-e29b-41d4-a716-446655440004'::UUID, 'Severe Risk', 'Severe', 0.75, 1.00, '#991b1b', 'Immediate action required', TRUE);
+
+-- Insert gauge thresholds
+INSERT INTO admin_gauge_thresholds (id, gauge_code, gauge_name, alert_threshold, critical_threshold, unit, description)
+VALUES
+('310e8400-e29b-41d4-a716-446655440001'::UUID, 'G-RIV-12', 'Main Street Bridge Gauge', 3.50, 4.50, 'meters', 'Primary downtown river gauge'),
+('310e8400-e29b-41d4-a716-446655440002'::UUID, 'G-RIV-08', 'Industrial Park Gauge', 3.20, 4.20, 'meters', 'Industrial zone gauge'),
+('310e8400-e29b-41d4-a716-446655440003'::UUID, 'G-RIV-15', 'Lowland Parks Gauge', 2.80, 3.80, 'meters', 'Parks and recreation monitoring gauge');
+
+-- Insert alert automation rules
+INSERT INTO admin_alert_rules (id, name, trigger_type, trigger_value, severity, enabled, channels, cooldown_minutes, description)
+VALUES
+('410e8400-e29b-41d4-a716-446655440001'::UUID, 'Flood Probability Alert', 'Risk Threshold', 'Severe', 'Severe', TRUE, ARRAY['SMS','Email','Dashboard'], 60, 'Alert when flood probability exceeds severe threshold'),
+('410e8400-e29b-41d4-a716-446655440002'::UUID, 'Gauge Exceeded Alert', 'Gauge Threshold', 'Critical', 'High', TRUE, ARRAY['Dashboard','Radio'], 30, 'Notify when any gauge crosses the critical threshold'),
+('410e8400-e29b-41d4-a716-446655440003'::UUID, 'Resource Shortage Alert', 'Resource Availability', 'Low', 'High', TRUE, ARRAY['Email'], 120, 'Warn coordinators when equipment availability drops below 25%');
 
 -- Insert current deployments
 INSERT INTO deployments (resource_id, zone_id, deployment_time, status, assigned_tasks, actual_impact) VALUES

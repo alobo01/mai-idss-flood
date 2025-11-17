@@ -60,16 +60,20 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
-      command: 'cd mock-api && node server.js',
-      port: 8080,
+      command: 'npm --prefix backend run dev',
+      port: 18080,
       reuseExistingServer: !process.env.CI,
+      env: {
+        DB_HOST: 'localhost',
+        DB_PORT: '5433',
+      },
     },
     {
       command: 'npm run dev',
       port: 5173,
       reuseExistingServer: !process.env.CI,
       env: {
-        VITE_API_BASE_URL: 'http://localhost:8080',
+        VITE_API_BASE_URL: 'http://localhost:18080',
       },
     }
   ],
