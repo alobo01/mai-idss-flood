@@ -3,17 +3,29 @@
 /**
  * Database Seed Script
  *
- * This script seeds the database with sample data for development and testing.
+ * Imports the mock JSON data (zones, alerts, resources, gauges, risk, plan, comms)
+ * into the PostgreSQL/PostGIS database so every environment can operate with
+ * the same dataset as the standalone mock API.
  */
 
+import fs from 'fs';
+import path from 'path';
 import pkg from 'pg';
 import { fileURLToPath } from 'url';
 
 const { Pool } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
+const scriptsDir = path.dirname(__filename);
+const backendDir = path.join(scriptsDir, '..');
+const projectRoot = path.join(backendDir, '..');
 
-// Database connection configuration
+const mockDataPaths = [
+  process.env.MOCK_DATA_PATH,
+  path.join(projectRoot, 'public', 'mock'),
+  backendDir,
+].filter(Boolean);
+
 const config = {
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5433,
@@ -22,155 +34,591 @@ const config = {
   password: process.env.DB_PASSWORD || 'flood_password',
 };
 
-console.log('🌱 Flood Prediction Database Seeder');
-console.log('====================================');
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function connectToDatabase() {
-  console.log(`\n📡 Connecting to PostgreSQL...`);
-  console.log(`   Host: ${config.host}:${config.port}`);
-  console.log(`   Database: ${config.database}`);
+const severityMap = {
+  severe: 'critical',
+  critical: 'critical',
+  high: 'high',
+  moderate: 'medium',
+  medium: 'medium',
+  low: 'low',
+  operational: 'medium',
+};
 
-  const pool = new Pool(config);
+const trendLabels = {
+  rising: 'rising',
+  steady: 'steady',
+  falling: 'falling',
+};
 
-  try {
-    const client = await pool.connect();
-    console.log('✅ Database connection successful');
-    return pool;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
-    process.exit(1);
+const makeRecencyGenerator = (spacingMinutes = 30) => {
+  const anchor = Date.now();
+  let counter = 0;
+  return () => {
+    const timestamp = new Date(anchor - counter * spacingMinutes * 60 * 1000).toISOString();
+    counter += 1;
+    return timestamp;
+  };
+};
+
+const readJson = (filename) => {
+  for (const dir of mockDataPaths) {
+    const candidate = path.join(dir, filename);
+    if (fs.existsSync(candidate)) {
+      const content = fs.readFileSync(candidate, 'utf8');
+      return JSON.parse(content);
+    }
   }
-}
+  return null;
+};
 
-async function seedSampleData(pool) {
-  console.log('\n🌱 Seeding sample data...');
+const listMockFiles = (pattern) => {
+  for (const dir of mockDataPaths) {
+    if (dir && fs.existsSync(dir)) {
+      return fs.readdirSync(dir).filter((file) => pattern.test(file)).map((file) => ({
+        name: file,
+        path: path.join(dir, file),
+      }));
+    }
+  }
+  return [];
+};
 
-  try {
-    // Sample zones data
-    await pool.query(`
-      INSERT INTO zones (id, name, description, population, area_km2, geometry) VALUES
-      ('00000000-0000-0000-0000-000000000001', 'Riverside North', 'Northern riverside residential area', 12450, 15.2,
-       ST_GeomFromText('POLYGON((-3.71 40.41, -3.70 40.41, -3.70 40.42, -3.71 40.42, -3.71 40.41))', 4326)),
-      ('00000000-0000-0000-0000-000000000002', 'Industrial District', 'Commercial and industrial zone', 8200, 12.8,
-       ST_GeomFromText('POLYGON((-3.69 40.41, -3.68 40.41, -3.68 40.42, -3.69 40.42, -3.69 40.41))', 4326)),
-      ('00000000-0000-0000-0000-000000000003', 'Downtown Central', 'Central business district', 15600, 8.5,
-       ST_GeomFromText('POLYGON((-3.70 40.40, -3.69 40.40, -3.69 40.41, -3.70 40.41, -3.70 40.40))', 4326)),
-      ('00000000-0000-0000-0000-000000000004', 'Residential Heights', 'Elevated residential area', 9800, 18.3,
-       ST_GeomFromText('POLYGON((-3.71 40.40, -3.70 40.40, -3.70 40.41, -3.71 40.41, -3.71 40.40))', 4326))
-      ON CONFLICT (id) DO NOTHING
-    `);
+const toIso = (value) => {
+  if (!value) return new Date().toISOString();
+  if (value.includes('T') && value.includes('-') && value.includes('Z') && value.indexOf('T') < value.lastIndexOf('-')) {
+    const [datePart, timePartRaw] = value.split('T');
+    const timePart = timePartRaw.replace(/-/g, ':');
+    const normalized = `${datePart}T${timePart}`;
+    return normalized;
+  }
+  return value;
+};
 
-    // Sample assets data
-    await pool.query(`
-      INSERT INTO assets (id, zone_id, name, type, criticality, location, address, capacity, metadata) VALUES
-      ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Hospital HN1', 'hospital', 'critical',
-       ST_GeomFromText('POINT(-3.705 40.415)', 4326), '123 Riverside Ave', 200, '{"emergency_services": true, "floors": 5}'),
-      ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'School SN3', 'school', 'high',
-       ST_GeomFromText('POINT(-3.708 40.418)', 4326), '456 North St', 500, '{"type": "elementary", "floors": 2}'),
-      ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', 'Power Plant PP1', 'power_plant', 'critical',
-       ST_GeomFromText('POINT(-3.685 40.415)', 4326), '789 Industrial Way', 1, '{"capacity_mw": 500, "type": "gas"}'),
-      ('10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000002', 'Water Treatment WT1', 'water_treatment', 'critical',
-       ST_GeomFromText('POINT(-3.688 40.418)', 4326), '321 Treatment Rd', 1, '{"capacity_mgd": 50}'),
-      ('10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000003', 'City Hall', 'government', 'high',
-       ST_GeomFromText('POINT(-3.695 40.405)', 4326), '1 City Square', 100, '{"floors": 4, "emergency_ops": true}')
-      ON CONFLICT (id) DO NOTHING
-    `);
+const connect = async () => {
+  console.log('📡 Connecting to PostgreSQL...');
+  const pool = new Pool(config);
+  const client = await pool.connect();
+  console.log('✅ Connected\n');
+  return { pool, client };
+};
 
-    // Sample risk assessments
-    const forecastTime = new Date();
-    const timeHorizons = ['6h', '12h', '18h', '24h', '48h', '72h'];
+const upsertZones = async (client) => {
+  const geoJson = readJson('zones.geojson');
+  if (!geoJson?.features) {
+    throw new Error('zones.geojson not found. Set MOCK_DATA_PATH or keep the default dataset in public/mock.');
+  }
 
-    for (const horizon of timeHorizons) {
-      for (let i = 1; i <= 4; i++) {
-        const zoneId = `00000000-0000-0000-0000-00000000000${i}`;
-        const riskLevel = Math.random() * 0.8 + 0.1; // 0.1 to 0.9
+  console.log(`• Importing ${geoJson.features.length} zones`);
+  const zoneMap = new Map();
 
-        await pool.query(`
-          INSERT INTO risk_assessments (zone_id, time_horizon, forecast_time, risk_level, risk_factors)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT DO NOTHING
-        `, [
-          zoneId,
-          horizon,
-          forecastTime,
-          riskLevel,
-          JSON.stringify({
-            precipitation: Math.random() * 50,
-            riverLevel: Math.random() * 10,
-            soilSaturation: Math.random() * 100,
-            temperature: Math.random() * 15 + 10
-          })
-        ]);
+  for (const feature of geoJson.features) {
+    const props = feature.properties || {};
+    const code = props.id;
+    if (!code) {
+      console.warn('  ↳ Skipping zone without id');
+      continue;
+    }
+
+    const result = await client.query(
+      `
+        INSERT INTO zones (code, name, description, population, area_km2, admin_level, critical_assets, geometry)
+        VALUES ($1, $2, $3, $4, $5, $6, $7,
+          ST_GeomFromGeoJSON($8)
+        )
+        ON CONFLICT (code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          population = EXCLUDED.population,
+          area_km2 = EXCLUDED.area_km2,
+          admin_level = EXCLUDED.admin_level,
+          critical_assets = EXCLUDED.critical_assets,
+          geometry = EXCLUDED.geometry
+        RETURNING id
+      `,
+      [
+        code,
+        props.name || code,
+        props.description || `Zone ${props.name || code}`,
+        props.population || 0,
+        props.area_km2 || feature.properties?.area || 0,
+        props.admin_level || 10,
+        props.critical_assets || [],
+        JSON.stringify(feature.geometry),
+      ],
+    );
+
+    zoneMap.set(code, result.rows[0].id);
+  }
+
+  return zoneMap;
+};
+
+const resetTables = async (client) => {
+  console.log('• Resetting dependent tables');
+  await client.query('TRUNCATE TABLE deployments, gauge_readings RESTART IDENTITY CASCADE');
+  await client.query('TRUNCATE TABLE alerts, communications, risk_assessments, gauges, response_plans, damage_assessments RESTART IDENTITY CASCADE');
+  await client.query('DELETE FROM resources');
+  await client.query('DELETE FROM assets');
+};
+
+const upsertAssets = async (client, zoneMap) => {
+  const assets = readJson('assets.json');
+  if (!assets?.length) {
+    console.warn('  ↳ assets.json missing, skipping asset import');
+    return;
+  }
+
+  console.log(`• Importing ${assets.length} critical assets`);
+
+  for (const asset of assets) {
+    const zoneCode = asset.zoneId || asset.zoneCode;
+    const zoneUuid = asset.zoneUuid || (zoneCode ? zoneMap.get(zoneCode) : null);
+    if (!zoneUuid) {
+      console.warn(`  ↳ Skipping asset "${asset.name}" - unknown zone ${zoneCode || '(missing)'}`);
+      continue;
+    }
+
+    const lat = Number(asset.lat);
+    const lng = Number(asset.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn(`  ↳ Skipping asset "${asset.name}" - invalid coordinates`);
+      continue;
+    }
+
+    const criticality = (asset.criticality || 'medium').toString().toLowerCase();
+    const allowedCriticality = ['low', 'medium', 'high', 'critical'];
+    const normalizedCriticality = allowedCriticality.includes(criticality) ? criticality : 'medium';
+
+    const metadata = { ...(asset.metadata || {}) };
+    if (asset.code) {
+      metadata.code = asset.code;
+    }
+    if (!metadata.externalId) {
+      metadata.externalId = asset.externalId || asset.shortId || asset.code || null;
+      if (!metadata.externalId && zoneCode) {
+        metadata.externalId = `${zoneCode}-${(asset.type || 'asset').toString().toLowerCase()}`;
       }
     }
+    if (!metadata.externalId) {
+      delete metadata.externalId;
+    }
 
-    // Sample resources
-    await pool.query(`
-      INSERT INTO resources (id, name, type, status, location, capacity, capabilities, contact_info) VALUES
-      ('20000000-0000-0000-0000-000000000001', 'Emergency Team Alpha', 'emergency_crew', 'available',
-       ST_GeomFromText('POINT(-3.695 40.405)', 4326), 12, '["medical", "rescue", "evacuation"]', '{"phone": "+1-555-0001", "email": "alpha@emergency.gov"}'),
-      ('20000000-0000-0000-0000-000000000002', 'Fire Station Central', 'fire_crew', 'available',
-       ST_GeomFromText('POINT(-3.692 40.408)', 4326), 8, '["fire_suppression", "hazardous_materials"]', '{"phone": "+1-555-0002", "email": "central@fire.gov"}'),
-      ('20000000-0000-0000-0000-000000000003', 'Engineering Unit Beta', 'engineering_crew', 'deployed',
-       ST_GeomFromText('POINT(-3.705 40.415)', 4326), 6, '["infrastructure", "utilities", "debris_removal"]', '{"phone": "+1-555-0003", "email": "beta@engineering.gov"}'),
-      ('20000000-0000-0000-0000-000000000004', 'Medical Response Team', 'medical_crew', 'standby',
-       ST_GeomFromText('POINT(-3.698 40.402)', 4326), 10, '["emergency_medical", "triage", "evacuation_support"]', '{"phone": "+1-555-0004", "email": "medical@health.gov"}')
-      ON CONFLICT (id) DO NOTHING
-    `);
+    const params = [
+      uuidPattern.test(asset.id || '') ? asset.id : null,
+      zoneUuid,
+      asset.name || 'Critical Asset',
+      (asset.type || 'facility').toString().toLowerCase(),
+      normalizedCriticality,
+      lng,
+      lat,
+      asset.address || null,
+      typeof asset.capacity === 'number' ? asset.capacity : null,
+      JSON.stringify(metadata || {}),
+    ];
 
-    // Sample alerts
-    await pool.query(`
-      INSERT INTO alerts (id, zone_id, severity, alert_type, title, message, acknowledged, metadata) VALUES
-      ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'high', 'flood_warning', 'Flood Warning - Riverside North', 'River levels rising rapidly. Prepare for possible evacuation.', false, '{"source": "river_gauge", "threshold_exceeded": true}'),
-      ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'medium', 'infrastructure', 'Power Outage Reported', 'Power Plant PP1 experiencing issues. Backup systems activated.', true, '{"acknowledged_by": "operator1", "acknowledged_at": "2025-11-13T10:00:00Z"}'),
-      ('30000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 'low', 'information', 'Emergency Services on Standby', 'All emergency crews are on standby due to weather conditions.', false, '{"priority": "information_only"}'),
-      ('30000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000004', 'medium', 'weather', 'Heavy Rainfall Expected', 'Heavy rainfall expected in the next 6 hours. Monitor conditions closely.', false, '{"precipitation_mm": 45, "duration_hours": 6}')
-      ON CONFLICT (id) DO NOTHING
-    `);
-
-    console.log('✅ Sample data seeded successfully');
-
-  } catch (error) {
-    console.error('❌ Seeding failed:', error.message);
-    throw error;
+    await client.query(
+      `
+        INSERT INTO assets (id, zone_id, name, type, criticality, location, address, capacity, metadata)
+        VALUES (
+          COALESCE($1::uuid, uuid_generate_v4()),
+          $2,
+          $3,
+          $4,
+          $5,
+          ST_SetSRID(ST_MakePoint($6::double precision, $7::double precision), 4326),
+          $8,
+          $9,
+          COALESCE($10::jsonb, '{}'::jsonb)
+        )
+        ON CONFLICT (id)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          type = EXCLUDED.type,
+          criticality = EXCLUDED.criticality,
+          location = EXCLUDED.location,
+          address = EXCLUDED.address,
+          capacity = EXCLUDED.capacity,
+          metadata = EXCLUDED.metadata
+      `,
+      params,
+    );
   }
-}
+};
 
-async function main() {
-  let pool = null;
+const upsertResources = async (client) => {
+  const resourcesJson = readJson('resources.json');
+  if (!resourcesJson) {
+    console.warn('  ↳ resources.json missing, skipping resource import');
+    return;
+  }
 
-  try {
-    // Connect to database
-    pool = await connectToDatabase();
+  const toPointParams = (item) => ({
+    lng: typeof item.lng === 'number' ? item.lng : null,
+    lat: typeof item.lat === 'number' ? item.lat : null,
+  });
 
-    // Seed sample data
-    await seedSampleData(pool);
+  const insertResource = async ({ code, name, type, status, lat, lng, capacity, capabilities }) => {
+    await client.query(
+      `
+        INSERT INTO resources (code, name, type, status, location, capacity, capabilities, contact_info)
+        VALUES (
+          $1, $2, $3, $4,
+          CASE
+            WHEN $5::double precision IS NULL OR $6::double precision IS NULL THEN NULL
+            ELSE ST_SetSRID(ST_MakePoint($5::double precision, $6::double precision), 4326)
+          END,
+          $7,
+          $8::jsonb,
+          '{}'::jsonb
+        )
+        ON CONFLICT (code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          type = EXCLUDED.type,
+          status = EXCLUDED.status,
+          location = EXCLUDED.location,
+          capacity = EXCLUDED.capacity,
+          capabilities = EXCLUDED.capabilities
+      `,
+      [code, name, type, status, lng, lat, capacity, JSON.stringify(capabilities || {})],
+    );
+  };
 
-    console.log('\n🎉 Database seeding completed successfully!');
-    console.log('\n🚀 You can now start the backend server:');
-    console.log('   cd backend && npm start');
+  console.log('• Importing depots, equipment, and crews');
 
-  } catch (error) {
-    console.error('\n❌ Database seeding script failed:', error.message);
-    process.exit(1);
-  } finally {
-    if (pool) {
-      await pool.end();
-      console.log('\n🔐 Database connection closed');
+  for (const depot of resourcesJson.depots || []) {
+    const { lat, lng } = toPointParams(depot);
+    await insertResource({
+      code: depot.id,
+      name: depot.name,
+      type: 'depot',
+      status: 'available',
+      lat,
+      lng,
+      capacity: depot.capacity ?? null,
+      capabilities: { lat, lng },
+    });
+  }
+
+  for (const equipment of resourcesJson.equipment || []) {
+    const depot = resourcesJson.depots?.find((d) => d.id === equipment.depot);
+    const { lat, lng } = toPointParams(depot || {});
+    await insertResource({
+      code: equipment.id,
+      name: `${equipment.type} ${equipment.id}`,
+      type: 'equipment',
+      status: equipment.status || 'available',
+      lat,
+      lng,
+      capacity: equipment.capacity_lps || equipment.units || null,
+      capabilities: {
+        type: equipment.type,
+        subtype: equipment.subtype,
+        capacity_lps: equipment.capacity_lps,
+        units: equipment.units,
+        depot: equipment.depot,
+      },
+    });
+  }
+
+  for (const crew of resourcesJson.crews || []) {
+    await insertResource({
+      code: crew.id,
+      name: crew.name,
+      type: 'crew',
+      status: crew.status || 'ready',
+      lat: crew.lat,
+      lng: crew.lng,
+      capacity: crew.skills?.length || null,
+      capabilities: {
+        skills: crew.skills || [],
+        depot: crew.depot,
+      },
+    });
+  }
+};
+
+const upsertRiskAssessments = async (client, zoneMap) => {
+  const riskFiles = listMockFiles(/^risk_.+\.json$/i);
+  if (riskFiles.length === 0) {
+    console.warn('  ↳ No risk_*.json files found, skipping risk import');
+    return;
+  }
+
+  console.log(`• Importing risk assessments from ${riskFiles.length} files`);
+
+  for (const file of riskFiles) {
+    const raw = fs.readFileSync(file.path, 'utf8');
+    const entries = JSON.parse(raw);
+
+    const timestampMatch = file.name.match(/risk_(.+)\.json/i);
+    const timestampRaw = timestampMatch ? timestampMatch[1] : new Date().toISOString();
+    const [datePart, timePartRaw = '00-00-00Z'] = timestampRaw.split('T');
+    const hourMatch = timePartRaw.match(/^(\d{2})-/);
+    const horizon = hourMatch ? `${hourMatch[1]}h` : '12h';
+    const forecastTime = toIso(`${datePart}T${timePartRaw}`);
+
+    for (const entry of entries) {
+      const zoneId = zoneMap.get(entry.zoneId);
+      if (!zoneId) continue;
+
+      await client.query(
+        `
+          INSERT INTO risk_assessments (zone_id, time_horizon, forecast_time, risk_level, risk_factors)
+          VALUES ($1, $2, $3, $4, $5::jsonb)
+          ON CONFLICT (zone_id, time_horizon, forecast_time)
+          DO UPDATE SET
+            risk_level = EXCLUDED.risk_level,
+            risk_factors = EXCLUDED.risk_factors
+        `,
+        [zoneId, horizon, forecastTime, entry.risk, JSON.stringify(entry.drivers || [])],
+      );
     }
   }
-}
+};
 
-// Handle script termination gracefully
+const upsertAlerts = async (client, zoneMap) => {
+  const alerts = readJson('alerts.json');
+  if (!alerts?.length) {
+    console.warn('  ↳ alerts.json missing, skipping alerts import');
+    return;
+  }
+
+  console.log(`• Importing ${alerts.length} alerts`);
+
+  const alertRecency = makeRecencyGenerator(90);
+  const sortedAlerts = [...alerts].sort((a, b) => {
+    const aTime = Date.parse(toIso(a.timestamp)) || 0;
+    const bTime = Date.parse(toIso(b.timestamp)) || 0;
+    return bTime - aTime;
+  });
+
+  for (const alert of sortedAlerts) {
+    const zoneId = zoneMap.get(alert.zoneId);
+    if (!zoneId) continue;
+
+    const severity = severityMap[alert.severity?.toLowerCase?.() || 'medium'] || 'medium';
+    const metadata = {
+      externalId: alert.id,
+      crewId: alert.crewId,
+      eta: alert.eta,
+      status: alert.status,
+      zoneCode: alert.zoneId,
+    };
+
+    const createdAt = alertRecency();
+
+    await client.query(
+      `
+        INSERT INTO alerts (zone_id, severity, alert_type, title, message, acknowledged, resolved, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, false, false, $6::jsonb, $7)
+      `,
+      [
+        zoneId,
+        severity,
+        (alert.type || 'system').toLowerCase(),
+        alert.title,
+        alert.description,
+        JSON.stringify(metadata),
+        createdAt,
+      ],
+    );
+  }
+};
+
+const upsertGauges = async (client) => {
+  const gauges = readJson('gauges.json');
+  if (!gauges?.length) {
+    console.warn('  ↳ gauges.json missing, skipping gauge import');
+    return;
+  }
+
+  console.log(`• Importing ${gauges.length} gauges and readings`);
+
+  for (const gauge of gauges) {
+    const result = await client.query(
+      `
+        INSERT INTO gauges (code, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata)
+        VALUES (
+          $1,
+          $2,
+          CASE
+            WHEN $3::double precision IS NULL OR $4::double precision IS NULL THEN NULL
+            ELSE ST_SetSRID(ST_MakePoint($4::double precision, $3::double precision), 4326)
+          END,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          'active',
+          $10::jsonb
+        )
+        ON CONFLICT (code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          location = EXCLUDED.location,
+          alert_threshold = EXCLUDED.alert_threshold,
+          warning_threshold = EXCLUDED.warning_threshold,
+          metadata = EXCLUDED.metadata
+        RETURNING id
+      `,
+      [
+        gauge.id,
+        gauge.name,
+        gauge.lat,
+        gauge.lng,
+        gauge.river_name || 'River',
+        gauge.gauge_type || 'water_level',
+        gauge.unit || 'meters',
+        gauge.critical_threshold ?? gauge.alert_threshold ?? 3.5,
+        gauge.alert_threshold ?? gauge.warning_threshold ?? 3.0,
+        JSON.stringify({ trend: gauge.trend }),
+      ],
+    );
+
+    const gaugeId = result.rows[0].id;
+
+    await client.query(
+      `
+        INSERT INTO gauge_readings (gauge_id, reading_value, reading_time, quality_flag, metadata)
+        VALUES ($1, $2, $3, 'good', $4::jsonb)
+      `,
+      [gaugeId, gauge.level_m, toIso(gauge.last_updated), JSON.stringify({ trend: gauge.trend || trendLabels.steady })],
+    );
+  }
+};
+
+const upsertCommunications = async (client) => {
+  const comms = readJson('comms.json');
+  if (!comms?.length) {
+    console.warn('  ↳ comms.json missing, skipping communications import');
+    return;
+  }
+
+  console.log(`• Importing ${comms.length} communications`);
+  const commRecency = makeRecencyGenerator(10);
+
+  for (const comm of comms) {
+    const createdAt = commRecency();
+
+    await client.query(
+      `
+        INSERT INTO communications (channel, sender, recipient, message, direction, priority, status, metadata, created_at)
+        VALUES ($1, $2, $3, $4, 'outbound', 'normal', 'delivered', $5::jsonb, $6)
+      `,
+      [
+        comm.channel,
+        comm.from,
+        comm.channel?.startsWith('task:') ? comm.channel : 'global',
+        comm.text,
+        JSON.stringify({ externalId: comm.id }),
+        createdAt,
+      ],
+    );
+  }
+};
+
+const upsertPlan = async (client) => {
+  const plan = readJson('plan_draft.json');
+  if (!plan) {
+    console.warn('  ↳ plan_draft.json missing, skipping plan import');
+    return;
+  }
+
+  console.log('• Importing response plan');
+
+  await client.query(
+    `
+      INSERT INTO response_plans (
+        name,
+        version,
+        description,
+        plan_type,
+        trigger_conditions,
+        recommended_actions,
+        required_resources,
+        assignments,
+        coverage,
+        notes,
+        estimated_duration,
+        priority,
+        status
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        'resource_deployment',
+        '{}'::jsonb,
+        '[]'::jsonb,
+        '{}'::jsonb,
+        $4::jsonb,
+        $5::jsonb,
+        $6,
+        8,
+        'high',
+        'active'
+      )
+    `,
+    [
+      plan.name || 'Mock Flood Response Plan',
+      plan.version || new Date().toISOString(),
+      plan.notes || 'Mock data import',
+      JSON.stringify(plan.assignments || []),
+      JSON.stringify(plan.coverage || {}),
+      plan.notes || 'Derived from mock dataset',
+    ],
+  );
+};
+
+const main = async () => {
+  console.log('🌱 Flood Prediction Database Seeder');
+  console.log('====================================\n');
+
+  let pool;
+  let client;
+
+  try {
+    ({ pool, client } = await connect());
+    await client.query('BEGIN');
+
+    const zoneMap = await upsertZones(client);
+    await resetTables(client);
+    await upsertAssets(client, zoneMap);
+    await upsertResources(client);
+    await upsertRiskAssessments(client, zoneMap);
+    await upsertAlerts(client, zoneMap);
+    await upsertGauges(client);
+    await upsertCommunications(client);
+    await upsertPlan(client);
+
+    await client.query('COMMIT');
+    console.log('\n🎉 Mock data imported successfully!');
+  } catch (error) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error('\n❌ Seeding failed:', error);
+    process.exitCode = 1;
+  } finally {
+    if (client) client.release();
+    if (pool) await pool.end();
+    console.log('\n🔐 Database connection closed');
+  }
+};
+
 process.on('SIGINT', () => {
-  console.log('\n\n⚠️  Seeding script interrupted by user');
-  process.exit(0);
+  console.log('\n⚠️  Seeding interrupted');
+  process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n\n⚠️  Seeding script terminated');
-  process.exit(0);
+  console.log('\n⚠️  Seeding terminated');
+  process.exit(1);
 });
 
-// Run the script
-main().catch(console.error);
+main();

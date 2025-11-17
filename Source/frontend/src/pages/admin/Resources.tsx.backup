@@ -9,10 +9,6 @@ import { FormDialog, FormField } from '@/components/Forms/FormDialog';
 import { EquipmentStatus, CrewStatus } from '@/types';
 import { Package, Users, MapPin, Plus, Edit, Trash2, Wrench, Truck, AlertTriangle, Info } from 'lucide-react';
 
-// API base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-
-
 // API data types
 interface Depot {
   id: string;
@@ -55,6 +51,11 @@ interface Crew {
   certifications?: string[];
 }
 
+interface ResourcesData {
+  depots: Depot[];
+  equipment: Equipment[];
+  crews: Crew[];
+}
 
 export function AdminResources() {
   const [depots, setDepots] = useState<Depot[]>([]);
@@ -70,26 +71,20 @@ export function AdminResources() {
         setLoading(true);
         setError(null);
 
-        // Fetch from admin endpoints
-        const [depotsResponse, equipmentResponse, crewsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/admin/resources/depots`),
-          fetch(`${API_BASE_URL}/api/admin/resources/equipment`),
-          fetch(`${API_BASE_URL}/api/admin/resources/crews`)
+        // Fetch from multiple endpoints or a single resources endpoint
+        const [resourcesResponse] = await Promise.all([
+          fetch('/api/resources')
         ]);
 
-        if (!depotsResponse.ok || !equipmentResponse.ok || !crewsResponse.ok) {
-          throw new Error(`Failed to fetch resources`);
+        if (!resourcesResponse.ok) {
+          throw new Error(`Failed to fetch resources: ${resourcesResponse.statusText}`);
         }
 
-        const [depotsData, equipmentData, crewsData] = await Promise.all([
-          depotsResponse.json(),
-          equipmentResponse.json(),
-          crewsResponse.json()
-        ]);
+        const resourcesData: ResourcesData = await resourcesResponse.json();
 
-        setDepots(depotsData || []);
-        setEquipment(equipmentData || []);
-        setCrews(crewsData || []);
+        setDepots(resourcesData.depots || []);
+        setEquipment(resourcesData.equipment || []);
+        setCrews(resourcesData.crews || []);
 
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load resources data';

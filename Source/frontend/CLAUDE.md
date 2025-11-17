@@ -20,24 +20,38 @@ This is a **role-based React application for flood prediction system management*
 - **Zod** for type-safe data validation
 - **Playwright** for E2E testing
 
-### Backend (Mock)
-- **Express.js** server with JSON file-based data
-- **Docker Compose** for orchestration
+### Backend
+- **Dual Backend Architecture**: Both mock JSON API and PostgreSQL backend available
+- **Mock API**: Express.js server serving JSON files from `public/mock/` (port 8080)
+- **PostgreSQL Backend**: Full-featured backend with PostGIS for geospatial data (port 18080)
+- **Docker Compose** for orchestration with health checks
+- **Swagger UI**: Interactive API documentation for both backends
 
 ## Development Commands
 
 ```bash
-# Docker-first development (recommended)
+# Docker-first development (recommended) - Full stack with PostgreSQL
 docker compose up --build
 
-# Local development
+# Local development with mock API
 npm install
-npm run dev
+npm run dev:full          # Start both mock API (port 8080) and frontend (port 5173)
+npm run dev               # Frontend only (port 5173)
+npm run api               # Mock API only (port 8080)
+
+# Local development with PostgreSQL backend
+docker compose up -d postgres           # Start PostgreSQL only
+cd backend && DB_HOST=localhost DB_PORT=5433 npm run dev  # Backend with real database
 
 # Testing
-npm run test              # Playwright E2E tests
+npm run test              # Playwright E2E tests (all browsers)
 npm run test:ui           # Interactive test runner
 npm run test:report       # View test report
+npx playwright test tests/e2e.spec.ts --project=chromium  # Single browser tests
+
+# Database operations (PostgreSQL backend)
+cd backend && DB_HOST=localhost DB_PORT=5433 npm run db:migrate  # Run schema migrations
+cd backend && DB_HOST=localhost DB_PORT=5433 npm run db:seed      # Import mock data
 
 # Build and quality
 npm run build             # Production build
@@ -47,6 +61,8 @@ npm run lint              # ESLint
 **Application URLs**:
 - Frontend: http://localhost:5173
 - Mock API: http://localhost:8080
+- PostgreSQL Backend: http://localhost:18080
+- API Documentation: http://localhost:18080/api-docs/ (Swagger UI)
 
 ## Architecture & Project Structure
 
@@ -92,8 +108,10 @@ All mock data files exist in `public/mock/`:
 - `comms.json` - Communication logs
 - `gauges.json` - River gauge readings
 
-### API Endpoints (Mock)
-Express server at `/api` provides:
+### API Endpoints
+
+#### Mock API (Port 8080)
+Express server serving JSON files from `public/mock/`:
 - `GET /api/zones` - Geographic zones (GeoJSON)
 - `GET /api/risk?at=<timestamp>` - Time-based risk data
 - `GET /api/damage-index` - Damage assessments
@@ -102,6 +120,14 @@ Express server at `/api` provides:
 - `GET /api/alerts` - System alerts
 - `GET /api/comms` - Communications
 - `GET /api/gauges` - River gauges
+
+#### PostgreSQL Backend (Port 18080)
+Full REST API with database persistence:
+- Same endpoints as mock API plus CRUD operations
+- `POST /api/*` - Create operations for administrators
+- `PUT /api/*` - Update operations for administrators
+- `DELETE /api/*` - Delete operations for administrators
+- Swagger UI documentation at `/api-docs/`
 
 ## Current Implementation Status
 

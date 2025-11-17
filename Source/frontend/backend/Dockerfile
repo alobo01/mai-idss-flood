@@ -1,6 +1,9 @@
 FROM node:20-alpine
 WORKDIR /srv
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Copy package files first for better cache layering
 COPY package*.json ./
 

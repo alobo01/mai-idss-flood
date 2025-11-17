@@ -5,13 +5,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Role } from '@/types';
 import {
-  Settings,
   MapPin,
   Radio,
   BarChart3,
@@ -23,7 +25,8 @@ import {
   Layers,
   Users,
   Shield,
-  TrendingUp
+  TrendingUp,
+  UserCircle2,
 } from 'lucide-react';
 import { getAdminPath } from '@/lib/routes';
 
@@ -61,26 +64,27 @@ const roleColors = {
 };
 
 export function AppShell({ children }: AppShellProps) {
-  const { currentRole, setCurrentRole, darkMode, setDarkMode } = useAppContext();
+  const { currentRole, darkMode, setDarkMode, setCurrentRole } = useAppContext();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const handleRoleChange = (newRole: Role) => {
-    setCurrentRole(newRole);
-    setSidebarOpen(false);
-
-    // Navigate to appropriate default route for each role
-    const defaultRoutes = {
-      Administrator: getAdminPath('regions'),
-      Planner: '/planner/map',
-      Coordinator: '/coordinator/ops',
-      'Data Analyst': '/analyst/overview',
-    };
-
-    navigate(defaultRoutes[newRole]);
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
-  
+  const handleRoleSwitch = (role: Role) => {
+    setCurrentRole(role);
+    // Navigate to the first page of that role
+    const roleNavigation = navigationConfig[role];
+    if (roleNavigation.length > 0) {
+      navigate(roleNavigation[0].to);
+    }
+  };
+
+  const isAdministrator = currentUser?.role === 'Administrator';
+
   const navigation = currentRole ? navigationConfig[currentRole] : [];
 
   return (
@@ -124,37 +128,53 @@ export function AppShell({ children }: AppShellProps) {
               )}
             </Button>
 
-            {/* Role switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4 mr-2" />
-                  {currentRole}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleRoleChange('Administrator')}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Administrator
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleRoleChange('Planner')}>
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Planner
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleRoleChange('Coordinator')}>
-                  <Radio className="h-4 w-4 mr-2" />
-                  Coordinator
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleRoleChange('Data Analyst')}>
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Data Analyst
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setCurrentRole(null); navigate('/'); }} className="text-red-600">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {currentUser && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <UserCircle2 className="h-4 w-4 mr-2" />
+                    {currentUser.firstName}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuLabel>
+                    <div className="text-xs text-muted-foreground">Signed in as</div>
+                    <div className="font-medium">{currentUser.firstName} {currentUser.lastName}</div>
+                    <div className="text-xs text-muted-foreground">@{currentUser.username}</div>
+                    <div className="text-xs text-muted-foreground">Role: {currentUser.role}</div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  {/* Role switching for administrators */}
+                  {isAdministrator && (
+                    <>
+                      <DropdownMenuLabel className="text-xs font-semibold">
+                        View as Role:
+                      </DropdownMenuLabel>
+                      {(['Administrator', 'Planner', 'Coordinator', 'Data Analyst'] as Role[]).map((role) => (
+                        <DropdownMenuItem
+                          key={role}
+                          onClick={() => handleRoleSwitch(role)}
+                          className={currentRole === role ? 'bg-accent' : ''}
+                        >
+                          <div className={`w-3 h-3 rounded-full mr-2 ${roleColors[role]}`} />
+                          {role}
+                          {currentRole === role && (
+                            <span className="ml-auto text-xs">✓</span>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </header>

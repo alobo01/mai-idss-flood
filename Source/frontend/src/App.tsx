@@ -1,9 +1,10 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
-import { RoleSelector } from '@/components/RoleSelector';
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { ADMIN_BASE_PATH, ADMIN_PATH_ALIASES, getAdminPath } from '@/lib/routes';
+import { LoginPage } from '@/pages/auth/Login';
 
 // Placeholder page components
 import { PlannerMap } from '@/pages/planner/Map';
@@ -20,11 +21,28 @@ import { AnalystExports } from '@/pages/analyst/Exports';
 import { MapTestPage } from '@/components/MapTestPage';
 
 function App() {
-  const { currentRole } = useAppContext();
+  const { currentRole, setCurrentRole } = useAppContext();
+  const { currentUser, isAuthenticated } = useAuth();
   const adminDefaultPath = getAdminPath('regions');
 
+  useEffect(() => {
+    if (currentUser?.role && currentUser.role !== currentRole) {
+      setCurrentRole(currentUser.role);
+    } else if (!currentUser && currentRole) {
+      setCurrentRole(null);
+    }
+  }, [currentRole, currentUser, setCurrentRole]);
+
+  if (!isAuthenticated || !currentUser) {
+    return <LoginPage />;
+  }
+
   if (!currentRole) {
-    return <RoleSelector />;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Preparing your workspace...
+      </div>
+    );
   }
 
   return (

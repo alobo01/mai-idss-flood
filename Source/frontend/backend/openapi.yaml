@@ -145,11 +145,10 @@ paths:
       parameters:
         - name: zoneId
           in: query
-          description: Filter by zone ID
+          description: Filter by zone identifier (accepts zone code like `Z-ALFA` or UUID)
           required: false
           schema:
             type: string
-            format: uuid
       responses:
         '200':
           description: Successful response
@@ -484,33 +483,92 @@ paths:
     get:
       tags:
         - Response Plans
-      summary: Get response plans
-      description: Retrieve emergency response plans
-      operationId: getResponsePlans
+      summary: Get latest response plan
+      description: Retrieve the most recent plan filtered by status (defaults to active) and optional plan type.
+      operationId: getLatestResponsePlan
       parameters:
         - name: status
           in: query
-          description: Filter by plan status
+          description: Filter by plan status (use `any` to disable filtering)
           required: false
           schema:
             type: string
-            enum: [draft, active, archived]
+            enum: [draft, active, archived, any]
+            default: active
         - name: type
           in: query
           description: Filter by plan type
           required: false
           schema:
             type: string
-            enum: [evacuation, shelter, medical, infrastructure, communication]
       responses:
         '200':
-          description: Successful response
+          description: Latest plan
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ResponsePlan'
+                $ref: '#/components/schemas/ResponsePlan'
+        '404':
+          description: No plan found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/plan/draft:
+    post:
+      tags:
+        - Response Plans
+      summary: Submit draft plan
+      description: Create a draft response plan with assignments and coverage metrics.
+      operationId: createDraftPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignments]
+              properties:
+                name:
+                  type: string
+                version:
+                  type: string
+                  format: date-time
+                planType:
+                  type: string
+                  example: resource_deployment
+                assignments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/PlanAssignment'
+                coverage:
+                  type: object
+                  additionalProperties: true
+                notes:
+                  type: string
+                priority:
+                  type: string
+                  enum: [low, medium, high, critical]
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponsePlan'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
@@ -663,6 +721,9 @@ components:
           format: uuid
           example: "10000000-0000-0000-0000-000000000001"
         zoneId:
+          type: string
+          example: "Z-ALFA"
+        zoneUuid:
           type: string
           format: uuid
           example: "00000000-0000-0000-0000-000000000001"
@@ -1014,6 +1075,24 @@ components:
                 format: date-time
                 example: "2025-11-13T09:30:00.000Z"
 
+    PlanAssignment:
+      type: object
+      properties:
+        zoneId:
+          type: string
+          example: "Z-ALFA"
+        priority:
+          type: integer
+          example: 1
+        actions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        notes:
+          type: string
+          nullable: true
+
     ResponsePlan:
       type: object
       properties:
@@ -1023,48 +1102,53 @@ components:
           example: "60000000-0000-0000-0000-000000000001"
         name:
           type: string
-          example: "Zone Evacuation Plan - Riverside North"
-        description:
+          example: "Urban Flood Response Plan"
+        planType:
           type: string
-          example: "Comprehensive evacuation plan for Riverside North zone"
-        type:
-          type: string
-          enum: [evacuation, shelter, medical, infrastructure, communication]
-          example: "evacuation"
-        triggerConditions:
-          type: array
-          items:
-            type: string
-          example: ["river_level > 4.0m", "rainfall > 50mm/24h"]
-        recommendedActions:
-          type: array
-          items:
-            type: string
-          example: ["Issue evacuation order", "Open emergency shelters", "Deploy rescue teams"]
-        requiredResources:
-          type: array
-          items:
-            type: string
-          example: ["emergency_crews", "transportation", "medical_supplies"]
-        estimatedDuration:
-          type: string
-          example: "6-12 hours"
-        priority:
-          type: string
-          enum: [low, medium, high, critical]
-          example: "high"
+          example: "resource_deployment"
         status:
           type: string
           enum: [draft, active, archived]
           example: "active"
+        version:
+          type: string
+          example: "2025-11-11T10:30:00Z"
+        notes:
+          type: string
+          example: "Focus on high-risk zones."
+        triggerConditions:
+          type: object
+          additionalProperties: true
+        recommendedActions:
+          type: array
+          items:
+            type: string
+        requiredResources:
+          type: object
+          additionalProperties: true
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanAssignment'
+        coverage:
+          type: object
+          additionalProperties: true
+        estimatedDuration:
+          type: integer
+          nullable: true
+          example: 8
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          example: "high"
         createdAt:
           type: string
           format: date-time
-          example: "2025-10-01T08:00:00.000Z"
+          example: "2025-11-11T10:30:00.000Z"
         updatedAt:
           type: string
           format: date-time
-          example: "2025-11-01T14:30:00.000Z"
+          example: "2025-11-11T10:45:00.000Z"
 
   securitySchemes:
     ApiKeyAuth:

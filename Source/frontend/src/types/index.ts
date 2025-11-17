@@ -200,6 +200,27 @@ export type Gauge = z.infer<typeof GaugeSchema>;
 export type MapLayer = z.infer<typeof MapLayerSchema>;
 export type TimeHorizon = z.infer<typeof TimeHorizonSchema>;
 
+export type UserStatus = 'active' | 'inactive' | 'suspended';
+
+export interface SystemUser {
+  id: string;
+  username: string;
+  password: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: Role;
+  department: string;
+  phone?: string;
+  location?: string;
+  status: UserStatus;
+  lastLogin: string | null;
+  zones: string[];
+  permissions: string[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // Application context types
 export interface AppContextType {
   currentRole: Role | null;

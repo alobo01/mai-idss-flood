@@ -249,6 +249,26 @@ This document contains precise, testable tasks to implement the flood prediction
   - **Test**: Demo runs smoothly without errors
   - **Acceptance**: All demo features are visually impressive
 
+## Phase 9: API Completion (PostgreSQL)
+
+### 9.1 Service Hardening
+- [ ] **Task**: Run the Node/Express API against the Postgres service in both local dev and Docker Compose
+  - **Test**: `/health`, `/api/zones`, `/api/alerts`, and `/api/resources` respond successfully when `DB_HOST=postgres`
+  - **Acceptance**: Backend container starts cleanly after PostgreSQL initialization
+
+- [ ] **Task**: Provide automated migrations + seed data tied to the new SQL scripts
+  - **Test**: `npm run db:migrate && npm run db:seed` completes on a clean database without manual edits
+  - **Acceptance**: Database contains sample zones, assets, gauges, alerts, and response plans
+
+### 9.2 Endpoint Parity
+- [ ] **Task**: Implement database-backed routes for risk assessments, assets, communications, gauges, deployments, and admin CRUD
+  - **Test**: Requests return rows from PostgreSQL instead of JSON files (`mock-api/server.js` parity)
+  - **Acceptance**: All endpoints documented under `docs/api` exist in `backend/server.js`
+
+- [ ] **Task**: Add integration tests that hit the API against a seeded Postgres instance
+  - **Test**: CI job brings up Postgres, runs backend tests, and validates sample responses
+  - **Acceptance**: Tests fail if database schema or seed data no longer matches API contracts
+
 ## Acceptance Criteria Summary
 
 ### Core Functionality

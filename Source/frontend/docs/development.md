@@ -121,7 +121,23 @@ VITE_LOG_LEVEL=debug
 VITE_ENABLE_MOCK_API=true
 ```
 
-### 3. Development Server
+### 3. Database Bootstrap
+
+```bash
+# Apply schema changes (idempotent)
+cd backend
+npm run db:migrate
+
+# Import the mock dataset into PostgreSQL
+npm run db:seed
+
+# Optional: point to a different JSON dataset
+MOCK_DATA_PATH=/absolute/path/to/mock npm run db:seed
+```
+
+This seeds every table (zones, risk, alerts, resources, gauges, plan, comms) using the same fixtures under `public/mock`, guaranteeing parity between the UI props and the live API.
+
+### 4. Development Server
 
 ```bash
 # Start development server (terminal 1)
@@ -136,7 +152,7 @@ npm start
 docker compose up --build
 ```
 
-### 4. Verification
+### 5. Verification
 
 ```bash
 # Open application
