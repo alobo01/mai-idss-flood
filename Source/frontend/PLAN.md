@@ -207,6 +207,17 @@ Place these in `/public/mock/` and fetch with `fetch('/mock/...')`.
 }
 ```
 
+---
+
+## 7) Testing & Verification
+
+* **Playwright API suite (`tests/api.spec.ts`)** exercises every backend endpoint that powers the Planner, Coordinator, Admin, and Analyst flows described above. It validates:
+  * **Zones & Risk Layers** (Sections 3 & 6) – GeoJSON schemas, risk drivers, and threshold bands.
+  * **Resources & Alerts** (Sections 3 & 6.5) – Depot/equipment/crew catalogs plus acknowledgement workflows.
+  * **Coordinator Comms** (Section 3) – End-to-end creation and retrieval of communication logs.
+  * **Analyst Views** (Section 3) – Damage indices, gauge trends, and plan assignments.
+* These tests assume the PostgreSQL database has been migrated and seeded via `cd backend && npm run db:migrate && npm run db:seed`, ensuring parity with the mock JSON files referenced throughout this plan.
+
 ### 6.6 Proposed Plan (Draft)
 
 **File:** `plan_draft.json`
@@ -253,6 +264,33 @@ Place these in `/public/mock/` and fetch with `fetch('/mock/...')`.
   {"id":"G‑RIV‑12","name":"River North Gauge","lat":40.418,"lng":-3.699,"level_m":3.2,"trend":"rising"}
 ]
 ```
+
+### 6.10 Critical Assets
+
+**File:** `assets.json`
+
+```json
+[
+  {
+    "id": "d48aed1c-5b0a-4c1e-abff-6c8d0574cae7",
+    "zoneId": "Z-ALFA",
+    "name": "Riverside Medical Center",
+    "type": "hospital",
+    "criticality": "critical",
+    "lat": 40.4153,
+    "lng": -3.7052,
+    "address": "123 Riverside Ave",
+    "capacity": 325,
+    "metadata": {
+      "code": "A-HOSP-001",
+      "emergency_services": true,
+      "icu_beds": 40
+    }
+  }
+]
+```
+
+These entries power both the planner map overlays and the `/api/assets` endpoint used by admin dashboards.
 
 ---
 

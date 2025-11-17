@@ -8,10 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Geographic zones with flood risk data
 CREATE TABLE zones (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     population INTEGER DEFAULT 0,
     area_km2 DECIMAL(10,2),
+    admin_level INTEGER DEFAULT 10,
+    critical_assets TEXT[] DEFAULT ARRAY[]::TEXT[],
     geometry GEOMETRY(POLYGON, 4326) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -59,9 +62,10 @@ CREATE TABLE damage_assessments (
 -- Resources (crews, equipment, facilities)
 CREATE TABLE resources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL, -- 'crew', 'vehicle', 'equipment', 'facility'
-    status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'deployed', 'maintenance', 'unavailable')),
+    type VARCHAR(50) NOT NULL, -- 'crew', 'vehicle', 'equipment', 'facility', 'depot'
+    status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'deployed', 'maintenance', 'unavailable', 'ready', 'standby', 'working', 'rest')),
     location GEOMETRY(POINT, 4326),
     capacity DECIMAL(10,2),
     capabilities JSONB,
@@ -103,7 +107,7 @@ CREATE TABLE alerts (
 -- Communication logs
 CREATE TABLE communications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    channel VARCHAR(50) NOT NULL CHECK (channel IN ('radio', 'email', 'sms', 'phone', 'alert_system')),
+    channel VARCHAR(50) NOT NULL,
     sender VARCHAR(255) NOT NULL,
     recipient VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -117,6 +121,7 @@ CREATE TABLE communications (
 -- River gauges and water level monitoring
 CREATE TABLE gauges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     location GEOMETRY(POINT, 4326) NOT NULL,
     river_name VARCHAR(255),
@@ -145,11 +150,15 @@ CREATE TABLE gauge_readings (
 CREATE TABLE response_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    version VARCHAR(50),
     description TEXT,
     plan_type VARCHAR(50) NOT NULL, -- 'evacuation', 'resource_deployment', 'infrastructure_protection', etc.
     trigger_conditions JSONB,
     recommended_actions JSONB,
     required_resources JSONB,
+    assignments JSONB,
+    coverage JSONB,
+    notes TEXT,
     estimated_duration INTEGER, -- in hours
     priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
@@ -159,9 +168,10 @@ CREATE TABLE response_plans (
 
 -- Create indexes for performance
 CREATE INDEX idx_zones_geometry ON zones USING GIST (geometry);
+CREATE INDEX idx_zones_code ON zones (code);
 CREATE INDEX idx_assets_location ON assets USING GIST (location);
 CREATE INDEX idx_gauges_location ON gauges USING GIST (location);
-CREATE INDEX idx_risk_assessments_zone_time ON risk_assessments (zone_id, forecast_time);
+CREATE UNIQUE INDEX idx_risk_assessments_zone_time ON risk_assessments (zone_id, time_horizon, forecast_time);
 CREATE INDEX idx_alerts_zone_severity ON alerts (zone_id, severity);
 CREATE INDEX idx_deployments_resource_time ON deployments (resource_id, deployment_time);
 CREATE INDEX idx_gauge_readings_gauge_time ON gauge_readings (gauge_id, reading_time);

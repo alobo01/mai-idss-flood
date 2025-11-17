@@ -60,17 +60,17 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
-      command: 'cd mock-api && npm start',
-      port: 18080,
+      command: 'cd mock-api && node server.js',
+      port: 8080,
       reuseExistingServer: !process.env.CI,
-      env: {
-        MOCK_DATA_PATH: path.resolve(__dirname, 'public/mock'),
-      },
     },
     {
       command: 'npm run dev',
       port: 5173,
       reuseExistingServer: !process.env.CI,
+      env: {
+        VITE_API_BASE_URL: 'http://localhost:8080',
+      },
     }
   ],
 });

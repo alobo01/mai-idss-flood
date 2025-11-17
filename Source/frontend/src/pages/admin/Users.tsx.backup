@@ -1,13 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DataTable, type Column } from '@/components/DataTable';
+import { DataTable } from '@/components/DataTable';
 import { FormDialog, FormField } from '@/components/Forms/FormDialog';
-import { Role, SystemUser } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_PERMISSIONS } from '@/lib/permissions';
-import { Shield, Info, AlertTriangle, Mail, Phone, MapPin } from 'lucide-react';
+import { Role } from '@/types';
+import { UserPlus, Edit, Trash2, Shield, Info, AlertTriangle, Mail, Phone, MapPin } from 'lucide-react';
+
+// API data types
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: Role;
+  department: string;
+  phone: string;
+  location: string;
+  status: string;
+  lastLogin: string | null;
+  zones: string[];
+  permissions: string[];
+  createdAt: string;
+  updatedAt?: string;
+}
 
 const roleDescriptions = {
   Administrator: 'Full system access including user management and configuration',
@@ -16,12 +34,47 @@ const roleDescriptions = {
   'Data Analyst': 'Analytics, reporting, and data export capabilities',
 };
 
+const rolePermissions = {
+  Administrator: ['system_config', 'user_management', 'threshold_management', 'zone_management', 'risk_assessment', 'resource_deployment'],
+  Planner: ['risk_assessment', 'scenario_planning', 'alert_management', 'zone_viewing', 'reporting'],
+  Coordinator: ['resource_deployment', 'crew_management', 'communications', 'alert_management', 'zone_viewing'],
+  'Data Analyst': ['data_export', 'reporting', 'analytics', 'zone_viewing'],
+};
+
 export function AdminUsers() {
-  const { users, addUser, updateUser, deleteUser, resetPassword, currentUser } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch users data from API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch('/api/admin/users');
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch users: ${response.statusText}`);
+        }
+
+        const usersData: User[] = await response.json();
+        setUsers(usersData || []);
+
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load users data';
+        setError(errorMessage);
+        console.error('Error fetching users:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
 
   // User Form Fields
   const userFields: FormField[] = [
@@ -99,12 +152,12 @@ export function AdminUsers() {
   ];
 
   // User Columns for DataTable
-  const userColumns: Column<SystemUser>[] = [
+  const userColumns = [
     {
       key: 'firstName',
       title: 'Name',
       sortable: true,
-      render: (value: string, record: SystemUser) => (
+      render: (value: string, record: any) => (
         <div>
           <div className="font-medium">{`${value} ${record.lastName}`}</div>
           <div className="text-sm text-muted-foreground">@{record.username}</div>
@@ -114,7 +167,7 @@ export function AdminUsers() {
     {
       key: 'email',
       title: 'Contact',
-      render: (value: string, record: SystemUser) => (
+      render: (value: string, record: any) => (
         <div className="space-y-1">
           <div className="flex items-center space-x-1">
             <Mail className="h-3 w-3 text-muted-foreground" />
@@ -210,28 +263,34 @@ export function AdminUsers() {
     },
   ];
 
-  const handleSaveUser = async (data: Record<string, any>) => {
+  const handleSaveUser = async (data: any) => {
     try {
-      setError(null);
-      setLoading(true);
+      const url = editingUser
+        ? `/api/admin/users/${editingUser.id}`
+        : '/api/admin/users';
 
-      const payload = {
-        username: data.username,
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        role: data.role,
-        department: data.department,
-        phone: data.phone,
-        location: data.location,
-        status: data.status,
-        password: data.password,
-      };
+      const method = editingUser ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save user: ${response.statusText}`);
+      }
+
+      const savedUser = await response.json();
 
       if (editingUser) {
-        await updateUser(editingUser.id, payload);
+        setUsers(prev =>
+          prev.map(user => user.id === editingUser.id ? savedUser : user)
+        );
       } else {
-        await addUser(payload);
+        setUsers(prev => [...prev, savedUser]);
       }
 
       setIsUserDialogOpen(false);
@@ -240,37 +299,42 @@ export function AdminUsers() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save user';
       setError(errorMessage);
       console.error('Error saving user:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleDeleteUser = async (record: SystemUser) => {
+  const handleDeleteUser = async (record: any) => {
     try {
-      setError(null);
-      setLoading(true);
-      await deleteUser(record.id);
+      // Prevent deletion of the last administrator
+      if (record.role === 'Administrator') {
+        const adminCount = users.filter(u => u.role === 'Administrator').length;
+        if (adminCount <= 1) {
+          setError('Cannot delete the last administrator account');
+          return;
+        }
+      }
+
+      const response = await fetch(`/api/admin/users/${record.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete user: ${response.statusText}`);
+      }
+
+      setUsers(prev => prev.filter(user => user.id !== record.id));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete user';
       setError(errorMessage);
       console.error('Error deleting user:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleResetPassword = async (user: SystemUser) => {
-    try {
-      const newPassword = await resetPassword(user.id);
-      alert(`Temporary password for ${user.username}: ${newPassword}`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to reset password';
-      setError(errorMessage);
-      console.error('Error resetting password:', err);
-    }
+  const handleResetPassword = (user: any) => {
+    // In a real application, this would trigger a password reset email
+    alert(`Password reset link sent to ${user.email}`);
   };
 
-  const customActions = (record: SystemUser) => (
+  const customActions = (record: any) => (
     <>
       <button
         onClick={() => handleResetPassword(record)}
@@ -284,15 +348,6 @@ export function AdminUsers() {
   const activeUsers = users.filter(u => u.status === 'active');
   const inactiveUsers = users.filter(u => u.status === 'inactive');
   const suspendedUsers = users.filter(u => u.status === 'suspended');
-
-  if (currentUser?.role !== 'Administrator') {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Administrator access is required to manage user accounts.</AlertDescription>
-      </Alert>
-    );
-  }
 
   return (
     <div>
@@ -371,7 +426,7 @@ export function AdminUsers() {
                 </div>
                 <p className="text-sm text-muted-foreground mb-2">{description}</p>
                 <div className="space-y-1">
-                  {ROLE_PERMISSIONS[role as Role].map((permission) => (
+                  {rolePermissions[role as Role].map((permission) => (
                     <Badge key={permission} variant="secondary" className="text-xs mr-1">
                       {permission.replace('_', ' ')}
                     </Badge>

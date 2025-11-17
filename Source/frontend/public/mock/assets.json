@@ -1,0 +1,82 @@
+[
+  {
+    "id": "d48aed1c-5b0a-4c1e-abff-6c8d0574cae7",
+    "zoneId": "Z-ALFA",
+    "name": "Riverside Medical Center",
+    "type": "hospital",
+    "criticality": "critical",
+    "lat": 40.4153,
+    "lng": -3.7052,
+    "address": "123 Riverside Ave",
+    "capacity": 325,
+    "metadata": {
+      "code": "A-HOSP-001",
+      "emergency_services": true,
+      "icu_beds": 40,
+      "helipad": true
+    }
+  },
+  {
+    "id": "3321bc20-26a5-4efd-b0e7-1fae03ae1137",
+    "zoneId": "Z-BRAVO",
+    "name": "Industrial Power Station",
+    "type": "power_plant",
+    "criticality": "critical",
+    "lat": 40.4165,
+    "lng": -3.6988,
+    "address": "45 Gridline Rd",
+    "capacity": 200,
+    "metadata": {
+      "code": "A-PLANT-002",
+      "fuel_type": "natural_gas",
+      "backup_generators": true
+    }
+  },
+  {
+    "id": "9a41dd99-ba66-43b0-b02e-c51f2bc36ff6",
+    "zoneId": "Z-CHARLIE",
+    "name": "Residential Heights School",
+    "type": "school",
+    "criticality": "high",
+    "lat": 40.4245,
+    "lng": -3.7065,
+    "address": "10 Summit Way",
+    "capacity": 800,
+    "metadata": {
+      "code": "A-SCHOOL-003",
+      "grades": "K-12",
+      "shelter_capacity": 250
+    }
+  },
+  {
+    "id": "aa17203e-ed03-4a5a-bfe0-d1e5ae109d1c",
+    "zoneId": "Z-DELTA",
+    "name": "Commercial Transit Hub",
+    "type": "transit_hub",
+    "criticality": "high",
+    "lat": 40.4282,
+    "lng": -3.6951,
+    "address": "5 Central Plaza",
+    "capacity": 5000,
+    "metadata": {
+      "code": "A-TRANSIT-004",
+      "lines_supported": 5
+    }
+  },
+  {
+    "id": "7f212021-0dcc-4fc6-a8ce-b74c75a2987e",
+    "zoneId": "Z-ECHO",
+    "name": "Emergency Operations Center",
+    "type": "operations",
+    "criticality": "critical",
+    "lat": 40.4051,
+    "lng": -3.7071,
+    "address": "88 Command Blvd",
+    "capacity": 120,
+    "metadata": {
+      "code": "A-EOC-005",
+      "staffed": true,
+      "communications": ["satcom", "vhf", "lte"]
+    }
+  }
+]

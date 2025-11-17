@@ -17,6 +17,7 @@ Complete documentation for the Flood Prediction System REST API with PostgreSQL 
 2. **Click** on any endpoint to expand it
 3. **Click** "Try it out" button
 4. **Execute** to see real database responses
+5. **Seed sample data** with `cd backend && npm run db:seed` (uses `public/mock` or `MOCK_DATA_PATH`)
 
 ## 📊 API Overview
 
@@ -90,19 +91,19 @@ The API manages comprehensive flood prediction data including:
 - `GET /api/assets` - Critical infrastructure with zone mapping
 
 ### Risk & Assessment
-- `GET /api/risk` - Risk assessments with time horizons
-- `GET /api/damage-index` - Damage assessment reports
+- `GET /api/risk` - Risk assessments with Postgres-backed horizons and drivers
+- `GET /api/damage-index` - Damage index per zone (aggregated from assessments + alerts)
 
 ### Operations & Management
-- `GET /api/alerts` - System alerts with filtering
+- `GET /api/alerts` - System alerts with filtering and ACK state
 - `POST /api/alerts/{id}/ack` - Alert acknowledgment
-- `GET /api/resources` - Emergency resources and deployments
+- `GET /api/resources` - Depots, equipment, and crews
 - `GET /api/comms` - Communication logs
-- `POST /api/comms` - Send communications
+- `POST /api/comms` - Send communications (persists)
 
 ### Monitoring & Analytics
-- `GET /api/gauges` - River gauge monitoring data
-- `GET /api/plan` - Response plans and procedures
+- `GET /api/gauges` - River gauge monitoring data with trend detection
+- `GET /api/plan` - Latest response plan (JSON assignments + coverage)
 
 ## 🔧 Authentication & Security
 

@@ -2,37 +2,49 @@
 -- This script migrates the JSON-based mock data to the relational database
 
 -- Insert sample zones (based on zones.geojson)
-INSERT INTO zones (id, name, description, population, area_km2, geometry) VALUES
+INSERT INTO zones (id, code, name, description, population, area_km2, admin_level, critical_assets, geometry) VALUES
 (
     '550e8400-e29b-41d4-a716-446655440001'::UUID,
+    'Z-ALFA',
     'Downtown River District',
     'Central business district along the main river channel',
     15000,
     12.5,
+    10,
+    ARRAY['Hospital HN1', 'Downtown Elementary School'],
     ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0060,40.7128],[-74.0050,40.7138],[-74.0040,40.7128],[-74.0050,40.7118],[-74.0060,40.7128]]]}', 4326)
 ),
 (
     '550e8400-e29b-41d4-a716-446655440002'::UUID,
+    'Z-BRAVO',
     'Riverside Residential',
     'Residential area on the eastern flood plain',
     8500,
     8.3,
+    10,
+    ARRAY['East Side Power Station'],
     ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0050,40.7148],[-74.0040,40.7158],[-74.0030,40.7148],[-74.0040,40.7138],[-74.0050,40.7148]]]}', 4326)
 ),
 (
     '550e8400-e29b-41d4-a716-446655440003'::UUID,
+    'Z-CHARLIE',
     'Industrial Zone North',
     'Manufacturing and warehouse district',
     3500,
     15.7,
+    10,
+    ARRAY['Main Street Bridge'],
     ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0070,40.7138],[-74.0060,40.7148],[-74.0050,40.7138],[-74.0060,40.7128],[-74.0070,40.7138]]]}', 4326)
 ),
 (
     '550e8400-e29b-41d4-a716-446655440004'::UUID,
+    'Z-DELTA',
     'Lowland Parks',
     'Recreational areas and green spaces',
     1200,
     22.1,
+    10,
+    ARRAY['Riverside Water Treatment'],
     ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0040,40.7118],[-74.0030,40.7128],[-74.0020,40.7118],[-74.0030,40.7108],[-74.0040,40.7118]]]}', 4326)
 );
 
@@ -110,15 +122,15 @@ INSERT INTO risk_assessments (zone_id, time_horizon, forecast_time, risk_level, 
 
 -- 24-hour forecast
 ('550e8400-e29b-41d4-a716-446655440001'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.81, '{"precipitation": 4.2, "river_level": 4.8, "soil_saturation": 0.92}'),
-('550e8400-e29b-41d4-a716-446655440002'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.76, '{"precipitation": 3.8, 'river_level': 4.3, 'soil_saturation': 0.88}'),
-('550e8400-e29b-41d4-a716-446655440003'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.63, '{"precipitation": 3.1, 'river_level': 3.6, 'soil_saturation': 0.78}'),
-('550e8400-e29b-41d4-a716-446655440004'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.85, '{"precipitation": 4.5, 'river_level': 5.2, 'soil_saturation': 0.95}'),
+('550e8400-e29b-41d4-a716-446655440002'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.76, '{"precipitation": 3.8, "river_level": 4.3, "soil_saturation": 0.88}'),
+('550e8400-e29b-41d4-a716-446655440003'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.63, '{"precipitation": 3.1, "river_level": 3.6, "soil_saturation": 0.78}'),
+('550e8400-e29b-41d4-a716-446655440004'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.85, '{"precipitation": 4.5, "river_level": 5.2, "soil_saturation": 0.95}'),
 
 -- 48-hour forecast
-('550e8400-e29b-41d4-a716-446655440001'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.74, '{"precipitation": 3.5, 'river_level': 4.1, 'soil_saturation': 0.86}'),
-('550e8400-e29b-41d4-a716-446655440002'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.69, '{"precipitation": 3.2, 'river_level': 3.7, 'soil_saturation': 0.82}'),
-('550e8400-e29b-41d4-a716-446655440003'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.58, '{"precipitation": 2.7, 'river_level': 3.0, 'soil_saturation': 0.73}'),
-('550e8400-e29b-41d4-a716-446655440004'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.79, '{"precipitation": 3.8, 'river_level': 4.6, 'soil_saturation': 0.90}');
+('550e8400-e29b-41d4-a716-446655440001'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.74, '{"precipitation": 3.5, "river_level": 4.1, "soil_saturation": 0.86}'),
+('550e8400-e29b-41d4-a716-446655440002'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.69, '{"precipitation": 3.2, "river_level": 3.7, "soil_saturation": 0.82}'),
+('550e8400-e29b-41d4-a716-446655440003'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.58, '{"precipitation": 2.7, "river_level": 3.0, "soil_saturation": 0.73}'),
+('550e8400-e29b-41d4-a716-446655440004'::UUID, '48h', NOW() + INTERVAL '48 hours', 0.79, '{"precipitation": 3.8, "river_level": 4.6, "soil_saturation": 0.90}');
 
 -- Insert damage assessments
 INSERT INTO damage_assessments (asset_id, assessment_time, damage_level, damage_type, estimated_cost, status, notes) VALUES
@@ -127,46 +139,149 @@ INSERT INTO damage_assessments (asset_id, assessment_time, damage_level, damage_
 ('660e8400-e29b-41d4-a716-446655440004'::UUID, NOW() - INTERVAL '1 hour', 0.10, 'structural', 25000, 'assessed', 'Minor erosion around bridge supports');
 
 -- Insert resources
-INSERT INTO resources (id, name, type, status, location, capacity, capabilities, contact_info) VALUES
+INSERT INTO resources (id, code, name, type, status, location, capacity, capabilities, contact_info) VALUES
 (
-    '770e8400-e29b-41d4-a716-446655440001'::UUID,
-    'Emergency Response Team Alpha',
-    'crew',
+    '770e8400-e29b-41d4-a716-446655440010'::UUID,
+    'D-CENTRAL',
+    'Central Depot',
+    'depot',
     'available',
-    ST_SetSRID(ST_MakePoint(-74.0040, 40.7140), 4326),
-    12,
-    '{"skills": ["search_rescue", "medical_aid", "evacuation"], "equipment": ["boats", "medical_kits", "rescue_gear"]}',
-    '{"phone": "555-0101", "radio": "Channel 1", "email": "team-alpha@emergency.gov"}'
+    ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
+    1000,
+    '{"lat": 40.4167, "lng": -3.7033, "storage_units": 5}',
+    '{"address": "123 Logistics Ave"}'
 ),
 (
-    '770e8400-e29b-41d4-a716-446655440002'::UUID,
-    'Heavy Equipment Unit',
-    'vehicle',
-    'deployed',
-    ST_SetSRID(ST_MakePoint(-74.0060, 40.7130), 4326),
-    8,
-    '{"equipment": ["excavators", "pumps", "generators", "trucks"], "operators": 4}',
+    '770e8400-e29b-41d4-a716-446655440011'::UUID,
+    'D-EAST',
+    'East Yard',
+    'depot',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
+    800,
+    '{"lat": 40.4190, "lng": -3.6800, "storage_units": 4}',
+    '{"address": "45 Riverbank Rd"}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440012'::UUID,
+    'D-SOUTH',
+    'South Facility',
+    'depot',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
+    650,
+    '{"lat": 40.4080, "lng": -3.7150, "storage_units": 3}',
+    '{"address": "300 Delta Ave"}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440020'::UUID,
+    'P-001',
+    'Pump P-001',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
+    300,
+    '{"depot": "D-CENTRAL", "type": "Pump", "capacity_lps": 300}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440021'::UUID,
+    'P-002',
+    'Pump P-002',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
+    250,
+    '{"depot": "D-EAST", "type": "Pump", "capacity_lps": 250}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440022'::UUID,
+    'P-003',
+    'Pump P-003',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
+    400,
+    '{"depot": "D-SOUTH", "type": "Pump", "capacity_lps": 400}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440023'::UUID,
+    'S-010',
+    'Sandbag Set S-010',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.6800, 40.4190), 4326),
+    800,
+    '{"depot": "D-EAST", "type": "Sandbags", "units": 800}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440024'::UUID,
+    'S-011',
+    'Sandbag Set S-011',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.7033, 40.4167), 4326),
+    1200,
+    '{"depot": "D-CENTRAL", "type": "Sandbags", "units": 1200}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440025'::UUID,
+    'S-012',
+    'Sandbag Set S-012',
+    'equipment',
+    'available',
+    ST_SetSRID(ST_MakePoint(-3.7150, 40.4080), 4326),
+    600,
+    '{"depot": "D-SOUTH", "type": "Sandbags", "units": 600}',
+    '{}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440030'::UUID,
+    'C-A1',
+    'Alpha Crew',
+    'crew',
+    'ready',
+    ST_SetSRID(ST_MakePoint(-3.7050, 40.4172), 4326),
+    12,
+    '{"skills": ["pumping", "evacuation"], "depot": "D-CENTRAL"}',
+    '{"phone": "555-0101", "radio": "Channel 1"}'
+),
+(
+    '770e8400-e29b-41d4-a716-446655440031'::UUID,
+    'C-B3',
+    'Bravo Crew',
+    'crew',
+    'ready',
+    ST_SetSRID(ST_MakePoint(-3.6820, 40.4201), 4326),
+    10,
+    '{"skills": ["roadblock", "rescue"], "depot": "D-EAST"}',
     '{"phone": "555-0102", "radio": "Channel 2"}'
 ),
 (
-    '770e8400-e29b-41d4-a716-446655440003'::UUID,
-    'Medical Response Team',
+    '770e8400-e29b-41d4-a716-446655440032'::UUID,
+    'C-C2',
+    'Charlie Crew',
     'crew',
-    'available',
-    ST_SetSRID(ST_MakePoint(-74.0050, 40.7120), 4326),
-    6,
-    '{"skills": ["emergency_medical", "triage", "patient_transport"], "equipment": ["ambulances", "medical_supplies"]}',
+    'ready',
+    ST_SetSRID(ST_MakePoint(-3.7128, 40.4095), 4326),
+    8,
+    '{"skills": ["pumping", "medical"], "depot": "D-SOUTH"}',
     '{"phone": "555-0103", "radio": "Channel 3"}'
 ),
 (
-    '770e8400-e29b-41d4-a716-446655440004'::UUID,
-    'Evacuation Center - North',
-    'facility',
-    'available',
-    ST_SetSRID(ST_MakePoint(-74.0070, 40.7150), 4326),
-    200,
-    '{"facilities": ["showers", "kitchen", "medical_bay", "parking"], "staff": 15}',
-    '{"phone": "555-0104", "address": "1001 Center Rd"}'
+    '770e8400-e29b-41d4-a716-446655440033'::UUID,
+    'C-D4',
+    'Delta Crew',
+    'crew',
+    'ready',
+    ST_SetSRID(ST_MakePoint(-3.7021, 40.4168), 4326),
+    8,
+    '{"skills": ["evacuation", "logistics"], "depot": "D-CENTRAL"}',
+    '{"phone": "555-0104", "radio": "Channel 4"}'
 );
 
 -- Insert current deployments
@@ -190,9 +305,10 @@ INSERT INTO communications (channel, sender, recipient, message, direction, prio
 ('radio', 'Team Alpha', 'Command Center', 'Evacuation operations in Riverside progressing. 25 residents evacuated, 3 rescues completed. Requesting additional transport.', 'inbound', 'high', 'delivered', '{"team_status": "operational", "fuel_remaining": "60%"}');
 
 -- Insert river gauges
-INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata) VALUES
+INSERT INTO gauges (id, code, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata) VALUES
 (
     '880e8400-e29b-41d4-a716-446655440001'::UUID,
+    'G-RIV-12',
     'Main Street Bridge Gauge',
     ST_SetSRID(ST_MakePoint(-74.0060, 40.7140), 4326),
     'City River',
@@ -205,6 +321,7 @@ INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_thre
 ),
 (
     '880e8400-e29b-41d4-a716-446655440002'::UUID,
+    'G-RIV-08',
     'Industrial Park Gauge',
     ST_SetSRID(ST_MakePoint(-74.0050, 40.7130), 4326),
     'City River',
@@ -217,6 +334,7 @@ INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_thre
 ),
 (
     '880e8400-e29b-41d4-a716-446655440003'::UUID,
+    'G-RIV-15',
     'Lowland Parks Gauge',
     ST_SetSRID(ST_MakePoint(-74.0030, 40.7110), 4326),
     'East Branch River',
@@ -252,36 +370,64 @@ INSERT INTO gauge_readings (gauge_id, reading_value, reading_time, quality_flag)
 ('880e8400-e29b-41d4-a716-446655440003'::UUID, 3.5, NOW() - INTERVAL '1 hour', 'good');
 
 -- Insert response plans
-INSERT INTO response_plans (name, description, plan_type, trigger_conditions, recommended_actions, required_resources, estimated_duration, priority, status) VALUES
+INSERT INTO response_plans (name, version, description, plan_type, trigger_conditions, recommended_actions, required_resources, assignments, coverage, notes, estimated_duration, priority, status) VALUES
 (
-    'Urban Flood Evacuation Plan',
-    'Standard operating procedure for evacuating urban residential areas during flood events',
-    'evacuation',
+    'Urban Flood Response Plan',
+    '2025-11-11T10:30:00Z',
+    'Operational response derived from 12h horizon with severe risk band.',
+    'resource_deployment',
     '{"water_level_threshold": 3.5, "rainfall_rate": "1in/hr", "forecast_confidence": 0.8}',
-    '["Issue evacuation orders", "Open emergency shelters", "Deploy transport resources", "Establish traffic control", "Coordinate with law enforcement"]',
-    '{"crews": 4, "vehicles": 12, "facilities": 2, "equipment": ["boats", "buses", "communications"]}',
+    '["Issue evacuation orders", "Open emergency shelters", "Deploy transport resources", "Coordinate with law enforcement"]',
+    '{"pumps": 3, "sandbags": 1200, "crews": 4}',
+    '[
+      {"zoneId": "Z-ALFA", "priority": 1, "actions": [
+        {"type": "deploy_pump", "qty": 1, "from": "D-CENTRAL", "equipment": "P-001"},
+        {"type": "lay_sandbags", "qty": 200, "from": "D-EAST", "equipment": "S-010"},
+        {"type": "assign_crew", "crew": "C-A1", "task": "pumping_operation"}
+      ]},
+      {"zoneId": "Z-ECHO", "priority": 2, "actions": [
+        {"type": "deploy_pump", "qty": 1, "from": "D-SOUTH", "equipment": "P-003"},
+        {"type": "lay_sandbags", "qty": 300, "from": "D-CENTRAL", "equipment": "S-011"},
+        {"type": "assign_crew", "crew": "C-C2", "task": "flood_response"},
+        {"type": "evacuation", "crew": "C-D4", "target": "Stadium ST1"}
+      ]},
+      {"zoneId": "Z-CHARLIE", "priority": 3, "actions": [
+        {"type": "lay_sandbags", "qty": 150, "from": "D-SOUTH", "equipment": "S-012"},
+        {"type": "assign_crew", "crew": "C-B3", "task": "access_protection"}
+      ]}
+    ]',
+    '{"total_zones": 5, "covered_zones": 3, "coverage_percentage": 60, "resources_deployed": {"pumps": 2, "sandbags": 650, "crews": 3}}',
+    'Focus on high-risk residential zones while preparing evacuation corridors.',
     8,
     'high',
     'active'
 ),
 (
     'Infrastructure Protection Protocol',
+    '2025-11-10T08:00:00Z',
     'Protect critical infrastructure from flood damage',
     'infrastructure_protection',
     '{"water_level_threshold": 2.8, "lead_time_hours": 6}',
     '["Deploy flood barriers", "Pump out critical facilities", "Shut down non-essential systems", "Backup critical data", "Staff emergency generators"]',
     '{"crews": 3, "vehicles": 8, "equipment": ["pumps", "sandbags", "generators", "fuel"]}',
+    '[]',
+    '{"total_zones": 4, "covered_zones": 2, "coverage_percentage": 50}',
+    'Prioritize power and water assets.',
     12,
     'critical',
     'active'
 ),
 (
     'Rapid Resource Deployment',
+    '2025-11-09T16:30:00Z',
     'Quick deployment of emergency resources to affected areas',
     'resource_deployment',
     '{"alert_severity": "high", "affected_population": 100}',
     '["Assess resource needs", "Deploy nearest available resources", "Establish command post", "Coordinate with other agencies"]',
     '{"crews": 2, "vehicles": 6, "equipment": ["command_vehicle", "communications", "medical_supplies"]}',
+    '[]',
+    '{"total_zones": 3, "covered_zones": 1, "coverage_percentage": 33}',
+    'Use for rapid response drills.',
     4,
     'medium',
     'active'

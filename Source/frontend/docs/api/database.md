@@ -27,10 +27,13 @@ Stores flood-prone geographic areas with demographic and critical asset informat
 ```sql
 CREATE TABLE zones (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     population INTEGER DEFAULT 0,
     area_km2 DECIMAL(10,2),
+    admin_level INTEGER DEFAULT 10,
+    critical_assets TEXT[] DEFAULT ARRAY[]::TEXT[],
     geometry GEOMETRY(POLYGON, 4326) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -38,15 +41,18 @@ CREATE TABLE zones (
 
 -- Indexes
 CREATE INDEX idx_zones_geometry ON zones USING GIST (geometry);
-CREATE INDEX idx_zones_name ON zones (name);
+CREATE INDEX idx_zones_code ON zones (code);
 ```
 
 **Fields:**
-- `id` - Unique identifier for the zone
+- `id` - Stable UUID primary key
+- `code` - Human-friendly identifier (`Z-ALFA`, etc.) shared with the frontend mock data
 - `name` - Human-readable zone name
 - `description` - Zone description and characteristics
 - `population` - Total population in the zone
 - `area_km2` - Geographic area in square kilometers
+- `admin_level` - Administrative level (used for grouping/filters)
+- `critical_assets` - Text array of noteworthy assets in the zone
 - `geometry` - PostGIS polygon representing zone boundaries (SRID 4326)
 - `created_at`, `updated_at` - Audit timestamps
 
@@ -54,10 +60,13 @@ CREATE INDEX idx_zones_name ON zones (name);
 ```json
 {
   "id": "00000000-0000-0000-0000-000000000001",
+  "code": "Z-ALFA",
   "name": "Riverside North",
   "description": "Northern riverside residential area",
   "population": 12450,
   "area_km2": 15.2,
+  "admin_level": 10,
+  "critical_assets": ["Hospital HN1", "School SN3"],
   "geometry": "POLYGON((-3.71 40.41, -3.70 40.41, -3.70 40.42, -3.71 40.42, -3.71 40.41))"
 }
 ```
@@ -78,7 +87,7 @@ CREATE TABLE risk_assessments (
 );
 
 -- Indexes
-CREATE INDEX idx_risk_zone_time ON risk_assessments (zone_id, forecast_time);
+CREATE UNIQUE INDEX idx_risk_zone_time ON risk_assessments (zone_id, time_horizon, forecast_time);
 CREATE INDEX idx_risk_forecast_time ON risk_assessments (forecast_time);
 CREATE INDEX idx_risk_time_horizon ON risk_assessments (time_horizon);
 ```
@@ -176,11 +185,12 @@ Emergency teams, equipment, and supplies.
 ```sql
 CREATE TABLE resources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL CHECK (type IN ('emergency_crew', 'fire_crew', 'medical_crew', 'engineering_crew', 'equipment', 'supplies', 'vehicle')),
-    status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'deployed', 'standby', 'maintenance', 'decommissioned')),
+    type VARCHAR(50) NOT NULL, -- crew, equipment, depot, facility, vehicle...
+    status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'deployed', 'maintenance', 'unavailable', 'ready', 'standby', 'working', 'rest')),
     location GEOMETRY(POINT, 4326),
-    capacity INTEGER,
+    capacity DECIMAL(10,2),
     capabilities JSONB,
     contact_info JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -193,18 +203,21 @@ CREATE INDEX idx_resources_type ON resources (type);
 CREATE INDEX idx_resources_status ON resources (status);
 ```
 
-**Resource Types:**
-- `emergency_crew` - Search and rescue teams
-- `fire_crew` - Firefighting personnel
-- `medical_crew` - Medical response teams
-- `engineering_crew` - Infrastructure repair teams
-- `equipment` - Heavy machinery and tools
-- `supplies` - Emergency provisions
+**Resource Types (common values):**
+- `crew` - Field crews (Alpha, Bravo, etc.)
+- `equipment` - Pumps, sandbags, vehicles
+- `depot` - Physical storage / staging depots
+- `facility` - Shelters, hospitals, command centers
 - `vehicle` - Transportation assets
 
-**Capabilities Example:**
+`capabilities` is a JSONB column used to store structured information (skills, depot assignment, capacity, etc.). Example:
+
 ```json
-["medical", "rescue", "evacuation", "water_rescue", "structural_rescue"]
+{
+  "skills": ["pumping", "evacuation"],
+  "depot": "D-CENTRAL",
+  "capacity_lps": 300
+}
 ```
 
 ### 6. deployments - Resource Deployment Tracking
@@ -275,7 +288,7 @@ Logs of all emergency communications sent and received.
 ```sql
 CREATE TABLE communications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    channel VARCHAR(20) NOT NULL CHECK (channel IN ('sms', 'email', 'radio', 'phone', 'social', 'public')),
+    channel VARCHAR(50) NOT NULL,
     sender VARCHAR(255) NOT NULL,
     recipient VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -293,6 +306,8 @@ CREATE INDEX idx_communications_status ON communications (status);
 CREATE INDEX idx_communications_created ON communications (created_at);
 ```
 
+**Channels:** Free-form identifiers like `global`, `task:Z-ALFA`, `radio`, `email`, etc., making it easy to mirror the mock data streams.
+
 ### 9. gauges - River Monitoring Stations
 
 River gauge stations for water level monitoring.
@@ -300,6 +315,7 @@ River gauge stations for water level monitoring.
 ```sql
 CREATE TABLE gauges (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     location GEOMETRY(POINT, 4326) NOT NULL,
     river_name VARCHAR(255),
@@ -352,12 +368,16 @@ Pre-defined emergency response plans and procedures.
 CREATE TABLE response_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    version VARCHAR(50),
     description TEXT,
-    plan_type VARCHAR(50) NOT NULL CHECK (plan_type IN ('evacuation', 'shelter', 'medical', 'infrastructure', 'communication')),
-    trigger_conditions TEXT[],
-    recommended_actions TEXT[],
-    required_resources TEXT[],
-    estimated_duration VARCHAR(100),
+    plan_type VARCHAR(50) NOT NULL,
+    trigger_conditions JSONB,
+    recommended_actions JSONB,
+    required_resources JSONB,
+    assignments JSONB,
+    coverage JSONB,
+    notes TEXT,
+    estimated_duration INTEGER,
     priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

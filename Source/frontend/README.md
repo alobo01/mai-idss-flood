@@ -4,41 +4,57 @@ A comprehensive, role-based React application for flood prediction system manage
 
 ## 🚀 Quick Start
 
-### Using Mock API (Recommended for Development)
+### Local Dev (npm + Python venv)
 
 ```bash
-# Install dependencies
+# 1. Create the Python environment once (repo root)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2. Install frontend + API dependencies
+cd Source/frontend
 npm install
+(cd backend && npm install)
 
-# Start both frontend and mock API server
-npm run dev:full
+# 3. Start PostgreSQL (detached) and run migrations + seeds
+docker compose up -d postgres
+(cd backend && DB_HOST=localhost DB_PORT=5433 npm run db:migrate && npm run db:seed)
 
-# Or start them separately:
-# Terminal 1: Start mock API server
-npm run api
-
-# Terminal 2: Start frontend
+# 4. Run the API and frontend locally
+(cd backend && DB_HOST=localhost DB_PORT=5433 npm run dev)
 npm run dev
 ```
 
-**Applications will be available at:**
-- Frontend: http://localhost:5173
-- Mock API: http://localhost:18080
-- API Health: http://localhost:18080/health
+- Frontend: http://localhost:5173  
+- API + Swagger UI: http://localhost:18080  
+- API health: http://localhost:18080/health
 
-### Using Docker (Production Setup)
+> Run the backend and frontend processes in separate terminals so both stay active.
+
+**Mock data tip:** `npm run db:seed` imports all of the JSON fixtures from `public/mock` (or a custom `MOCK_DATA_PATH`) into PostgreSQL so the UI, API, and docs stay perfectly in sync.
+
+## 🔐 Authentication
+
+- The UI now requires authentication before any role dashboards load.
+- A default administrator account is seeded locally (`admin / admin`). Override it with `VITE_DEFAULT_ADMIN_USERNAME` and `VITE_DEFAULT_ADMIN_PASSWORD`.
+- User accounts (including the default admin) are stored in browser `localStorage` for demo purposes. Use the Administrator → Users screen to add/edit/remove accounts.
+- Password resets generate a new temporary password that is shown in the UI; share it directly with the affected user for this demo build.
+
+### Docker Compose Stack
 
 ```bash
+cd Source/frontend
 docker compose up --build
-
-# Production deployment
-docker compose -f docker-compose.prod.yml up --build
 ```
 
-**Applications will be available at:**
-- Frontend: http://localhost
-- API Server: http://localhost:18080
-- API Documentation: http://localhost:18080/api-docs/
+This brings up PostgreSQL (with the schema + seed data under `database/init`), the Node/Express API, and the production frontend. Stop everything with `docker compose down`.
+
+### Database & Mock Data
+
+- The PostgreSQL schema lives under `database/init`. Compose mounts this directory so seeds are applied automatically on first boot.
+- Run `npm run db:migrate` (backend) whenever schema changes land, and `npm run db:seed` to import the curated mock dataset into your local database.
+- Override the data directory by exporting `MOCK_DATA_PATH=/absolute/path/to/mock/json` before running the seed script.
 
 ## 📋 Overview
 
