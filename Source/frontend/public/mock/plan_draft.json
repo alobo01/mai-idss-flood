@@ -1,0 +1,43 @@
+{
+  "version": "2025-11-11T10:30:00Z",
+  "assignments": [
+    {
+      "zoneId": "Z-ALFA",
+      "priority": 1,
+      "actions": [
+        {"type": "deploy_pump", "qty": 1, "from": "D-CENTRAL", "equipment": "P-001"},
+        {"type": "lay_sandbags", "qty": 200, "from": "D-EAST", "equipment": "S-010"},
+        {"type": "assign_crew", "crew": "C-A1", "task": "pumping_operation"}
+      ]
+    },
+    {
+      "zoneId": "Z-ECHO",
+      "priority": 2,
+      "actions": [
+        {"type": "deploy_pump", "qty": 1, "from": "D-SOUTH", "equipment": "P-003"},
+        {"type": "lay_sandbags", "qty": 300, "from": "D-CENTRAL", "equipment": "S-011"},
+        {"type": "assign_crew", "crew": "C-C2", "task": "flood_response"},
+        {"type": "evacuation", "type": "preventive", "crew": "C-D4", "target": "Stadium ST1"}
+      ]
+    },
+    {
+      "zoneId": "Z-CHARLIE",
+      "priority": 3,
+      "actions": [
+        {"type": "lay_sandbags", "qty": 150, "from": "D-SOUTH", "equipment": "S-012"},
+        {"type": "assign_crew", "crew": "C-B3", "task": "access_protection"}
+      ]
+    }
+  ],
+  "notes": "Derived from 12h horizon with severe band. Focus on high-risk residential zones.",
+  "coverage": {
+    "total_zones": 5,
+    "covered_zones": 3,
+    "coverage_percentage": 60,
+    "resources_deployed": {
+      "pumps": 2,
+      "sandbags": 650,
+      "crews": 3
+    }
+  }
+}
