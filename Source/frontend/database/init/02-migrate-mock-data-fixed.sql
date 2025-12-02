@@ -2,34 +2,38 @@
 -- This script migrates the JSON-based mock data to the relational database
 
 -- Insert zones with proper UUID casting and PostGIS functions
-INSERT INTO zones (id, name, description, population, area_km2, geometry) VALUES
+INSERT INTO zones (id, code, name, description, population, area_km2, geometry) VALUES
 ('550e8400-e29b-41d4-a716-446655440001'::UUID,
+ 'Z-DOWNTOWN',
  'Downtown River District',
  'Central business district along the main river channel',
  15000,
  12.5,
- ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0060,40.7128],[-74.0050,40.7138],[-74.0040,40.7128],[-74.0050,40.7118],[-74.0060,40.7128]]]}', 4326)
+ ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0060,40.7128],[-74.0050,40.7138],[-74.0040,40.7128],[-74.0050,40.7118],[-74.0060,40.7128]]]}'), 4326)
 ),
 ('550e8400-e29b-41d4-a716-446655440002'::UUID,
+ 'Z-RIVERSIDE',
  'Riverside Residential',
  'Residential area on the eastern flood plain',
  8500,
  8.3,
- ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0050,40.7148],[-74.0040,40.7158],[-74.0030,40.7148],[-74.0040,40.7138],[-74.0050,40.7148]]]}', 4326)
+ ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0050,40.7148],[-74.0040,40.7158],[-74.0030,40.7148],[-74.0040,40.7138],[-74.0050,40.7148]]]}'), 4326)
 ),
 ('550e8400-e29b-41d4-a716-446655440003'::UUID,
+ 'Z-INDUSTRIAL',
  'Industrial Zone North',
  'Manufacturing and warehouse district',
  3500,
  15.7,
- ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0070,40.7138],[-74.0060,40.7148],[-74.0050,40.7138],[-74.0060,40.7128],[-74.0070,40.7138]]]}', 4326)
+ ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0070,40.7138],[-74.0060,40.7148],[-74.0050,40.7138],[-74.0060,40.7128],[-74.0070,40.7138]]]}'), 4326)
 ),
 ('550e8400-e29b-41d4-a716-446655440004'::UUID,
+ 'Z-LOWLAND',
  'Lowland Parks',
  'Recreational areas and green spaces',
  1200,
  22.1,
- ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0040,40.7118],[-74.0030,40.7128],[-74.0020,40.7118],[-74.0030,40.7108],[-74.0040,40.7118]]]}', 4326)
+ ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Polygon","coordinates":[[[-74.0040,40.7118],[-74.0030,40.7128],[-74.0020,40.7118],[-74.0030,40.7108],[-74.0040,40.7118]]]}'), 4326)
 );
 
 -- Insert assets with proper UUIDs
@@ -112,8 +116,9 @@ INSERT INTO damage_assessments (asset_id, assessment_time, damage_level, damage_
 ('660e8400-e29b-41d4-a716-446655440004'::UUID, NOW() - INTERVAL '1 hour', 0.10, 'structural', 25000, 'assessed', 'Minor erosion around bridge supports');
 
 -- Insert resources
-INSERT INTO resources (id, name, type, status, location, capacity, capabilities, contact_info) VALUES
+INSERT INTO resources (id, code, name, type, status, location, capacity, capabilities, contact_info) VALUES
 ('770e8400-e29b-41d4-a716-446655440001'::UUID,
+ 'CREW-ALPHA',
  'Emergency Response Team Alpha',
  'crew',
  'available',
@@ -123,6 +128,7 @@ INSERT INTO resources (id, name, type, status, location, capacity, capabilities,
  '{"phone": "555-0101", "radio": "Channel 1", "email": "team-alpha@emergency.gov"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440002'::UUID,
+ 'VEH-HEAVY-01',
  'Heavy Equipment Unit',
  'vehicle',
  'deployed',
@@ -132,6 +138,7 @@ INSERT INTO resources (id, name, type, status, location, capacity, capabilities,
  '{"phone": "555-0102", "radio": "Channel 2"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440003'::UUID,
+ 'CREW-MED-01',
  'Medical Response Team',
  'crew',
  'available',
@@ -141,6 +148,7 @@ INSERT INTO resources (id, name, type, status, location, capacity, capabilities,
  '{"phone": "555-0103", "radio": "Channel 3"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440004'::UUID,
+ 'FAC-EVAC-N',
  'Evacuation Center - North',
  'facility',
  'available',
@@ -171,8 +179,9 @@ INSERT INTO communications (channel, sender, recipient, message, direction, prio
 ('radio', 'Team Alpha', 'Command Center', 'Evacuation operations in Riverside progressing. 25 residents evacuated, 3 rescues completed. Requesting additional transport.', 'inbound', 'high', 'delivered', '{"team_status": "operational", "fuel_remaining": "60%"}');
 
 -- Insert river gauges
-INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata) VALUES
+INSERT INTO gauges (id, code, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata) VALUES
 ('880e8400-e29b-41d4-a716-446655440001'::UUID,
+ 'GAUGE-MAIN-01',
  'Main Street Bridge Gauge',
  ST_SetSRID(ST_MakePoint(-74.0060, 40.7140), 4326),
  'City River',
@@ -184,6 +193,7 @@ INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_thre
  '{"datum": "NAVD88", "zero_gauge_elevation": 10.5, "flood_stage": 4.0}'
 ),
 ('880e8400-e29b-41d4-a716-446655440002'::UUID,
+ 'GAUGE-IND-01',
  'Industrial Park Gauge',
  ST_SetSRID(ST_MakePoint(-74.0050, 40.7130), 4326),
  'City River',
@@ -195,6 +205,7 @@ INSERT INTO gauges (id, name, location, river_name, gauge_type, unit, alert_thre
  '{"datum": "NAVD88", "zero_gauge_elevation": 9.8, "flood_stage": 3.7}'
 ),
 ('880e8400-e29b-41d4-a716-446655440003'::UUID,
+ 'GAUGE-LOW-01',
  'Lowland Parks Gauge',
  ST_SetSRID(ST_MakePoint(-74.0030, 40.7110), 4326),
  'East Branch River',
