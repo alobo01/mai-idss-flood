@@ -9,15 +9,15 @@ print("=" * 70)
 
 
 scripts = [
-    # 1. Process Daily Data (Creates Data/processed/daily_flood_dataset.csv)
-    "Programs/01_downsample_daily.py",
-
-    # 2. Process Hourly Data (Creates Data/processed/hourly_flood_dataset.csv)
-    "Programs/02_interpolate_hourly.py",
-
-    # 3. Generate Visualization Reports
-    "Programs/03_explore.py",
+    # 1. Generate Visualization Reports
+    "Programs/01_explore.py",
     "Programs/01b_weather_features.py"
+    
+    # 2. Process Daily Data (Creates Data/processed/daily_flood_dataset.csv)
+    "Programs/02_downsample_daily.py",
+
+    # 3. Process Hourly Data (Creates Data/processed/hourly_flood_dataset.csv)
+    "Programs/03_interpolate_hourly.py",
 ]
 
 start_time = time.time()

@@ -17,7 +17,7 @@ for days in [1, 2, 3]:
         subprocess.run(cmd, shell=True, check=True)
 
 # Finally, generate summary
-subprocess.run("python Programs/09_global_summary.py", shell=True, check=True)
-subprocess.run("python Programs/10_visualize_results.py", shell=True, check=True)
+subprocess.run("python Programs/08_global_summary.py", shell=True, check=True)
+subprocess.run("python Programs/09_visualize_results.py", shell=True, check=True)
 
 print("\n✅ EXPERIMENT COMPLETE.")

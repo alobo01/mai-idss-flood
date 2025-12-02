@@ -77,6 +77,42 @@ mai-idss-flood/
    # For the FastAPI backend
    uvicorn Source.api:app --reload
    ```
+   
+### Run the Experiment Pipelines
+
+The core flood prediction system is divided into two distinct phases: **Initialization (Data Prep)** and **Experimentation (Modeling)**.
+
+---
+
+#### **Phase 1: Data Initialization (Run Once)**
+
+This script builds the **static foundation** of the project by fetching and cleaning the raw data.
+```bash
+    python Programs/run_initialization.py
+```
+
+#### What it does:
+
+- **Fetch Data:** Downloads raw river data (USGS) and weather data (Open-Meteo) from **1988–Present**.  
+  - Uses a robust fetcher to handle missing historical data.
+- **Clean & Merge:** Generates `daily_flood_dataset.csv` and `hourly_flood_dataset.csv`.
+- **Explore:** Creates initial time-series and correlation plots in `Results/exploration/`.
+
+#### **Phase 2: Full Experimentation (Run Often)**
+
+This is the main execution script. It runs the complete machine learning pipeline for **1-Day, 2-Day, and 3-Day forecast horizons**.
+```bash
+  python Programs/run_full_experiment.py
+```
+#### **Workflow for each lead time (24h, 48h, 72h):**
+
+- **Create Features:** Generates time-lagged datasets to prevent data leakage.
+- **Split Data:** Creates Train/Val/Test splits  
+  - **Test Set:** 2019–2025.
+- **Train Models:** Trains **XGBoost (Quantile)**, **LSTM**, and **Bayesian models**.
+- **Evaluate:** Tests performance on the 2019 historic flood and recent dry years.
+- **Global Summary:** Compares performance across all forecast horizons and saves results & visualizations in the Results folder.
+
 
 ## Development Workflow
 
