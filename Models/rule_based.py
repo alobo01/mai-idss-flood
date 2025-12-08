@@ -73,6 +73,8 @@ def recommend_resources_proportional(
 def classify_impact(pf: float, vulnerability: float) -> str:
     """Classify impact level based on predicted flood probability and vulnerability.
 
+    pf = probability of flooding in [0, 1]
+    vulnerability = composite vulnerability index in [0, 1]
     Impact score:
         Iz = pf * vulnerability
 
