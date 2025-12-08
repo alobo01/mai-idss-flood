@@ -14,6 +14,7 @@ pydantic-settings==2.1.0
 
 # Utilities
 python-dotenv==1.0.1
+# numpy==1.24.3  # Temporarily disabled for deployment
 
 # CORS
 starlette==0.36.3

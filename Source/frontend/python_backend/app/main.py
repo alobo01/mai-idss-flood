@@ -8,6 +8,8 @@ import logging
 from .config import get_settings
 from .database import wait_for_database, engine
 from .routers import health, zones, assets, alerts, resources, risk, communications, plans, admin
+# Temporarily disabled prediction routers for deployment
+# from .routers import predict, rules
 
 # Configure logging
 logging.basicConfig(
@@ -86,6 +88,9 @@ app.include_router(risk.router)
 app.include_router(communications.router)
 app.include_router(plans.router)
 app.include_router(admin.router)
+# Temporarily disabled prediction routers for deployment
+# app.include_router(predict.router)
+# app.include_router(rules.router)
 
 
 # 404 handler

@@ -460,3 +460,92 @@ class ExportResourcesResponse(BaseModel):
     depots: List[Dict[str, Any]]
     equipment: List[Dict[str, Any]]
     crews: List[Dict[str, Any]]
+
+
+# ============ Predictions ============
+
+class RiverLevelPrediction(BaseModel):
+    gauge_id: str
+    gauge_name: str
+    river_name: Optional[str] = None
+    prediction_time: datetime
+    predicted_level: float
+    confidence_level: float = Field(ge=0.0, le=1.0)
+    risk_level: str = Field(pattern="^(low|moderate|high|severe)$")
+    trend_per_hour: float
+    data_points_used: int
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class FloodRiskZone(BaseModel):
+    zone_id: str
+    zone_name: str
+    risk_level: float = Field(ge=0.0, le=1.0)
+    risk_category: str = Field(pattern="^(low|moderate|high|severe)$")
+    confidence: float = Field(ge=0.0, le=1.0)
+    risk_drivers: List[Dict[str, Any]]
+    affected_population: int
+    time_horizon_hours: int
+    recommended_actions: List[str]
+    geometry: Optional[str] = None  # GeoJSON string
+
+
+class FloodRiskPrediction(BaseModel):
+    zones: List[FloodRiskZone]
+    metadata: Dict[str, Any]
+
+
+# ============ Rule-based Allocation ============
+
+class ZoneAllocation(BaseModel):
+    zone_id: str
+    zone_name: str
+    resources_allocated: Dict[str, int]
+    allocation_timestamp: datetime
+    estimated_effectiveness: float = Field(ge=0.0, le=1.0)
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class RuleBasedAllocation(BaseModel):
+    incident_type: str
+    allocation_timestamp: datetime
+    zones: List[ZoneAllocation]
+    total_resources_allocated: Dict[str, int]
+    allocation_efficiency: float = Field(ge=0.0, le=1.0)
+    unmet_needs: List[Dict[str, Any]]
+    constraints_applied: Optional[Dict[str, Any]] = None
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class AnalyzedZone(BaseModel):
+    zone_id: str
+    zone_name: str
+    priority_score: float
+    priority_level: str = Field(pattern="^(low|medium|high|critical)$")
+    population: int
+    area_km2: float
+    population_density: float
+    critical_assets_count: int
+    critical_assets: List[str]
+    recommended_resources: Dict[str, Any]
+    estimated_response_time_minutes: int
+    risk_factors: Dict[str, Any]
+    geometry: Optional[str] = None  # GeoJSON string
+    last_updated: datetime
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }

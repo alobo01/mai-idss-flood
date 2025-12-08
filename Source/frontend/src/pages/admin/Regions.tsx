@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { ZoneEditor } from '@/components/ZoneEditor';
+import { ZoneEditor } from '@/components/features/zones/ZoneEditor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Info } from 'lucide-react';
 import type { GeoJSON } from '@/types';
@@ -105,7 +105,6 @@ export function AdminRegions() {
         <ZoneEditor
           initialZones={zones}
           onZonesChange={handleZonesChange}
-          onValidationError={handleValidationErrors}
         />
       ) : (
         <Card>

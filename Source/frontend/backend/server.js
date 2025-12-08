@@ -1984,6 +1984,785 @@ app.post('/api/plan/draft', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// RULE-BASED RESOURCE ALLOCATION ENDPOINT
+// ---------------------------------------------------------------------------
+
+/**
+ * Zone configuration for rule-based allocation.
+ * Matches the Python Models/zone_config.py structure.
+ */
+const ZONE_ATTRIBUTES = {
+  'Z1N': {
+    name: 'North Riverfront Floodplain',
+    river_proximity: 0.98,
+    elevation_risk: 0.95,
+    pop_density: 0.75,
+    crit_infra_score: 0.4,
+    hospital_count: 1,
+  },
+  'Z1S': {
+    name: 'South Riverfront Floodplain',
+    river_proximity: 0.95,
+    elevation_risk: 0.90,
+    pop_density: 0.80,
+    crit_infra_score: 0.5,
+    hospital_count: 2,
+  },
+  'Z2': {
+    name: 'Central Business & Medical Core',
+    river_proximity: 0.75,
+    elevation_risk: 0.70,
+    pop_density: 0.90,
+    crit_infra_score: 0.9,
+    hospital_count: 6,
+  },
+  'Z3': {
+    name: 'Inland South Residential Plateau',
+    river_proximity: 0.40,
+    elevation_risk: 0.45,
+    pop_density: 0.70,
+    crit_infra_score: 0.35,
+    hospital_count: 0,
+  },
+  'Z4': {
+    name: 'Inland North Residential Plateau',
+    river_proximity: 0.45,
+    elevation_risk: 0.50,
+    pop_density: 0.75,
+    crit_infra_score: 0.4,
+    hospital_count: 0,
+  },
+  'ZC': {
+    name: 'Central / Special ZIPs',
+    river_proximity: 0.70,
+    elevation_risk: 0.70,
+    pop_density: 0.10,
+    crit_infra_score: 0.2,
+    hospital_count: 0,
+  },
+};
+
+/**
+ * Calculate vulnerability index for a zone.
+ */
+function calculateVulnerability(attrs) {
+  // Weighted combination of vulnerability factors
+  const weights = {
+    river_proximity: 0.35,
+    elevation_risk: 0.30,
+    pop_density: 0.20,
+    crit_infra_score: 0.15,
+  };
+  return (
+    (attrs.river_proximity || 0) * weights.river_proximity +
+    (attrs.elevation_risk || 0) * weights.elevation_risk +
+    (attrs.pop_density || 0) * weights.pop_density +
+    (attrs.crit_infra_score || 0) * weights.crit_infra_score
+  );
+}
+
+/**
+ * Classify impact level based on flood probability and vulnerability.
+ * Matches Python rule_based.py logic.
+ */
+function classifyImpact(pf, vulnerability) {
+  const iz = pf * vulnerability;
+  if (iz < 0.3) return 'NORMAL';
+  if (iz < 0.6) return 'ADVISORY';
+  if (iz < 0.8) return 'WARNING';
+  return 'CRITICAL';
+}
+
+/**
+ * Triangular membership function for fuzzy logic.
+ */
+function triMf(x, a, b, c) {
+  if (x <= a || x >= c) return 0.0;
+  if (x === b) return 1.0;
+  if (x < b) return (x - a) / (b - a);
+  return (c - x) / (c - b);
+}
+
+/**
+ * Compute resource fraction using fuzzy membership.
+ */
+function fuzzyFraction(iz, isCriticalInfra) {
+  const muNormal = triMf(iz, 0.0, 0.0, 0.3);
+  const muAdvisory = triMf(iz, 0.2, 0.45, 0.7);
+  const muWarning = triMf(iz, 0.4, 0.7, 0.9);
+  const muCritical = triMf(iz, 0.7, 1.0, 1.0);
+
+  const fracNormal = 0.0;
+  const fracAdvisory = 0.1;
+  const fracWarning = 0.3;
+  const fracCritical = 0.5;
+
+  const num =
+    muNormal * fracNormal +
+    muAdvisory * fracAdvisory +
+    muWarning * fracWarning +
+    muCritical * fracCritical;
+  const den = muNormal + muAdvisory + muWarning + muCritical;
+
+  let baseFraction = den === 0 ? 0.0 : num / den;
+
+  if (isCriticalInfra && iz >= 0.8) {
+    baseFraction += 0.1;
+  }
+
+  return Math.max(0.0, Math.min(baseFraction, 0.6));
+}
+
+/**
+ * Crisp resource fraction.
+ */
+function crispFraction(impact, isCriticalInfra) {
+  if (impact === 'NORMAL') return 0.0;
+  if (impact === 'ADVISORY') return 0.1;
+  if (impact === 'WARNING') return 0.3;
+  return isCriticalInfra ? 0.6 : 0.5;
+}
+
+/**
+ * Allocate resources to zones based on predictions.
+ */
+function allocateResources(zones, totalUnits, mode = 'crisp') {
+  const recommendations = [];
+
+  if (mode === 'proportional') {
+    const izByZone = {};
+    let sumIz = 0;
+    for (const z of zones) {
+      const iz = z.pf * z.vulnerability;
+      izByZone[z.id] = iz;
+      sumIz += iz;
+    }
+
+    for (const z of zones) {
+      const iz = izByZone[z.id];
+      const units = sumIz <= 0 ? 0 : Math.round(totalUnits * (iz / sumIz));
+      recommendations.push({
+        zone_id: z.id,
+        zone_name: z.name,
+        impact_level: classifyImpact(z.pf, z.vulnerability),
+        allocation_mode: 'PROPORTIONAL',
+        units_allocated: units,
+        pf: z.pf,
+        vulnerability: z.vulnerability,
+        iz: iz,
+      });
+    }
+  } else if (mode === 'fuzzy') {
+    for (const z of zones) {
+      const iz = z.pf * z.vulnerability;
+      const fraction = fuzzyFraction(iz, z.is_critical_infra);
+      let units = Math.round(totalUnits * fraction);
+      if (iz >= 0.3 && units === 0) units = 1;
+
+      recommendations.push({
+        zone_id: z.id,
+        zone_name: z.name,
+        impact_level: classifyImpact(z.pf, z.vulnerability),
+        allocation_mode: 'FUZZY',
+        units_allocated: units,
+        pf: z.pf,
+        vulnerability: z.vulnerability,
+        iz: iz,
+      });
+    }
+  } else {
+    // crisp
+    for (const z of zones) {
+      const impact = classifyImpact(z.pf, z.vulnerability);
+      const fraction = crispFraction(impact, z.is_critical_infra);
+      let units = Math.max(0, Math.floor(totalUnits * fraction));
+      if (['ADVISORY', 'WARNING', 'CRITICAL'].includes(impact) && units === 0) {
+        units = 1;
+      }
+
+      recommendations.push({
+        zone_id: z.id,
+        zone_name: z.name,
+        impact_level: impact,
+        allocation_mode: 'CRISP',
+        units_allocated: units,
+        pf: z.pf,
+        vulnerability: z.vulnerability,
+        iz: z.pf * z.vulnerability,
+      });
+    }
+  }
+
+  // Normalize if total exceeds available units (for crisp/fuzzy)
+  if (mode !== 'proportional') {
+    const totalRequested = recommendations.reduce((sum, r) => sum + r.units_allocated, 0);
+    if (totalRequested > totalUnits && totalRequested > 0) {
+      const factor = totalUnits / totalRequested;
+      for (const r of recommendations) {
+        if (r.units_allocated > 0) {
+          r.units_allocated = Math.max(1, Math.floor(r.units_allocated * factor));
+        }
+      }
+    }
+  }
+
+  return recommendations;
+}
+
+/**
+ * @swagger
+ * /api/rule-based/zones:
+ *   get:
+ *     tags: [Rule-Based Allocation]
+ *     summary: Get zone configuration for rule-based allocation
+ *     description: Returns zone attributes including vulnerability factors used for resource allocation
+ *     responses:
+ *       200:
+ *         description: Zone configuration data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 zones:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       vulnerability:
+ *                         type: number
+ *                       attributes:
+ *                         type: object
+ */
+app.get('/api/rule-based/zones', async (req, res) => {
+  try {
+    // Build zone config with vulnerability calculations
+    const zones = Object.entries(ZONE_ATTRIBUTES).map(([id, attrs]) => ({
+      id,
+      name: attrs.name,
+      vulnerability: calculateVulnerability(attrs),
+      is_critical_infra: (attrs.hospital_count || 0) > 0,
+      attributes: attrs,
+    }));
+
+    res.json({
+      zones,
+      description: 'Zone configuration for rule-based flood response allocation',
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch zone configuration',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/rule-based/allocate:
+ *   post:
+ *     tags: [Rule-Based Allocation]
+ *     summary: Allocate resources using rule-based logic
+ *     description: |
+ *       Given flood predictions (pf) for each zone and total available units,
+ *       compute resource allocation using CRISP, FUZZY, or PROPORTIONAL mode.
+ *       
+ *       Example curl:
+ *       ```
+ *       curl -X POST http://localhost:18080/api/rule-based/allocate \
+ *         -H "Content-Type: application/json" \
+ *         -d '{"predictions": {"Z1N": 0.85, "Z1S": 0.7, "Z2": 0.5, "Z3": 0.3, "Z4": 0.4}, "total_units": 100, "mode": "crisp"}'
+ *       ```
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - predictions
+ *             properties:
+ *               predictions:
+ *                 type: object
+ *                 description: Map of zone_id to flood probability (0-1)
+ *                 example: {"Z1N": 0.85, "Z1S": 0.7, "Z2": 0.5}
+ *               total_units:
+ *                 type: integer
+ *                 description: Total resource units to allocate
+ *                 default: 100
+ *               mode:
+ *                 type: string
+ *                 enum: [crisp, fuzzy, proportional]
+ *                 default: crisp
+ *     responses:
+ *       200:
+ *         description: Resource allocation recommendations
+ *       400:
+ *         description: Invalid input
+ */
+app.post('/api/rule-based/allocate', async (req, res) => {
+  try {
+    const { predictions, total_units = 100, mode = 'crisp' } = req.body || {};
+
+    if (!predictions || typeof predictions !== 'object') {
+      return res.status(400).json({
+        error: 'predictions is required and must be an object mapping zone_id to flood probability',
+        example: { predictions: { Z1N: 0.85, Z1S: 0.7 }, total_units: 100, mode: 'crisp' },
+      });
+    }
+
+    const validModes = ['crisp', 'fuzzy', 'proportional'];
+    const normalizedMode = (mode || 'crisp').toLowerCase();
+    if (!validModes.includes(normalizedMode)) {
+      return res.status(400).json({
+        error: `Invalid mode. Must be one of: ${validModes.join(', ')}`,
+      });
+    }
+
+    // Build zones array with predictions
+    const zones = [];
+    for (const [zoneId, pf] of Object.entries(predictions)) {
+      const attrs = ZONE_ATTRIBUTES[zoneId];
+      if (!attrs) {
+        console.warn(`Unknown zone: ${zoneId}, using default vulnerability`);
+      }
+      const vulnerability = attrs ? calculateVulnerability(attrs) : 0.5;
+      const isCriticalInfra = attrs ? (attrs.hospital_count || 0) > 0 : false;
+
+      zones.push({
+        id: zoneId,
+        name: attrs?.name || zoneId,
+        pf: Math.max(0, Math.min(1, Number(pf) || 0)),
+        vulnerability,
+        is_critical_infra: isCriticalInfra,
+      });
+    }
+
+    const recommendations = allocateResources(zones, total_units, normalizedMode);
+    const totalAllocated = recommendations.reduce((sum, r) => sum + r.units_allocated, 0);
+
+    res.json({
+      mode: normalizedMode.toUpperCase(),
+      total_units_requested: total_units,
+      total_units_allocated: totalAllocated,
+      recommendations,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      error: 'Failed to compute allocation',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// RIVER LEVEL PREDICTION ENDPOINT
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/predict/river-level:
+ *   get:
+ *     tags: [Prediction]
+ *     summary: Predict river level based on sensor data
+ *     description: |
+ *       Reads recent gauge readings from the database and provides a river level prediction.
+ *       Uses a simple persistence + trend model based on recent readings.
+ *       
+ *       Example curl:
+ *       ```
+ *       curl "http://localhost:18080/api/predict/river-level?gauge_code=STL-001&horizon=24"
+ *       ```
+ *     parameters:
+ *       - in: query
+ *         name: gauge_code
+ *         schema:
+ *           type: string
+ *         description: Gauge code to use for prediction (optional, uses first available if not specified)
+ *       - in: query
+ *         name: horizon
+ *         schema:
+ *           type: integer
+ *           default: 24
+ *         description: Prediction horizon in hours
+ *     responses:
+ *       200:
+ *         description: River level prediction
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 gauge:
+ *                   type: object
+ *                   properties:
+ *                     code:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     current_level:
+ *                       type: number
+ *                 prediction:
+ *                   type: object
+ *                   properties:
+ *                     predicted_level:
+ *                       type: number
+ *                     horizon_hours:
+ *                       type: integer
+ *                     confidence:
+ *                       type: string
+ *                     trend:
+ *                       type: string
+ *                 sensor_data:
+ *                   type: object
+ *       404:
+ *         description: No gauge data available
+ */
+app.get('/api/predict/river-level', async (req, res) => {
+  try {
+    const { gauge_code, horizon = 24 } = req.query;
+    const horizonHours = Math.max(1, Math.min(168, parseInt(horizon, 10) || 24));
+
+    // Build query for recent gauge readings
+    let gaugeFilter = '';
+    const params = [];
+
+    if (gauge_code) {
+      gaugeFilter = 'WHERE g.code = $1';
+      params.push(gauge_code);
+    }
+
+    // Get recent readings (last 72 hours for trend analysis)
+    const query = `
+      WITH recent_readings AS (
+        SELECT
+          g.id as gauge_id,
+          g.code,
+          g.name,
+          g.alert_threshold,
+          g.warning_threshold,
+          g.river_name,
+          gr.reading_value,
+          gr.reading_time,
+          ROW_NUMBER() OVER (PARTITION BY g.id ORDER BY gr.reading_time DESC) as rn
+        FROM gauges g
+        LEFT JOIN gauge_readings gr ON gr.gauge_id = g.id
+          AND gr.reading_time >= NOW() - INTERVAL '72 hours'
+          AND gr.quality_flag = 'good'
+        ${gaugeFilter}
+      )
+      SELECT
+        gauge_id,
+        code,
+        name,
+        alert_threshold,
+        warning_threshold,
+        river_name,
+        reading_value,
+        reading_time,
+        rn
+      FROM recent_readings
+      WHERE rn <= 72
+      ORDER BY code, rn
+    `;
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'No gauge data available',
+        message: gauge_code
+          ? `Gauge ${gauge_code} not found or has no recent readings`
+          : 'No gauges with recent readings found',
+      });
+    }
+
+    // Group readings by gauge
+    const gaugeData = {};
+    for (const row of result.rows) {
+      if (!gaugeData[row.code]) {
+        gaugeData[row.code] = {
+          code: row.code,
+          name: row.name,
+          river_name: row.river_name,
+          alert_threshold: Number(row.alert_threshold) || null,
+          warning_threshold: Number(row.warning_threshold) || null,
+          readings: [],
+        };
+      }
+      if (row.reading_value !== null) {
+        gaugeData[row.code].readings.push({
+          value: Number(row.reading_value),
+          time: row.reading_time,
+        });
+      }
+    }
+
+    // Select gauge to predict (first with readings, or specified one)
+    const targetGaugeCode = gauge_code || Object.keys(gaugeData)[0];
+    const targetGauge = gaugeData[targetGaugeCode];
+
+    if (!targetGauge || targetGauge.readings.length === 0) {
+      return res.status(404).json({
+        error: 'No readings available for prediction',
+        gauge_code: targetGaugeCode,
+      });
+    }
+
+    // Simple prediction model: persistence + trend
+    const readings = targetGauge.readings;
+    const currentLevel = readings[0].value;
+    const currentTime = readings[0].time;
+
+    // Calculate trend from recent readings
+    let trend = 0;
+    let trendDirection = 'steady';
+    let confidence = 'low';
+
+    if (readings.length >= 6) {
+      // Calculate average change per hour over last 6 readings
+      const recentReadings = readings.slice(0, 6);
+      const oldestRecent = recentReadings[recentReadings.length - 1];
+      const timeDiffHours = (new Date(currentTime) - new Date(oldestRecent.time)) / (1000 * 60 * 60);
+
+      if (timeDiffHours > 0) {
+        trend = (currentLevel - oldestRecent.value) / timeDiffHours;
+        confidence = readings.length >= 24 ? 'medium' : 'low';
+
+        if (trend > 0.02) trendDirection = 'rising';
+        else if (trend < -0.02) trendDirection = 'falling';
+      }
+    }
+
+    if (readings.length >= 48) {
+      confidence = 'high';
+    }
+
+    // Predict future level using trend (with damping for longer horizons)
+    const dampingFactor = Math.exp(-0.02 * horizonHours); // Trend weakens over time
+    const predictedChange = trend * horizonHours * dampingFactor;
+    let predictedLevel = currentLevel + predictedChange;
+
+    // Clamp to reasonable bounds
+    predictedLevel = Math.max(0, predictedLevel);
+
+    // Calculate flood probability based on thresholds
+    let floodProbability = 0;
+    const alertThreshold = targetGauge.alert_threshold;
+    const warningThreshold = targetGauge.warning_threshold;
+
+    if (alertThreshold && predictedLevel >= alertThreshold) {
+      floodProbability = 0.9;
+    } else if (warningThreshold && predictedLevel >= warningThreshold) {
+      floodProbability = 0.6;
+    } else if (warningThreshold) {
+      floodProbability = Math.max(0, Math.min(0.5, (predictedLevel / warningThreshold) * 0.5));
+    }
+
+    // Build response
+    const predictedTime = new Date(new Date(currentTime).getTime() + horizonHours * 60 * 60 * 1000);
+
+    res.json({
+      gauge: {
+        code: targetGauge.code,
+        name: targetGauge.name,
+        river_name: targetGauge.river_name,
+        current_level: currentLevel,
+        current_time: currentTime,
+        alert_threshold: alertThreshold,
+        warning_threshold: warningThreshold,
+      },
+      prediction: {
+        predicted_level: Math.round(predictedLevel * 100) / 100,
+        predicted_time: predictedTime.toISOString(),
+        horizon_hours: horizonHours,
+        confidence,
+        trend: trendDirection,
+        trend_rate_per_hour: Math.round(trend * 1000) / 1000,
+        flood_probability: Math.round(floodProbability * 100) / 100,
+      },
+      sensor_data: {
+        readings_used: readings.length,
+        oldest_reading_time: readings[readings.length - 1]?.time,
+        newest_reading_time: readings[0]?.time,
+      },
+      model: {
+        type: 'persistence_with_trend',
+        description: 'Simple prediction using current level + damped trend extrapolation',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Failed to compute prediction',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/predict/flood-risk:
+ *   post:
+ *     tags: [Prediction]
+ *     summary: Predict flood risk and allocate resources
+ *     description: |
+ *       Combined endpoint that reads sensor data, predicts river levels,
+ *       computes flood probabilities per zone, and allocates resources.
+ *       
+ *       Example curl:
+ *       ```
+ *       curl -X POST "http://localhost:18080/api/predict/flood-risk" \
+ *         -H "Content-Type: application/json" \
+ *         -d '{"horizon": 24, "total_units": 100, "allocation_mode": "fuzzy"}'
+ *       ```
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               horizon:
+ *                 type: integer
+ *                 default: 24
+ *                 description: Prediction horizon in hours
+ *               total_units:
+ *                 type: integer
+ *                 default: 100
+ *                 description: Total resource units to allocate
+ *               allocation_mode:
+ *                 type: string
+ *                 enum: [crisp, fuzzy, proportional]
+ *                 default: fuzzy
+ *     responses:
+ *       200:
+ *         description: Flood risk prediction and resource allocation
+ */
+app.post('/api/predict/flood-risk', async (req, res) => {
+  try {
+    const { horizon = 24, total_units = 100, allocation_mode = 'fuzzy' } = req.body || {};
+    const horizonHours = Math.max(1, Math.min(168, parseInt(horizon, 10) || 24));
+
+    // Get all gauge readings
+    const gaugeQuery = `
+      WITH latest_readings AS (
+        SELECT
+          g.id as gauge_id,
+          g.code,
+          g.name,
+          g.alert_threshold,
+          g.warning_threshold,
+          gr.reading_value,
+          gr.reading_time,
+          LAG(gr.reading_value, 6) OVER (PARTITION BY g.id ORDER BY gr.reading_time DESC) as reading_6h_ago,
+          ROW_NUMBER() OVER (PARTITION BY g.id ORDER BY gr.reading_time DESC) as rn
+        FROM gauges g
+        LEFT JOIN gauge_readings gr ON gr.gauge_id = g.id AND gr.quality_flag = 'good'
+      )
+      SELECT * FROM latest_readings WHERE rn = 1
+    `;
+
+    const gaugeResult = await pool.query(gaugeQuery);
+
+    // Calculate flood probability for each zone based on gauge readings
+    // For now, use a simplified model where we derive zone flood probability
+    // from the closest gauge or average gauge readings
+
+    let avgFloodProb = 0.3; // Default if no gauge data
+
+    if (gaugeResult.rows.length > 0) {
+      const gaugeProbs = gaugeResult.rows.map((row) => {
+        const current = Number(row.reading_value) || 0;
+        const prev = Number(row.reading_6h_ago) || current;
+        const warning = Number(row.warning_threshold) || 10;
+        const alert = Number(row.alert_threshold) || 15;
+
+        // Trend factor
+        const trend = current - prev;
+        const trendFactor = trend > 0.5 ? 0.1 : trend < -0.5 ? -0.1 : 0;
+
+        // Base probability from current level
+        let baseProb;
+        if (current >= alert) {
+          baseProb = 0.9;
+        } else if (current >= warning) {
+          baseProb = 0.5 + ((current - warning) / (alert - warning)) * 0.4;
+        } else {
+          baseProb = Math.min(0.5, (current / warning) * 0.5);
+        }
+
+        return Math.max(0, Math.min(1, baseProb + trendFactor));
+      });
+
+      avgFloodProb = gaugeProbs.reduce((a, b) => a + b, 0) / gaugeProbs.length;
+    }
+
+    // Generate zone-specific flood probabilities
+    // Zones closer to river get higher probability, scaled by the average
+    const zonePredictions = {};
+    for (const [zoneId, attrs] of Object.entries(ZONE_ATTRIBUTES)) {
+      // Scale by river proximity
+      const proximityFactor = attrs.river_proximity || 0.5;
+      const zonePf = Math.min(1, avgFloodProb * (0.5 + proximityFactor * 0.5));
+      zonePredictions[zoneId] = Math.round(zonePf * 100) / 100;
+    }
+
+    // Now allocate resources
+    const validModes = ['crisp', 'fuzzy', 'proportional'];
+    const normalizedMode = (allocation_mode || 'fuzzy').toLowerCase();
+
+    const zones = Object.entries(zonePredictions).map(([zoneId, pf]) => {
+      const attrs = ZONE_ATTRIBUTES[zoneId];
+      return {
+        id: zoneId,
+        name: attrs?.name || zoneId,
+        pf,
+        vulnerability: attrs ? calculateVulnerability(attrs) : 0.5,
+        is_critical_infra: attrs ? (attrs.hospital_count || 0) > 0 : false,
+      };
+    });
+
+    const recommendations = allocateResources(zones, total_units, normalizedMode);
+    const totalAllocated = recommendations.reduce((sum, r) => sum + r.units_allocated, 0);
+
+    res.json({
+      prediction_summary: {
+        horizon_hours: horizonHours,
+        average_flood_probability: Math.round(avgFloodProb * 100) / 100,
+        gauges_analyzed: gaugeResult.rows.length,
+        model: 'threshold_based_with_trend',
+      },
+      zone_predictions: Object.entries(zonePredictions).map(([zoneId, pf]) => ({
+        zone_id: zoneId,
+        zone_name: ZONE_ATTRIBUTES[zoneId]?.name || zoneId,
+        flood_probability: pf,
+      })),
+      resource_allocation: {
+        mode: normalizedMode.toUpperCase(),
+        total_units_requested: total_units,
+        total_units_allocated: totalAllocated,
+        recommendations,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({
+      error: 'Failed to compute flood risk prediction',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
