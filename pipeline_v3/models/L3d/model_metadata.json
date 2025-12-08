@@ -1,0 +1,81 @@
+{
+  "features": [
+    "grafton_level",
+    "hermann_level",
+    "daily_precip",
+    "daily_temp_avg",
+    "daily_snowfall",
+    "daily_humidity",
+    "daily_wind",
+    "soil_moisture_0_to_7cm",
+    "soil_moisture_7_to_28cm",
+    "soil_moisture_28_to_100cm",
+    "heavy_rain_48h",
+    "precip_7d",
+    "precip_14d",
+    "precip_30d",
+    "soil_deep_30d",
+    "hermann_level_lag3d",
+    "grafton_level_lag3d",
+    "target_level_max_lag3d",
+    "hermann_level_lag4d",
+    "grafton_level_lag4d",
+    "target_level_max_lag4d",
+    "hermann_level_lag5d",
+    "grafton_level_lag5d",
+    "target_level_max_lag5d",
+    "hermann_level_lag7d",
+    "grafton_level_lag7d",
+    "hermann_level_lag9d",
+    "grafton_level_lag9d",
+    "precip_7d_lag3d",
+    "precip_14d_lag3d",
+    "precip_30d_lag3d",
+    "soil_deep_30d_lag3d",
+    "daily_precip_lag3d",
+    "hermann_ma3d",
+    "grafton_ma3d",
+    "hermann_ma7d",
+    "grafton_ma7d",
+    "hermann_ma14d",
+    "grafton_ma14d"
+  ],
+  "target": "target_level_max",
+  "hyperparameters": {
+    "lead_times": [
+      1,
+      2,
+      3
+    ],
+    "xgboost": {
+      "objective": "reg:quantileerror",
+      "quantile_alpha": 0.9,
+      "n_estimators": 300,
+      "max_depth": 4,
+      "learning_rate": 0.05,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "reg_lambda": 1.0,
+      "n_jobs": -1,
+      "random_state": 42
+    },
+    "bayesian_ridge": {
+      "max_iter": 300,
+      "tol": 1e-06,
+      "alpha_1": 1e-06,
+      "alpha_2": 1e-06,
+      "lambda_1": 1e-06,
+      "lambda_2": 1e-06
+    },
+    "lstm": {
+      "units": 64,
+      "dropout": 0.2,
+      "dense_units": 32,
+      "quantile": 0.9,
+      "batch_size": 32,
+      "epochs": 50,
+      "patience": 10,
+      "learning_rate": 0.001
+    }
+  }
+}
