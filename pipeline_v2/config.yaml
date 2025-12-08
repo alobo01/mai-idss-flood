@@ -1,0 +1,30 @@
+paths:
+  processed: "Data/processed"
+  standardized: "Data/processed_v2"
+  results: "Results/v2"
+
+forecast_horizon: 24
+model_mode: "proportional"
+total_units: 60
+max_units_per_zone: 6
+min_critical_units: 2
+
+scenarios:
+  - name: data1
+    source_file: "daily_flood_dataset.csv"
+    timestamp_column: "date"
+    river_level_column: "target_level_mean"
+    probability_column: "FloodProbability"
+    start_timestamp: "2001-10-04T00:00:00Z"
+    zone_config: "pipeline_v2/zone_configs/data1.yaml"
+    total_units: 60
+    max_units_per_zone: 5
+  - name: data1India
+    source_file: "hourly_flood_dataset.csv"
+    timestamp_column: "time"
+    river_level_column: "target_level"
+    forecast_horizon: 1
+    start_timestamp: "2001-10-04T00:00:00Z"
+    zone_config: "pipeline_v2/zone_configs/data1India.yaml"
+    total_units: 80
+    max_units_per_zone: 8

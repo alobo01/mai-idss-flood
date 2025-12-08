@@ -1,3 +1,8 @@
+"""Legacy convenience runner that sequences feature creation, splitting,
+training, evaluation, and reporting for 1/2/3-day horizons. Update the command
+list as needed, then execute once to reproduce the entire classical pipeline in
+a single shot."""
+
 import subprocess
 import time
 
@@ -9,8 +14,8 @@ for days in [1, 2, 3]:
     steps = [
         f"python Programs/04_create_features.py --days {days}",
         f"python Programs/05_train_test_split.py --days {days}",
-        f"python Programs/07_train_models.py --days {days}",
-        f"python Programs/08_evaluate_test.py --days {days}"
+        f"python Programs/06_train_models.py --days {days}",
+        f"python Programs/07_evaluate_test.py --days {days}"
     ]
 
     for cmd in steps:

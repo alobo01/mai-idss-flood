@@ -1,3 +1,8 @@
+"""Bootstraps the static data phase by running exploratory notebooks and the
+daily/hourly processors to refresh `Data/processed/` artifacts. Use it after
+ingesting new raw files so downstream modeling scripts start from consistent
+inputs."""
+
 import subprocess
 import sys
 import os
@@ -11,7 +16,7 @@ print("=" * 70)
 scripts = [
     # 1. Generate Visualization Reports
     "Programs/01_explore.py",
-    "Programs/01b_weather_features.py"
+    "Programs/01b_weather_features.py",
     
     # 2. Process Daily Data (Creates Data/processed/daily_flood_dataset.csv)
     "Programs/02_downsample_daily.py",
