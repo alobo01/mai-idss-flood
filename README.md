@@ -113,6 +113,22 @@ This is the main execution script. It runs the complete machine learning pipelin
 - **Evaluate:** Tests performance on the 2019 historic flood and recent dry years.
 - **Global Summary:** Compares performance across all forecast horizons and saves results & visualizations in the Results folder.
 
+#### Plot allocator outputs (`pipeline_v2`)
+
+After running `python run_pipeline_v2.py`, generate a quick visualization of the
+allocator prediction CSVs with:
+
+```bash
+python Programs/10_plot_allocations.py --scenario data1 --zone Z1N
+```
+
+- Automatically locates the latest `allocations_*.csv` for the scenario (or use
+  `--csv path/to/file.csv`).
+- Plots predicted severity (`--metric river_level_pred|global_pf|pf_zone`) on the
+  primary axis and deployed units on the secondary axis.
+- Saves the figure to `Results/v2/<scenario>/plots/` unless an `--output` path is
+  provided. Pass `--show` to open the interactive Matplotlib window.
+
 
 ## Development Workflow
 

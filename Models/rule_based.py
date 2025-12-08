@@ -12,7 +12,7 @@ Two allocation modes are supported:
 """
 
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -212,32 +212,66 @@ def recommend_resources_fuzzy(zone: Zone, total_units: int) -> Dict:
 # ---------------------------------------------------------------------------
 
 
+def _rebalance_units(
+    recommendations: List[Dict],
+    diff: int,
+    iz_by_zone: Dict[str, float],
+    max_units_per_zone: Optional[int] = None,
+) -> None:
+    """Make sure the sum of allocated units exactly matches total_units."""
+    if diff == 0:
+        return
+
+    # Sort zones by impact score so adjustments follow most critical areas first.
+    ordered = sorted(
+        recommendations,
+        key=lambda rec: iz_by_zone.get(rec["zone_id"], 0.0),
+        reverse=True,
+    )
+
+    # When removing units we only touch zones that currently have allocations.
+    direction = 1 if diff > 0 else -1
+    remaining = abs(diff)
+    while remaining > 0:
+        changed = False
+        for rec in ordered:
+            if direction == -1 and rec["units_allocated"] == 0:
+                continue
+            if direction == 1 and max_units_per_zone is not None:
+                if rec["units_allocated"] >= max_units_per_zone:
+                    continue
+            new_value = rec["units_allocated"] + direction
+            if new_value < 0:
+                continue
+            rec["units_allocated"] = new_value
+            remaining -= 1
+            changed = True
+            if remaining == 0:
+                break
+        if not changed:
+            # Nothing to adjust (all zeros) → stop to avoid infinite loop.
+            break
+
+
 def allocate_resources(
     zones: List[Zone],
     total_units: int,
     mode: str = "crisp",
+    max_units_per_zone: Optional[int] = None,
 ) -> List[Dict]:
     mode = mode.lower()
     if mode not in {"crisp", "fuzzy", "proportional"}:
         raise ValueError(f"Unknown allocation mode: {mode}")
 
+    impact_scores = {z.id: z.pf * z.vulnerability for z in zones}
+
     if mode == "proportional":
-        # Compute Iz and sum_iz once
-        iz_by_zone = {z.id: z.pf * z.vulnerability for z in zones}
-        sum_iz = sum(iz_by_zone.values())
+        sum_iz = sum(impact_scores.values())
 
         recommendations = [
-            recommend_resources_proportional(z, total_units, iz_by_zone[z.id], sum_iz)
+            recommend_resources_proportional(z, total_units, impact_scores[z.id], sum_iz)
             for z in zones
         ]
-
-        # Optional: small correction so we don't exceed total_units by rounding
-        total_alloc = sum(r["units_allocated"] for r in recommendations)
-        diff = total_units - total_alloc
-        if diff != 0:
-            # Adjust by giving/removing 1 unit to some zones, e.g. by highest Iz
-            # For simplicity you can skip this, or implement a refinement later.
-            pass
 
     elif mode == "crisp":
         recommendations = [
@@ -258,6 +292,15 @@ def allocate_resources(
                     r["units_allocated"] = max(
                         1, int(r["units_allocated"] * factor)
                     )
+
+    if max_units_per_zone is not None:
+        for rec in recommendations:
+            if rec["units_allocated"] > max_units_per_zone:
+                rec["units_allocated"] = max_units_per_zone
+
+    total_alloc = sum(r["units_allocated"] for r in recommendations)
+    diff = total_units - total_alloc
+    _rebalance_units(recommendations, diff, impact_scores, max_units_per_zone)
 
     return recommendations
 
