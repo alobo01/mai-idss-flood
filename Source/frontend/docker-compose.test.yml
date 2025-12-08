@@ -1,0 +1,42 @@
+services:
+  postgres-test:
+    image: postgis/postgis:15-3.3
+    container_name: flood-postgres-test
+    environment:
+      - POSTGRES_DB=flood_prediction
+      - POSTGRES_USER=flood_user
+      - POSTGRES_PASSWORD=flood_password
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flood_user -d flood_prediction"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - test-network
+
+  backend-test:
+    image: flood-backend-test
+    container_name: flood-backend-test
+    environment:
+      - PORT=18080
+      - DB_HOST=postgres-test
+      - DB_PORT=5432
+      - DB_NAME=flood_prediction
+      - DB_USER=flood_user
+      - DB_PASSWORD=flood_password
+      - DEBUG=true
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command: ["pytest", "-v", "--tb=short", "tests/"]
+
+networks:
+  test-network:
+    name: flood-test-network
