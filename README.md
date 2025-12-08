@@ -113,20 +113,21 @@ This is the main execution script. It runs the complete machine learning pipelin
 - **Evaluate:** Tests performance on the 2019 historic flood and recent dry years.
 - **Global Summary:** Compares performance across all forecast horizons and saves results & visualizations in the Results folder.
 
-#### Plot allocator outputs (`pipeline_v2`)
+#### Plot rule-based allocations (`pipeline_v3`)
 
-After running `python run_pipeline_v2.py`, generate a quick visualization of the
-allocator prediction CSVs with:
+After running the pipeline_v3 inference pass (for example `python pipeline_v3/main.py --inference-only`),
+generate a quick visualization of the rule-based allocation CSVs with:
 
 ```bash
-python Programs/10_plot_allocations.py --scenario data1 --zone Z1N
+python Programs/10_plot_allocations.py --lead L1d --zone Z1N
 ```
 
-- Automatically locates the latest `allocations_*.csv` for the scenario (or use
-  `--csv path/to/file.csv`).
-- Plots predicted severity (`--metric river_level_pred|global_pf|pf_zone`) on the
-  primary axis and deployed units on the secondary axis.
-- Saves the figure to `Results/v2/<scenario>/plots/` unless an `--output` path is
+- Loads the requested `pipeline_v3/outputs/rule_based/L*d_rule_based_allocations.csv`
+  (or use `--csv path/to/file.csv`).
+- Plots predicted stage, global probability, or zone probability on the primary
+  axis (`--metric predicted_level|global_pf|zone_pf`) with deployed units on the
+  secondary axis.
+- Saves the figure to `Results/plots/` by default unless an `--output` path is
   provided. Pass `--show` to open the interactive Matplotlib window.
 
 

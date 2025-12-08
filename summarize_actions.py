@@ -1,7 +1,7 @@
-"""Summarize allocator actions produced by pipeline_v2.
+"""Summarize rule-based allocations produced by pipeline_v3.
 
-Reads the newest `allocations_*.csv` (and matching summary file when present)
-from `Results/v2/<scenario>/` and prints a human-readable action plan grouped
+Reads one of the `pipeline_v3/outputs/rule_based/L*d_rule_based_allocations.csv`
+files (or a user-provided CSV) and prints a human-readable action plan grouped
 by timestamp. Only zones receiving non-zero units are listed unless `--verbose`
 is supplied.
 """
@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-RESULTS_ROOT = Path("Results/v2")
+RESULTS_ROOT = Path("pipeline_v3/outputs/rule_based")
 REQUIRED_COLUMNS = {
     "timestamp",
     "zone_name",
@@ -29,10 +29,36 @@ REQUIRED_COLUMNS = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Summarize allocator output for a scenario.")
-    parser.add_argument("--scenario", default="data1", help="Scenario folder under Results/v2 (default: data1)")
+    parser = argparse.ArgumentParser(description="Summarize rule-based allocations for a lead horizon.")
+    parser.add_argument("--lead", default="L1d", help="Lead horizon to summarize (e.g., L1d)")
+    parser.add_argument(
+        "--csv",
+        dest="csv_path",
+        default=None,
+        help="Optional explicit path to a rule-based allocations CSV file.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Show zones even when zero units are allocated.")
     return parser.parse_args()
+
+
+def resolve_csv_path(lead: str, override: Optional[str]) -> Path:
+    if override:
+        path = Path(override)
+        if not path.exists():
+            raise FileNotFoundError(f"Allocations file not found: {path}")
+        return path
+
+    sanitized = lead.strip()
+    if not sanitized:
+        raise ValueError("Lead argument cannot be empty")
+
+    filename = f"{sanitized}_rule_based_allocations.csv"
+    candidate = RESULTS_ROOT / filename
+    if not candidate.exists():
+        raise FileNotFoundError(
+            f"Could not locate {filename} under {RESULTS_ROOT}. Run the pipeline first or supply --csv."
+        )
+    return candidate
 
 
 def find_latest_file(base_dir: Path, prefix: str, suffix: str) -> Path:
@@ -50,6 +76,15 @@ def load_allocations(csv_path: Path) -> pd.DataFrame:
         raise FileNotFoundError(f"Allocations file not found: {csv_path}") from exc
     except pd.errors.EmptyDataError as exc:
         raise ValueError(f"Allocations file is empty: {csv_path}") from exc
+
+    if "timestamp" not in df.columns:
+        if "date" in df.columns:
+            df = df.rename(columns={"date": "timestamp"})
+        else:
+            raise ValueError("Allocations file missing 'timestamp' or 'date' column.")
+
+    if "zone_vulnerability" in df.columns and "vulnerability" not in df.columns:
+        df = df.rename(columns={"zone_vulnerability": "vulnerability"})
 
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
