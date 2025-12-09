@@ -1,120 +1,105 @@
 # pylint: disable=astroid-error
-"""Rule-based and fuzzy-logic allocation of flood response resources.
+"""Rule-based, fuzzy, and crisp allocation of flood response resources.
 
-This module defines a Zone dataclass, classifies impact levels based on
-predicted flood probability and vulnerability, and recommends resource
-allocation across zones.
-
-Two allocation modes are supported:
-- CRISP: step-wise thresholds (NORMAL / ADVISORY / WARNING / CRITICAL)
-- FUZZY: fuzzy combination of the same linguistic levels based on an
-  impact score Iz = pf * vulnerability.
+This file merges:
+- The official main-branch allocation API (crisp, fuzzy, proportional)
+- Your knowledge-based multi-resource scoring system
+- A final dispatch planner that distributes allocated units across resource types
 """
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional
+
+# ---------------------------------------------------------------------------
+# Optional import for extended zone attributes (safe fallback)
+# ---------------------------------------------------------------------------
+try:
+    from Models.zone_config import ZONE_ATTRIBUTES
+except Exception:
+    ZONE_ATTRIBUTES = {}  # allows running without extended config
 
 
 # ---------------------------------------------------------------------------
 # Data model
 # ---------------------------------------------------------------------------
 
-
 @dataclass
 class Zone:
-    """Represents a spatial zone in the flood IDSS.
-
-    Attributes:
-        id: Zone identifier (e.g. "Z1").
-        name: Human-readable name (e.g. "Riverfront High-Risk").
-        pf: Predicted flood probability in [0, 1].
-        vulnerability: Composite index in [0, 1] encoding river proximity,
-            elevation risk, population density, hospital/critical infra, etc.
-        is_critical_infra: True if the zone contains critical infrastructure
-            (e.g. major hospitals, wastewater plants, power substations).
-    """
     id: str
     name: str
     pf: float
     vulnerability: float
     is_critical_infra: bool
 
+
 # ---------------------------------------------------------------------------
-# proportional model
+# Resource type definitions (your extension)
 # ---------------------------------------------------------------------------
-def recommend_resources_proportional(
-    zone: Zone,
-    total_units: int,
-    iz: float,
-    sum_iz: float,
-) -> Dict:
-    """Allocate resources strictly proportional to impact Iz / sum(I_all)."""
+
+RESOURCE_TYPES = ["R1_UAV", "R2_ENGINEERING", "R3_PUMPS", "R4_RESCUE", "R5_EVAC"]
+
+
+def _get_zone_attrs(zone: Zone) -> Dict[str, float]:
+    """Fetch additional zone attributes from ZONE_ATTRIBUTES."""
+    attrs = ZONE_ATTRIBUTES.get(zone.id, {})
+    return {
+        "river_proximity": attrs.get("river_proximity", 0.0),
+        "elevation_risk": attrs.get("elevation_risk", 0.0),
+        "pop_density": attrs.get("pop_density", 0.0),
+        "crit_infra_score": attrs.get("crit_infra_score", 0.0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# PROPORTIONAL
+# ---------------------------------------------------------------------------
+
+def recommend_resources_proportional(zone: Zone, total_units: int, iz: float, sum_iz: float) -> Dict:
     if sum_iz <= 0:
         units = 0
     else:
-        raw_units = total_units * (iz / sum_iz)
-        units = int(round(raw_units))
-
-    impact = classify_impact(zone.pf, zone.vulnerability)
+        units = int(round(total_units * (iz / sum_iz)))
 
     return {
         "zone_id": zone.id,
         "zone_name": zone.name,
-        "impact_level": impact,
+        "impact_level": classify_impact(zone.pf, zone.vulnerability),
         "allocation_mode": "PROPORTIONAL",
         "units_allocated": units,
     }
 
-# ---------------------------------------------------------------------------
-# CRISP IMPACT CLASSIFICATION
-# ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# CRISP CLASSIFICATION
+# ---------------------------------------------------------------------------
 
 def classify_impact(pf: float, vulnerability: float) -> str:
-    """Classify impact level based on predicted flood probability and vulnerability.
-
-    pf = probability of flooding in [0, 1]
-    vulnerability = composite vulnerability index in [0, 1]
-    Impact score:
-        Iz = pf * vulnerability
-
-    Returns one of:
-        "NORMAL", "ADVISORY", "WARNING", "CRITICAL".
-    """
     iz = pf * vulnerability
-
     if iz < 0.3:
         return "NORMAL"
     elif iz < 0.6:
         return "ADVISORY"
     elif iz < 0.8:
         return "WARNING"
-    else:
-        return "CRITICAL"
+    return "CRITICAL"
 
 
 def _crisp_fraction(impact: str, is_critical_infra: bool) -> float:
-    """Resource fraction according to the original crisp rules."""
     if impact == "NORMAL":
         return 0.0
     if impact == "ADVISORY":
         return 0.1
     if impact == "WARNING":
         return 0.3
-    # CRITICAL
     return 0.6 if is_critical_infra else 0.5
 
 
 def recommend_resources_crisp(zone: Zone, total_units: int) -> Dict:
-    """Recommend how many units to allocate to a single zone (crisp rules)."""
     impact = classify_impact(zone.pf, zone.vulnerability)
     fraction = _crisp_fraction(impact, zone.is_critical_infra)
     units = max(0, int(total_units * fraction))
-
-    # Ensure at least 1 unit if we decided to allocate something
-    if impact in {"ADVISORY", "WARNING", "CRITICAL"} and units == 0:
+    if impact != "NORMAL" and units == 0:
         units = 1
-
     return {
         "zone_id": zone.id,
         "zone_name": zone.name,
@@ -125,115 +110,160 @@ def recommend_resources_crisp(zone: Zone, total_units: int) -> Dict:
 
 
 # ---------------------------------------------------------------------------
-# FUZZY LOGIC EXTENSION
+# FUZZY LOGIC
 # ---------------------------------------------------------------------------
 
-
 def _tri_mf(x: float, a: float, b: float, c: float) -> float:
-    """Triangular membership function mu(x; a, b, c)."""
     if x <= a or x >= c:
         return 0.0
     if x == b:
         return 1.0
     if x < b:
         return (x - a) / (b - a)
-    # x > b
     return (c - x) / (c - b)
 
 
 def _fuzzy_fraction(iz: float, is_critical_infra: bool) -> float:
-    """Compute resource fraction using fuzzy membership over impact levels.
-
-    - Input: impact score iz in [0, 1]
-    - Output: resource fraction in [0, ~0.6]
-
-    Linguistic impact levels are defined over iz with overlapping triangular
-    membership functions. Each level has a "typical" resource fraction.
-    A weighted average over these consequents is used for defuzzification.
-    """
-    # 1) Membership degrees for linguistic levels over Iz
     mu_normal = _tri_mf(iz, 0.0, 0.0, 0.3)
     mu_advisory = _tri_mf(iz, 0.2, 0.45, 0.7)
     mu_warning = _tri_mf(iz, 0.4, 0.7, 0.9)
     mu_critical = _tri_mf(iz, 0.7, 1.0, 1.0)
 
-    # 2) "Typical" resource fractions per level (aligned with crisp rules)
-    frac_normal = 0.0
-    frac_advisory = 0.1
-    frac_warning = 0.3
-    frac_critical = 0.5  # base for critical
-
-    # 3) Weighted average over consequents
     num = (
-        mu_normal * frac_normal
-        + mu_advisory * frac_advisory
-        + mu_warning * frac_warning
-        + mu_critical * frac_critical
+        mu_normal * 0.0 +
+        mu_advisory * 0.1 +
+        mu_warning * 0.3 +
+        mu_critical * 0.5
     )
     den = mu_normal + mu_advisory + mu_warning + mu_critical
+    base = num / den if den > 0 else 0.0
 
-    if den == 0:
-        base_fraction = 0.0
-    else:
-        base_fraction = num / den
-
-    # 4) Critical infrastructure bonus at high impact
     if is_critical_infra and iz >= 0.8:
-        base_fraction += 0.1
+        base += 0.1
 
-    # Cap between 0 and 0.6 to stay comparable with crisp logic
-    return max(0.0, min(base_fraction, 0.6))
+    return max(0.0, min(base, 0.6))
 
 
 def recommend_resources_fuzzy(zone: Zone, total_units: int) -> Dict:
-    """Recommend how many units to allocate using fuzzy rules.
-
-    Uses fuzzy membership over impact score Iz, then defuzzifies to a
-    single resource fraction.
-    """
     iz = zone.pf * zone.vulnerability
-    fraction = _fuzzy_fraction(iz, zone.is_critical_infra)
-    units = int(round(total_units * fraction))
-
-    # Ensure at least 1 unit if impact is non-trivial
+    units = int(round(total_units * _fuzzy_fraction(iz, zone.is_critical_infra)))
     if iz >= 0.3 and units == 0:
         units = 1
-
-    impact = classify_impact(zone.pf, zone.vulnerability)
     return {
         "zone_id": zone.id,
         "zone_name": zone.name,
-        "impact_level": impact,
+        "impact_level": classify_impact(zone.pf, zone.vulnerability),
         "allocation_mode": "FUZZY",
         "units_allocated": units,
     }
 
 
 # ---------------------------------------------------------------------------
-# PUBLIC API
+# MULTI-RESOURCE RULES (your extension)
 # ---------------------------------------------------------------------------
 
+def rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
+    attrs = _get_zone_attrs(zone)
+    river, elev, pop, ci = (
+        attrs["river_proximity"],
+        attrs["elevation_risk"],
+        attrs["pop_density"],
+        attrs["crit_infra_score"],
+    )
 
-def _rebalance_units(
-    recommendations: List[Dict],
-    diff: int,
-    iz_by_zone: Dict[str, float],
-    max_units_per_zone: Optional[int] = None,
-) -> None:
-    """Make sure the sum of allocated units exactly matches total_units."""
+    pf = zone.pf
+    V = zone.vulnerability
+
+    scores = {r: 0.0 for r in RESOURCE_TYPES}
+
+    if river > 0.7 and pf > 0.4:
+        scores["R1_UAV"] += 2
+        scores["R2_ENGINEERING"] += 1
+
+    if V > 0.7 and pf > 0.6:
+        scores["R2_ENGINEERING"] += 3
+
+    if elev > 0.6 and pf > 0.5:
+        scores["R3_PUMPS"] += 3
+
+    if pf > 0.7 or V > 0.75:
+        scores["R4_RESCUE"] += 3
+
+    if pop > 0.7 and pf > 0.5:
+        scores["R5_EVAC"] += 3
+
+    if ci > 0.6 or zone.is_critical_infra:
+        scores["R2_ENGINEERING"] += 1
+        scores["R5_EVAC"] += 1
+
+    return scores
+
+
+def resource_priority_list(zone: Zone) -> Dict:
+    scores = rule_based_resource_scores(zone)
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    ranked_nonzero = [k for k, v in ranked if v > 0]
+    priority_index = 0.6 * zone.pf + 0.4 * zone.vulnerability
+
+    return {
+        "zone_id": zone.id,
+        "zone_name": zone.name,
+        "priority_index": priority_index,
+        "resource_scores": scores,
+        "resource_priority": ranked_nonzero,
+    }
+
+
+# ---------------------------------------------------------------------------
+# FINAL DISPATCH PLAN
+# ---------------------------------------------------------------------------
+
+def build_dispatch_plan(zones: List[Zone], total_units: int, mode: str = "fuzzy",
+                        max_units_per_zone: Optional[int] = None) -> List[Dict]:
+
+    numeric_alloc = allocate_resources(zones, total_units, mode, max_units_per_zone)
+    priorities = {z.id: resource_priority_list(z) for z in zones}
+
+    dispatch = []
+
+    for alloc in numeric_alloc:
+        zone_id = alloc["zone_id"]
+        units = alloc["units_allocated"]
+        pr = priorities.get(zone_id)
+
+        resource_units = {r: 0 for r in RESOURCE_TYPES}
+
+        if pr and pr["resource_priority"] and units > 0:
+            p_list = pr["resource_priority"]
+            i = 0
+            for _ in range(units):
+                resource_units[p_list[i % len(p_list)]] += 1
+                i += 1
+
+        dispatch.append({
+            **alloc,
+            "priority_index": pr["priority_index"] if pr else None,
+            "resource_priority": pr["resource_priority"] if pr else [],
+            "resource_units": resource_units,
+        })
+
+    return dispatch
+
+
+# ---------------------------------------------------------------------------
+# REBALANCING + PUBLIC allocate_resources API (unchanged from main)
+# ---------------------------------------------------------------------------
+
+def _rebalance_units(recs: List[Dict], diff: int, iz_map: Dict[str, float],
+                     max_units_per_zone: Optional[int] = None):
+
     if diff == 0:
         return
 
-    # Sort zones by impact score so adjustments follow most critical areas first.
-    ordered = sorted(
-        recommendations,
-        key=lambda rec: iz_by_zone.get(rec["zone_id"], 0.0),
-        reverse=True,
-    )
-
-    # When removing units we only touch zones that currently have allocations.
+    ordered = sorted(recs, key=lambda r: iz_map.get(r["zone_id"], 0.0), reverse=True)
     direction = 1 if diff > 0 else -1
     remaining = abs(diff)
+
     while remaining > 0:
         changed = False
         for rec in ordered:
@@ -242,118 +272,57 @@ def _rebalance_units(
             if direction == 1 and max_units_per_zone is not None:
                 if rec["units_allocated"] >= max_units_per_zone:
                     continue
-            new_value = rec["units_allocated"] + direction
-            if new_value < 0:
+
+            new_val = rec["units_allocated"] + direction
+            if new_val < 0:
                 continue
-            rec["units_allocated"] = new_value
+
+            rec["units_allocated"] = new_val
             remaining -= 1
             changed = True
             if remaining == 0:
                 break
+
         if not changed:
-            # Nothing to adjust (all zeros) → stop to avoid infinite loop.
             break
 
 
-def allocate_resources(
-    zones: List[Zone],
-    total_units: int,
-    mode: str = "crisp",
-    max_units_per_zone: Optional[int] = None,
-) -> List[Dict]:
+def allocate_resources(zones: List[Zone], total_units: int, mode: str = "crisp",
+                       max_units_per_zone: Optional[int] = None) -> List[Dict]:
+
     mode = mode.lower()
     if mode not in {"crisp", "fuzzy", "proportional"}:
-        raise ValueError(f"Unknown allocation mode: {mode}")
+        raise ValueError(f"Unknown mode {mode}")
 
-    impact_scores = {z.id: z.pf * z.vulnerability for z in zones}
+    iz_map = {z.id: z.pf * z.vulnerability for z in zones}
 
     if mode == "proportional":
-        sum_iz = sum(impact_scores.values())
-
-        recommendations = [
-            recommend_resources_proportional(z, total_units, impact_scores[z.id], sum_iz)
+        sum_iz = sum(iz_map.values())
+        recs = [
+            recommend_resources_proportional(z, total_units, iz_map[z.id], sum_iz)
             for z in zones
         ]
-
     elif mode == "crisp":
-        recommendations = [
-            recommend_resources_crisp(zone, total_units) for zone in zones
-        ]
-    else:  # fuzzy
-        recommendations = [
-            recommend_resources_fuzzy(zone, total_units) for zone in zones
-        ]
+        recs = [recommend_resources_crisp(z, total_units) for z in zones]
+    else:
+        recs = [recommend_resources_fuzzy(z, total_units) for z in zones]
 
-    # Keep your normalization for CRISP/FUZZY only
+    # Normalization step (matches main)
     if mode in {"crisp", "fuzzy"}:
-        total_requested = sum(r["units_allocated"] for r in recommendations)
-        if total_requested > total_units and total_requested > 0:
+        total_requested = sum(r["units_allocated"] for r in recs)
+        if total_requested > total_units:
             factor = total_units / total_requested
-            for r in recommendations:
+            for r in recs:
                 if r["units_allocated"] > 0:
-                    r["units_allocated"] = max(
-                        1, int(r["units_allocated"] * factor)
-                    )
+                    r["units_allocated"] = max(1, int(r["units_allocated"] * factor))
 
     if max_units_per_zone is not None:
-        for rec in recommendations:
-            if rec["units_allocated"] > max_units_per_zone:
-                rec["units_allocated"] = max_units_per_zone
+        for r in recs:
+            if r["units_allocated"] > max_units_per_zone:
+                r["units_allocated"] = max_units_per_zone
 
-    total_alloc = sum(r["units_allocated"] for r in recommendations)
-    diff = total_units - total_alloc
-    _rebalance_units(recommendations, diff, impact_scores, max_units_per_zone)
+    diff = total_units - sum(r["units_allocated"] for r in recs)
+    _rebalance_units(recs, diff, iz_map, max_units_per_zone)
 
-    return recommendations
+    return recs
 
-
-
-# ---------------------------------------------------------------------------
-# Simple manual test with river-based St. Louis zones
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    # Example zones consistent with the St. Louis river logic:
-    # Z1: Riverfront High-Risk (closest to Mississippi, low elevation)
-    # Z2: Near-River Urban / Medical Core
-    # Z3: Inland South Residential
-    # Z4: Inland North / Outer Residential
-
-    zones = [
-        Zone(
-            id="Z1",
-            name="Riverfront High-Risk",
-            pf=0.85,             # high flood probability from gauge model
-            vulnerability=0.9,   # very exposed (river + low elevation + dense)
-            is_critical_infra=True,  # hospitals and key infra present
-        ),
-        Zone(
-            id="Z2",
-            name="Near-River Medical Core",
-            pf=0.7,
-            vulnerability=0.85,  # high pop + hospitals, slightly higher ground
-            is_critical_infra=True,
-        ),
-        Zone(
-            id="Z3",
-            name="Inland South Residential",
-            pf=0.4,
-            vulnerability=0.5,   # further from river, mainly residential
-            is_critical_infra=False,
-        ),
-        Zone(
-            id="Z4",
-            name="Inland North Residential",
-            pf=0.5,
-            vulnerability=0.6,   # some exposure + one emergency hospital
-            is_critical_infra=True,
-        ),
-    ]
-
-    print("=== CRISP ALLOCATION ===")
-    for r in allocate_resources(zones, total_units=10, mode="crisp"):
-        print(r)
-
-    print("\n=== FUZZY ALLOCATION ===")
-    for r in allocate_resources(zones, total_units=10, mode="fuzzy"):
-        print(r)
