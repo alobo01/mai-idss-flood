@@ -65,3 +65,7 @@ export const validateUploadedFile = (content: any): string[] => {
 
   return errors;
 };
+
+// Alias for backward compatibility
+export const handleExport = downloadZonesAsJson;
+export const validateImportedData = validateUploadedFile;

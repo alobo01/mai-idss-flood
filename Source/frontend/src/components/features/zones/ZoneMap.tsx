@@ -1,17 +1,17 @@
 import React, { useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON as GeoJSONLeaflet } from 'react-leaflet';
 import L from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Square } from 'lucide-react';
-import type { GeoJSON } from '@/types';
+import type { GeoJSON as GeoJSONType } from '@/types';
 import { fixLeafletIcons } from '@/lib/leaflet-config';
 
 import 'leaflet-draw/dist/leaflet.draw.css';
 fixLeafletIcons();
 
 interface ZoneMapProps {
-  zones: GeoJSON;
+  zones: GeoJSONType;
   selectedZoneId: string | null;
   isDrawingMode: boolean;
   onZoneClick: (feature: any, layer: any) => void;
@@ -115,7 +115,7 @@ export function ZoneMap({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <GeoJSON
+            <GeoJSONLeaflet
               data={zones as any}
               style={getZoneStyle}
               onEachFeature={(feature, layer) => {

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-# import numpy as np  # Temporarily disabled for deployment
+import numpy as np
 
 from ..database import get_db
 from ..schemas import RiverLevelPrediction, FloodRiskPrediction, ErrorResponse

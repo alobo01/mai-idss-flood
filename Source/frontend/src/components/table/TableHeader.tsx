@@ -4,6 +4,7 @@ import {
   TableHead,
   TableRow,
   TableCell,
+  TableHeader,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import type { Column } from '../DataTable';
@@ -17,7 +18,7 @@ interface TableHeaderProps<T> {
   onSort?: (key: keyof T) => void;
 }
 
-export function TableHeaderComponent<T>({
+export function DataTableHeader<T>({
   columns,
   sortConfig,
   onSort
