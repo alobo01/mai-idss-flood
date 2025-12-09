@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow, TableHeader } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ export interface DataTableProps<T> {
   columns: Column<T>[];
   loading?: boolean;
   title?: string;
+  description?: string;
   searchPlaceholder?: string;
   onAdd?: () => void;
   onEdit?: (record: T, index: number) => void;
@@ -37,6 +38,8 @@ export interface DataTableProps<T> {
   addButtonLabel?: string;
   className?: string;
   actions?: React.ReactNode;
+  rowActions?: (record: T, index: number) => React.ReactNode;
+  pageSize?: number;
   emptyMessage?: string;
 }
 
@@ -55,6 +58,7 @@ export function DataTable<T>({
   addButtonLabel = 'Add New',
   className,
   actions,
+  rowActions,
   emptyMessage = 'No data available'
 }: DataTableProps<T>) {
   const [searchValue, setSearchValue] = useState('');
@@ -106,8 +110,8 @@ export function DataTable<T>({
   };
 
   const renderActions = (record: T, index: number) => {
-    if (actions) {
-      return actions;
+    if (rowActions) {
+      return rowActions(record, index);
     }
 
     if (!onView && !onEdit && !onDelete) {
@@ -156,7 +160,7 @@ export function DataTable<T>({
 
   const renderTableHeader = () => (
     <Table>
-      <TableBody>
+      <TableHeader>
         <TableRow>
           {columns.map((column) => (
             <TableCell
@@ -186,7 +190,7 @@ export function DataTable<T>({
             Actions
           </TableCell>
         </TableRow>
-      </TableBody>
+      </TableHeader>
     </Table>
   );
 

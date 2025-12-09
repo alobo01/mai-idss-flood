@@ -43,7 +43,7 @@ const severityIcons: Record<AlertSeverity, React.ReactNode> = {
 
 export function AlertItem({ alert, onAcknowledged }: AlertItemProps) {
   const [acknowledging, setAcknowledging] = useState(false);
-  const acknowledgeAlert = useAcknowledgeAlert();
+  const { acknowledgeAlert } = useAcknowledgeAlert();
   const queryClient = useQueryClient();
 
   const handleAcknowledge = async () => {
@@ -51,10 +51,7 @@ export function AlertItem({ alert, onAcknowledged }: AlertItemProps) {
 
     setAcknowledging(true);
     try {
-      await acknowledgeAlert.mutateAsync({
-        alertId: alert.id,
-        acknowledgedBy: 'Current User'
-      });
+      await acknowledgeAlert(alert.id);
 
       // Invalidate and refetch alerts
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
