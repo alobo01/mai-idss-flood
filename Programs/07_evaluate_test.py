@@ -42,11 +42,12 @@ else:
     preds['Persistence'] = np.zeros(len(y_test))
 
 # 3. XGBoost
-xgb_model = xgb.XGBRegressor()
+xgb_model = xgb.Booster()
 xgb_model.load_model(f"{MODEL_DIR}/xgb_q90.json")
 
 dtest = xgb.DMatrix(X_test)
 preds['XGBoost'] = xgb_model.predict(dtest)
+
 
 # 4. Bayesian
 bayes_model = joblib.load(f"{MODEL_DIR}/bayes_model.pkl")
