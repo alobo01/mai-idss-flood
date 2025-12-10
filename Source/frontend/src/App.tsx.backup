@@ -1,0 +1,65 @@
+import { Fragment, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AppShell } from '@/components/AppShell';
+import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoginPage } from '@/pages/auth/Login';
+import { RoleSelector } from '@/components/RoleSelector';
+
+// Planner page components
+import { PlannerMap } from '@/pages/planner/Map';
+import { PlannerScenarios } from '@/pages/planner/Scenarios';
+import { PlannerAlerts } from '@/pages/planner/Alerts';
+import { PlannerRuleBased } from '@/pages/planner/RuleBased';
+
+function App() {
+  const { currentRole, setCurrentRole } = useAppContext();
+  const { currentUser, isAuthenticated } = useAuth();
+  const legacyRoleSelector = import.meta.env.VITE_LEGACY_ROLE_SELECTOR !== 'false';
+  const isAuthSatisfied = isAuthenticated || legacyRoleSelector;
+  useEffect(() => {
+    if (currentUser?.role && currentUser.role !== currentRole) {
+      // Force planner role for this simplified view
+      setCurrentRole('Planner');
+    } else if (!currentUser && currentRole) {
+      setCurrentRole(null);
+    }
+  }, [currentRole, currentUser, setCurrentRole]);
+
+  if (!isAuthSatisfied || !currentUser) {
+    if (legacyRoleSelector) {
+      return <RoleSelector />;
+    }
+    return <LoginPage />;
+  }
+
+  if (!currentRole) {
+    return legacyRoleSelector ? (
+      <RoleSelector />
+    ) : (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Preparing your workspace...
+      </div>
+    );
+  }
+
+  return (
+    <AppShell>
+      <Routes>
+        {/* Default redirect to planner */}
+        <Route path="/" element={<Navigate to="/planner/map" replace />} />
+
+        {/* Planner Routes only */}
+        <Route path="/planner/map" element={<PlannerMap />} />
+        <Route path="/planner/rule-based" element={<PlannerRuleBased />} />
+        <Route path="/planner/scenarios" element={<PlannerScenarios />} />
+        <Route path="/planner/alerts" element={<PlannerAlerts />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppShell>
+  );
+}
+
+export default App;

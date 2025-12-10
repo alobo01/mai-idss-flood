@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+const PLANNER_ONLY = process.env.PLANNER_ONLY === 'true';
+if (PLANNER_ONLY) {
+  test.skip();
+}
+
 test('Debug role selection', async ({ page }) => {
   // Navigate to the application
   await page.goto('/');

@@ -69,7 +69,7 @@ class Asset(Base):
     location = Column(Geometry('POINT', srid=4326), nullable=False)
     address = Column(Text)
     capacity = Column(Integer)
-    metadata = Column(JSONB)
+    meta = Column("metadata", JSONB)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -170,7 +170,7 @@ class Alert(Base):
     acknowledged_at = Column(DateTime(timezone=True))
     resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime(timezone=True))
-    metadata = Column(JSONB)
+    meta = Column("metadata", JSONB)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Relationships
@@ -193,7 +193,7 @@ class Communication(Base):
     direction = Column(String(20), default='outbound')
     priority = Column(String(20), default='normal')
     status = Column(String(20), default='sent')
-    metadata = Column(JSONB)
+    meta = Column("metadata", JSONB)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     __table_args__ = (
@@ -217,7 +217,7 @@ class Gauge(Base):
     alert_threshold = Column(Numeric(10, 2))
     warning_threshold = Column(Numeric(10, 2))
     status = Column(String(20), default='active')
-    metadata = Column(JSONB)
+    meta = Column("metadata", JSONB)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -238,7 +238,7 @@ class GaugeReading(Base):
     reading_value = Column(Numeric(10, 4), nullable=False)
     reading_time = Column(DateTime(timezone=True), nullable=False)
     quality_flag = Column(String(20), default='good')
-    metadata = Column(JSONB)
+    meta = Column("metadata", JSONB)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Relationships

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Layers, Clock, MapPin } from 'lucide-react';
+import { PipelineRuleBasedAllocation } from '@/hooks/useRuleBased';
 import type {
   GeoJSON as GeoJSONType,
   RiskPoint,
@@ -20,12 +21,14 @@ fixLeafletIcons();
 interface MapViewProps {
   zones: GeoJSONType;
   riskData?: RiskPoint[];
+   ruleData?: PipelineRuleBasedAllocation[];
   selectedZone?: string | null;
   onZoneSelect?: (zoneId: string) => void;
   timeHorizon?: string;
   layers?: {
     zones: boolean;
     risk: boolean;
+    rule: boolean;
     assets: boolean;
     gauges: boolean;
   };
@@ -78,14 +81,15 @@ const MapController: React.FC<{
 export function MapView({
   zones,
   riskData = [],
+  ruleData = [],
   selectedZone,
   onZoneSelect,
   timeHorizon = '12h',
-  layers = { zones: true, risk: true, assets: true, gauges: true },
+  layers = { zones: true, risk: true, rule: true, assets: true, gauges: true },
   className = ''
 }: MapViewProps) {
-  const [mapCenter] = useState<[number, number]>([40.41, -3.70]); // Madrid area
-  const [mapZoom] = useState(11);
+  const [mapCenter] = useState<[number, number]>([38.627, -90.199]); // St. Louis
+  const [mapZoom] = useState(12);
 
   // Validate zones data
   if (!zones || !zones.features || zones.features.length === 0) {
@@ -111,10 +115,38 @@ export function MapView({
     return '#22c55e'; // green-500
   };
 
+  // Rule-based impact colors
+  const getRuleColor = (impact?: string): string => {
+    switch ((impact || '').toUpperCase()) {
+      case 'CRITICAL':
+        return '#b91c1c'; // red-700
+      case 'WARNING':
+        return '#f97316'; // orange-500
+      case 'ADVISORY':
+        return '#eab308'; // yellow-500
+      case 'NORMAL':
+        return '#22c55e'; // green-500
+      default:
+        return '#6b7280'; // gray-500 fallback
+    }
+  };
+
   // Style GeoJSON zones based on risk data
   const getZoneStyle = (feature: any) => {
     const zoneId = feature.properties.id;
+    const rulePoint = ruleData.find(r => r.zone_id === zoneId);
     const riskPoint = riskData.find(r => r.zoneId === zoneId);
+
+    if (layers.rule && rulePoint) {
+      const fillColor = getRuleColor(rulePoint.impact_level);
+      return {
+        fillColor,
+        weight: selectedZone === zoneId ? 3 : 2,
+        opacity: 1,
+        color: selectedZone === zoneId ? '#1f2937' : 'white',
+        fillOpacity: selectedZone === zoneId ? 0.65 : 0.55,
+      };
+    }
 
     if (!layers.risk || !riskPoint) {
       return {
@@ -147,6 +179,7 @@ export function MapView({
     // Bind popup to the layer
     const zoneName = feature.properties.name;
     const population = feature.properties.population;
+    const rulePoint = ruleData.find(r => r.zone_id === zoneId);
     const riskPoint = riskData.find(r => r.zoneId === zoneId);
 
     let popupContent = `
@@ -155,7 +188,21 @@ export function MapView({
         <p class="text-xs text-gray-600 mb-2">Population: ${population.toLocaleString()}</p>
     `;
 
-    if (riskPoint) {
+    if (rulePoint && layers.rule) {
+      const ruleColor = getRuleColor(rulePoint.impact_level);
+      popupContent += `
+        <div class="mb-2">
+          <span class="text-xs font-medium">Impact:</span>
+          <span style="color: ${ruleColor}" class="ml-1 font-bold">${(rulePoint.impact_level || '').toUpperCase()}</span>
+          <span class="text-xs ml-1 px-1 py-0.5 rounded" style="background-color: ${ruleColor}20">${rulePoint.allocation_mode}</span>
+        </div>
+        <div class="text-xs text-gray-600 space-y-1">
+          <p>Units allocated: ${rulePoint.units_allocated}</p>
+          ${rulePoint.pf !== undefined ? `<p>PF: ${(rulePoint.pf * 100).toFixed(0)}%</p>` : ''}
+          ${rulePoint.vulnerability !== undefined ? `<p>Vulnerability: ${rulePoint.vulnerability.toFixed(2)}</p>` : ''}
+        </div>
+      `;
+    } else if (riskPoint && layers.risk) {
       const riskColor = getRiskColor(riskPoint.risk);
       popupContent += `
         <div class="mb-2">
@@ -283,6 +330,10 @@ export function MapView({
                   <span>Zones</span>
                 </div>
                 <div className="flex items-center space-x-1">
+                  <div className={`w-3 h-3 rounded ${layers.rule ? 'bg-amber-600' : 'bg-gray-300'}`} />
+                  <span>Rule-based</span>
+                </div>
+                <div className="flex items-center space-x-1">
                   <div className={`w-3 h-3 rounded ${layers.risk ? 'bg-red-500' : 'bg-gray-300'}`} />
                   <span>Risk</span>
                 </div>
@@ -294,30 +345,56 @@ export function MapView({
             </Card>
           </div>
 
-          {/* Risk legend */}
-          {layers.risk && (
-            <div className="absolute bottom-4 left-4">
-              <Card className="p-3 shadow-lg">
-                <div className="text-xs font-medium mb-2">Risk Levels</div>
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2 text-xs">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} />
-                    <span>Severe (&gt;75%)</span>
+          {/* Legends */}
+          {(layers.rule || layers.risk) && (
+            <div className="absolute bottom-4 left-4 space-y-3">
+              {layers.rule && (
+                <Card className="p-3 shadow-lg">
+                  <div className="text-xs font-medium mb-2">Rule-based categories</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: getRuleColor('CRITICAL') }} />
+                      <span>Critical</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: getRuleColor('WARNING') }} />
+                      <span>Warning</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: getRuleColor('ADVISORY') }} />
+                      <span>Advisory</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: getRuleColor('NORMAL') }} />
+                      <span>Normal</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f97316' }} />
-                    <span>High (50-75%)</span>
+                </Card>
+              )}
+
+              {layers.risk && (
+                <Card className="p-3 shadow-lg">
+                  <div className="text-xs font-medium mb-2">Risk Levels</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} />
+                      <span>Severe (&gt;75%)</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f97316' }} />
+                      <span>High (50-75%)</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: '#eab308' }} />
+                      <span>Moderate (25-50%)</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: '#22c55e' }} />
+                      <span>Low (&lt;25%)</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#eab308' }} />
-                    <span>Moderate (25-50%)</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-xs">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#22c55e' }} />
-                    <span>Low (&lt;25%)</span>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              )}
             </div>
           )}
         </div>

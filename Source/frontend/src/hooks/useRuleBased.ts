@@ -57,6 +57,29 @@ export interface RuleBasedAllocation {
   };
 }
 
+export type RuleEngineMode = 'crisp' | 'fuzzy' | 'proportional';
+
+export interface PipelineRuleBasedAllocation {
+  zone_id: string;
+  zone_name: string;
+  impact_level: string;
+  allocation_mode: string;
+  units_allocated: number;
+  pf?: number;
+  vulnerability?: number;
+  iz?: number;
+}
+
+export interface PipelineRuleBasedResponse {
+  global_pf: number;
+  mode: RuleEngineMode;
+  total_units: number;
+  max_units_per_zone: number;
+  allocations: PipelineRuleBasedAllocation[];
+  total_allocated?: number;
+  updated_at?: string;
+}
+
 // Generic fetch function
 const fetchFromApi = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(buildApiUrl(endpoint), options);
@@ -124,4 +147,35 @@ export const useRuleBasedAllocation = () => {
   });
 
   return allocateResources;
+};
+
+// Hook for pipeline-style rule-based allocation (Models/rule_based.py)
+export const useRuleBasedPipeline = ({
+  globalPf = 0.55,
+  totalUnits = 12,
+  mode = 'crisp',
+  maxUnitsPerZone = 6,
+  enabled = true,
+}: {
+  globalPf?: number;
+  totalUnits?: number;
+  mode?: RuleEngineMode;
+  maxUnitsPerZone?: number;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['rule-based-pipeline', globalPf, totalUnits, mode, maxUnitsPerZone],
+    enabled,
+    queryFn: () => {
+      const params = new URLSearchParams({
+        global_pf: String(globalPf),
+        total_units: String(totalUnits),
+        mode,
+        max_units_per_zone: String(maxUnitsPerZone),
+      });
+
+      return fetchFromApi<PipelineRuleBasedResponse>(`/rule-based/pipeline?${params.toString()}`);
+    },
+    staleTime: 1000 * 60 * 3,
+  });
 };

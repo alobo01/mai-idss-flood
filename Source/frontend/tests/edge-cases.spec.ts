@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+const PLANNER_ONLY = process.env.PLANNER_ONLY === 'true';
+if (PLANNER_ONLY) {
+  test.skip();
+}
+
 test.describe('Edge Cases Tests', () => {
 
   test.beforeEach(async ({ page }) => {

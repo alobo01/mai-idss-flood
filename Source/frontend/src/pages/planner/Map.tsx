@@ -7,23 +7,33 @@ import { AlertTriangle, TrendingUp, MapPin, Clock } from 'lucide-react';
 import { MapView } from '@/components/MapView';
 import { useZones, useRiskData, useAlerts } from '@/hooks/useApiData';
 import { useAppContext } from '@/contexts/AppContext';
+import { useSimulatedTimeline } from '@/hooks/useSimulatedTimeline';
 import type { TimeHorizon } from '@/types';
+import { StLouisFloodPanel } from '@/components/StLouisFloodPanel';
+import { useRuleBasedPipeline } from '@/hooks/useRuleBased';
 
 export function PlannerMap() {
   const { selectedZone, setSelectedZone, timeHorizon, setTimeHorizon } = useAppContext();
+  const { timestamp: simulatedTimestamp, label: simulatedLabel, speedLabel } = useSimulatedTimeline();
   const [layers, setLayers] = useState({
     zones: true,
     risk: true,
+    rule: true,
     assets: true,
     gauges: true,
     alerts: true,
   });
-  const [opacity, setOpacity] = useState(0.7);
 
   // Fetch data from API
   const { data: zones, isLoading: zonesLoading, error: zonesError } = useZones();
-  const { data: riskData, isLoading: riskLoading, error: riskError } = useRiskData();
+  const { data: riskData, isLoading: riskLoading, error: riskError } = useRiskData(simulatedTimestamp, timeHorizon);
   const { data: alerts, isLoading: alertsLoading, error: alertsError } = useAlerts();
+  const { data: rulePipeline, isLoading: ruleLoading, error: ruleError } = useRuleBasedPipeline({
+    globalPf: 0.55,
+    totalUnits: 12,
+    mode: 'crisp',
+    maxUnitsPerZone: 6,
+  });
 
   const handleLayerToggle = (layer: keyof typeof layers) => {
     setLayers(prev => ({ ...prev, [layer]: !prev[layer] }));
@@ -39,9 +49,10 @@ export function PlannerMap() {
 
   const selectedZoneData = zones?.features.find(zone => zone.properties.id === selectedZone);
   const selectedRiskData = riskData?.find(risk => risk.zoneId === selectedZone);
+  const selectedRuleData = rulePipeline?.allocations?.find(allocation => allocation.zone_id === selectedZone);
   const selectedZoneAlerts = alerts?.filter(alert => alert.zoneId === selectedZone);
-  const isLoading = zonesLoading || riskLoading || alertsLoading;
-  const hasError = Boolean(zonesError || riskError || alertsError);
+  const isLoading = zonesLoading || riskLoading || alertsLoading || ruleLoading;
+  const hasError = Boolean(zonesError || riskError || alertsError || ruleError);
 
   const renderContent = () => {
     if (hasError) {
@@ -68,16 +79,24 @@ export function PlannerMap() {
 
     return (
       <Tabs defaultValue="map" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="map">Risk Map</TabsTrigger>
-          <TabsTrigger value="analysis">Analysis</TabsTrigger>
-          <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <TabsList>
+            <TabsTrigger value="map">Risk Map</TabsTrigger>
+            <TabsTrigger value="analysis">Analysis</TabsTrigger>
+            <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>{simulatedLabel}</span>
+            <Badge variant="outline">{speedLabel}</Badge>
+          </div>
+        </div>
 
         <TabsContent value="map" className="space-y-4">
           <MapView
             zones={zones}
             riskData={riskData}
+            ruleData={rulePipeline?.allocations || []}
             selectedZone={selectedZone}
             onZoneSelect={handleZoneSelect}
             timeHorizon={timeHorizon}
@@ -94,7 +113,7 @@ export function PlannerMap() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   <div>
                     <h4 className="font-medium mb-2">Zone Information</h4>
                     <dl className="space-y-1 text-sm">
@@ -137,6 +156,38 @@ export function PlannerMap() {
                           <dt className="text-muted-foreground">ETA:</dt>
                           <dd>{selectedRiskData.etaHours} hours</dd>
                         </div>
+                      </dl>
+                    </div>
+                  )}
+
+                  {selectedRuleData && (
+                    <div>
+                      <h4 className="font-medium mb-2">Rule-based response</h4>
+                      <dl className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Impact:</dt>
+                          <dd>
+                            <Badge variant="outline" className="text-xs">
+                              {(selectedRuleData.impact_level || '').toUpperCase()}
+                            </Badge>
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Units allocated:</dt>
+                          <dd className="font-medium">{selectedRuleData.units_allocated}</dd>
+                        </div>
+                        {selectedRuleData.pf !== undefined && (
+                          <div className="flex justify-between">
+                            <dt className="text-muted-foreground">PF:</dt>
+                            <dd>{(selectedRuleData.pf * 100).toFixed(0)}%</dd>
+                          </div>
+                        )}
+                        {selectedRuleData.vulnerability !== undefined && (
+                          <div className="flex justify-between">
+                            <dt className="text-muted-foreground">Vulnerability:</dt>
+                            <dd>{selectedRuleData.vulnerability.toFixed(2)}</dd>
+                          </div>
+                        )}
                       </dl>
                     </div>
                   )}
@@ -302,6 +353,8 @@ export function PlannerMap() {
           )}
         </div>
       </div>
+
+      <StLouisFloodPanel />
 
       {renderContent()}
     </div>

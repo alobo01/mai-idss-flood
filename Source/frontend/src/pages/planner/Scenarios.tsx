@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useZones, useRiskData, useResources, useAlerts } from '@/hooks/useApiData';
 import { useAppContext } from '@/contexts/AppContext';
+import { useSimulatedTimeline } from '@/hooks/useSimulatedTimeline';
 import type { RiskPoint, Resources, TimeHorizon } from '@/types';
 import { format } from 'date-fns';
 
@@ -68,7 +69,8 @@ interface ScenarioResult {
 export function PlannerScenarios() {
   const { selectedZone, timeHorizon } = useAppContext();
   const { data: zones } = useZones();
-  const { data: currentRiskData } = useRiskData();
+  const { timestamp: simulatedTimestamp } = useSimulatedTimeline();
+  const { data: currentRiskData } = useRiskData(simulatedTimestamp, timeHorizon);
   const { data: resources } = useResources();
   const { data: alerts } = useAlerts();
 

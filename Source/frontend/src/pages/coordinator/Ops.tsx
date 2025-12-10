@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LiveOpsBoard } from '@/components/LiveOpsBoard';
 import { AlertsTimeline } from '@/components/AlertsTimeline';
 import { CommunicationsPanel } from '@/components/CommunicationsPanel';
-import { Radio, AlertTriangle, Activity } from 'lucide-react';
+import { CoordinatorZonesPanel } from '@/components/CoordinatorZonesPanel';
+import { Radio, AlertTriangle, Activity, MapPin } from 'lucide-react';
 
 export function CoordinatorOps() {
   return (
@@ -28,6 +29,10 @@ export function CoordinatorOps() {
             <Radio className="h-4 w-4" />
             <span>Communications</span>
           </TabsTrigger>
+          <TabsTrigger value="zones" className="flex items-center space-x-2">
+            <MapPin className="h-4 w-4" />
+            <span>Zones</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -40,6 +45,10 @@ export function CoordinatorOps() {
 
         <TabsContent value="comms">
           <CommunicationsPanel />
+        </TabsContent>
+
+        <TabsContent value="zones">
+          <CoordinatorZonesPanel />
         </TabsContent>
       </Tabs>
     </div>

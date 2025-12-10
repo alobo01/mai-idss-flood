@@ -237,11 +237,12 @@ export function PlannerAlerts() {
               );
 
               const zoneNames: Record<string, string> = {
-                'Z-ALFA': 'Riverside North',
-                'Z-BRAVO': 'Industrial District',
-                'Z-CHARLIE': 'Residential Heights',
-                'Z-DELTA': 'Commercial Zone',
-                'Z-ECHO': 'Riverside South',
+                'Z1N': 'North Riverfront Floodplain',
+                'Z1S': 'South Riverfront Floodplain',
+                'Z2': 'Central Business & Medical Core',
+                'Z3': 'Inland South Residential Plateau',
+                'Z4': 'Inland North Residential Plateau',
+                'ZC': 'Central / Special ZIPs',
               };
 
               return (

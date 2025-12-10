@@ -3,10 +3,12 @@ import { MapView } from '@/components/MapView';
 import { useZones, useRiskData } from '@/hooks/useApiData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, MapPin } from 'lucide-react';
+import { useSimulatedTimeline } from '@/hooks/useSimulatedTimeline';
 
 export function MapTestPage() {
+  const { timestamp: simulatedTimestamp } = useSimulatedTimeline();
   const { data: zones, isLoading: zonesLoading, error: zonesError } = useZones();
-  const { data: riskData, isLoading: riskLoading, error: riskError } = useRiskData();
+  const { data: riskData, isLoading: riskLoading, error: riskError } = useRiskData(simulatedTimestamp);
 
   if (zonesLoading || riskLoading) {
     return (
@@ -61,6 +63,7 @@ export function MapTestPage() {
           layers={{
             zones: true,
             risk: true,
+            rule: true,
             assets: true,
             gauges: true
           }}

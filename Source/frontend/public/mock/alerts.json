@@ -1,71 +1,70 @@
 [
   {
-    "id": "A-1001",
-    "zoneId": "Z-ALFA",
+    "id": "A-2001",
+    "zoneId": "Z1N",
     "severity": "Severe",
     "type": "System",
-    "title": "Flood probability > 0.75",
-    "description": "Risk models indicate severe flooding probability exceeding 75% threshold",
-    "eta": "2025-11-11T20:00:00Z",
-    "status": "open",
-    "timestamp": "2025-11-11T12:00:00Z"
-  },
-  {
-    "id": "A-1010",
-    "zoneId": "Z-ALFA",
-    "severity": "Operational",
-    "type": "Crew",
-    "crewId": "C-A1",
-    "title": "Blocked road reported",
-    "description": "Main access road to Hospital HN1 blocked by debris",
-    "eta": null,
-    "status": "open",
-    "timestamp": "2025-11-11T12:10:00Z"
-  },
-  {
-    "id": "A-1002",
-    "zoneId": "Z-ECHO",
-    "severity": "Severe",
-    "type": "System",
-    "title": "Rapid water level rise detected",
-    "description": "River gauge G-RIV-12 showing dangerous rise rate",
+    "title": "Rapid rise at Chain of Rocks",
+    "description": "North riverfront gauge exceeded 7.5 m and rising",
     "eta": "2025-11-11T18:00:00Z",
     "status": "open",
-    "timestamp": "2025-11-11T12:15:00Z"
+    "timestamp": "2025-11-11T12:05:00Z"
   },
   {
-    "id": "A-1020",
-    "zoneId": "Z-CHARLIE",
+    "id": "A-2002",
+    "zoneId": "Z1S",
+    "severity": "High",
+    "type": "System",
+    "title": "South floodwall seepage",
+    "description": "Field teams report seepage near River City Pump Station",
+    "eta": "2025-11-11T17:00:00Z",
+    "status": "open",
+    "timestamp": "2025-11-11T12:12:00Z"
+  },
+  {
+    "id": "A-2003",
+    "zoneId": "Z2",
     "severity": "Moderate",
     "type": "Crew",
-    "crewId": "C-B3",
-    "title": "Evacuation route assessment needed",
-    "description": "School SC1 evacuation routes potentially compromised",
-    "eta": "2025-11-11T14:00:00Z",
+    "crewId": "C-A1",
+    "title": "Hospital access check",
+    "description": "Requesting traffic control around Barnes-Jewish emergency dock",
+    "eta": null,
+    "status": "open",
+    "timestamp": "2025-11-11T12:18:00Z"
+  },
+  {
+    "id": "A-2004",
+    "zoneId": "Z3",
+    "severity": "Low",
+    "type": "System",
+    "title": "Surface ponding expected",
+    "description": "Low-lying streets in southwest neighborhoods may pond within 3h",
+    "eta": "2025-11-11T15:00:00Z",
     "status": "open",
     "timestamp": "2025-11-11T12:25:00Z"
   },
   {
-    "id": "A-1003",
-    "zoneId": "Z-BRAVO",
+    "id": "A-2005",
+    "zoneId": "Z4",
     "severity": "High",
     "type": "System",
-    "title": "Industrial flood risk elevated",
-    "description": "Power Plant PP1 flood barriers at risk of overflow",
-    "eta": "2025-11-11T22:00:00Z",
+    "title": "Urban drainage stress",
+    "description": "Storm drain capacity nearing limits near Natural Bridge corridor",
+    "eta": "2025-11-11T16:00:00Z",
     "status": "open",
-    "timestamp": "2025-11-11T12:30:00Z"
+    "timestamp": "2025-11-11T12:32:00Z"
   },
   {
-    "id": "A-1030",
-    "zoneId": "Z-ALFA",
-    "severity": "Low",
+    "id": "A-2006",
+    "zoneId": "ZC",
+    "severity": "Operational",
     "type": "Crew",
     "crewId": "C-D4",
-    "title": "Equipment maintenance complete",
-    "description": "Pump P-001 serviced and ready for deployment",
+    "title": "Transit hub staging",
+    "description": "Setting up sandbag corridor around Civic Center transit entrances",
     "eta": null,
-    "status": "resolved",
-    "timestamp": "2025-11-11T11:45:00Z"
+    "status": "acknowledged",
+    "timestamp": "2025-11-11T12:40:00Z"
   }
 ]

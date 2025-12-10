@@ -79,7 +79,7 @@ class TestPlans:
         minimal_plan = {
             "assignments": [
                 {
-                    "zoneId": "Z-ALFA",
+                    "zoneId": "Z2",
                     "actions": [{"action": "deploy"}]
                 }
             ]

@@ -64,8 +64,10 @@ export default defineConfig({
       port: 18080,
       reuseExistingServer: !process.env.CI,
       env: {
-        DB_HOST: 'localhost',
-        DB_PORT: '5433',
+        DB_HOST: process.env.DB_HOST || 'localhost',
+        DB_PORT: process.env.DB_PORT || '5434',
+        DB_USER: process.env.DB_USER || 'flood_user',
+        DB_PASSWORD: process.env.DB_PASSWORD || 'flood_password',
       },
     },
     {

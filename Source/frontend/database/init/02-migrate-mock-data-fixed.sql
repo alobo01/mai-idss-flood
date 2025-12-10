@@ -91,23 +91,21 @@ INSERT INTO assets (id, zone_id, name, type, criticality, location, address, cap
 
 -- Insert risk assessments
 INSERT INTO risk_assessments (zone_id, time_horizon, forecast_time, risk_level, risk_factors) VALUES
--- 6-hour forecast
-('550e8400-e29b-41d4-a716-446655440001'::UUID, '6h', NOW() + INTERVAL '6 hours', 0.65, '{"precipitation": 2.3, "river_level": 3.1, "soil_saturation": 0.78}'),
-('550e8400-e29b-41d4-a716-446655440002'::UUID, '6h', NOW() + INTERVAL '6 hours', 0.58, '{"precipitation": 2.1, "river_level": 2.8, "soil_saturation": 0.72}'),
-('550e8400-e29b-41d4-a716-446655440003'::UUID, '6h', NOW() + INTERVAL '6 hours', 0.42, '{"precipitation": 1.8, "river_level": 2.2, "soil_saturation": 0.65}'),
-('550e8400-e29b-41d4-a716-446655440004'::UUID, '6h', NOW() + INTERVAL '6 hours', 0.71, '{"precipitation": 2.5, "river_level": 3.4, "soil_saturation": 0.82}'),
+-- static timestamps aligned to tests (around 2025-11-11)
+('550e8400-e29b-41d4-a716-446655440001'::UUID, '6h',  '2025-11-11T06:00:00Z', 0.65, '{"precipitation": 2.3, "river_level": 3.1, "soil_saturation": 0.78}'),
+('550e8400-e29b-41d4-a716-446655440002'::UUID, '6h',  '2025-11-11T06:00:00Z', 0.58, '{"precipitation": 2.1, "river_level": 2.8, "soil_saturation": 0.72}'),
+('550e8400-e29b-41d4-a716-446655440003'::UUID, '6h',  '2025-11-11T06:00:00Z', 0.42, '{"precipitation": 1.8, "river_level": 2.2, "soil_saturation": 0.65}'),
+('550e8400-e29b-41d4-a716-446655440004'::UUID, '6h',  '2025-11-11T06:00:00Z', 0.71, '{"precipitation": 2.5, "river_level": 3.4, "soil_saturation": 0.82}'),
 
--- 12-hour forecast
-('550e8400-e29b-41d4-a716-446655440001'::UUID, '12h', NOW() + INTERVAL '12 hours', 0.72, '{"precipitation": 3.1, "river_level": 3.8, "soil_saturation": 0.85}'),
-('550e8400-e29b-41d4-a716-446655440002'::UUID, '12h', NOW() + INTERVAL '12 hours', 0.68, '{"precipitation": 2.9, "river_level": 3.5, "soil_saturation": 0.80}'),
-('550e8400-e29b-41d4-a716-446655440003'::UUID, '12h', NOW() + INTERVAL '12 hours', 0.55, '{"precipitation": 2.4, "river_level": 2.9, "soil_saturation": 0.72}'),
-('550e8400-e29b-41d4-a716-446655440004'::UUID, '12h', NOW() + INTERVAL '12 hours', 0.78, '{"precipitation": 3.3, "river_level": 4.1, "soil_saturation": 0.88}'),
+('550e8400-e29b-41d4-a716-446655440001'::UUID, '12h', '2025-11-11T12:00:00Z', 0.72, '{"precipitation": 3.1, "river_level": 3.8, "soil_saturation": 0.85}'),
+('550e8400-e29b-41d4-a716-446655440002'::UUID, '12h', '2025-11-11T12:00:00Z', 0.68, '{"precipitation": 2.9, "river_level": 3.5, "soil_saturation": 0.80}'),
+('550e8400-e29b-41d4-a716-446655440003'::UUID, '12h', '2025-11-11T12:00:00Z', 0.55, '{"precipitation": 2.4, "river_level": 2.9, "soil_saturation": 0.72}'),
+('550e8400-e29b-41d4-a716-446655440004'::UUID, '12h', '2025-11-11T12:00:00Z', 0.78, '{"precipitation": 3.3, "river_level": 4.1, "soil_saturation": 0.88}'),
 
--- 24-hour forecast
-('550e8400-e29b-41d4-a716-446655440001'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.81, '{"precipitation": 4.2, "river_level": 4.8, "soil_saturation": 0.92}'),
-('550e8400-e29b-41d4-a716-446655440002'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.76, '{"precipitation": 3.8, "river_level": 4.3, "soil_saturation": 0.88}'),
-('550e8400-e29b-41d4-a716-446655440003'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.63, '{"precipitation": 3.1, "river_level": 3.6, "soil_saturation": 0.78}'),
-('550e8400-e29b-41d4-a716-446655440004'::UUID, '24h', NOW() + INTERVAL '24 hours', 0.85, '{"precipitation": 4.5, "river_level": 5.2, "soil_saturation": 0.95}');
+('550e8400-e29b-41d4-a716-446655440001'::UUID, '24h', '2025-11-12T00:00:00Z', 0.81, '{"precipitation": 4.2, "river_level": 4.8, "soil_saturation": 0.92}'),
+('550e8400-e29b-41d4-a716-446655440002'::UUID, '24h', '2025-11-12T00:00:00Z', 0.76, '{"precipitation": 3.8, "river_level": 4.3, "soil_saturation": 0.88}'),
+('550e8400-e29b-41d4-a716-446655440003'::UUID, '24h', '2025-11-12T00:00:00Z', 0.63, '{"precipitation": 3.1, "river_level": 3.6, "soil_saturation": 0.78}'),
+('550e8400-e29b-41d4-a716-446655440004'::UUID, '24h', '2025-11-12T00:00:00Z', 0.85, '{"precipitation": 4.5, "river_level": 5.2, "soil_saturation": 0.95}');
 
 -- Insert damage assessments
 INSERT INTO damage_assessments (asset_id, assessment_time, damage_level, damage_type, estimated_cost, status, notes) VALUES
@@ -118,44 +116,64 @@ INSERT INTO damage_assessments (asset_id, assessment_time, damage_level, damage_
 -- Insert resources
 INSERT INTO resources (id, code, name, type, status, location, capacity, capabilities, contact_info) VALUES
 ('770e8400-e29b-41d4-a716-446655440001'::UUID,
- 'CREW-ALPHA',
- 'Emergency Response Team Alpha',
- 'crew',
+ 'D-001',
+ 'Central Depot',
+ 'depot',
  'available',
  ST_SetSRID(ST_MakePoint(-74.0040, 40.7140), 4326),
- 12,
- '{"skills": ["search_rescue", "medical_aid", "evacuation"], "equipment": ["boats", "medical_kits", "rescue_gear"]}',
- '{"phone": "555-0101", "radio": "Channel 1", "email": "team-alpha@emergency.gov"}'
+ NULL,
+ '{"address": "123 Depot Rd", "capacity_units": 50}',
+ '{"phone": "555-0100", "radio": "Channel 0"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440002'::UUID,
- 'VEH-HEAVY-01',
- 'Heavy Equipment Unit',
- 'vehicle',
- 'deployed',
+ 'P-001',
+ 'High-Capacity Pump',
+ 'equipment',
+ 'available',
  ST_SetSRID(ST_MakePoint(-74.0060, 40.7130), 4326),
  8,
- '{"equipment": ["excavators", "pumps", "generators", "trucks"], "operators": 4}',
+ '{"type": "pump", "subtype": "portable", "capacity_lps": 1200, "units": 4, "depot": "D-001"}',
  '{"phone": "555-0102", "radio": "Channel 2"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440003'::UUID,
- 'CREW-MED-01',
- 'Medical Response Team',
- 'crew',
+ 'S-001',
+ 'Sandbag Stockpile',
+ 'equipment',
  'available',
  ST_SetSRID(ST_MakePoint(-74.0050, 40.7120), 4326),
  6,
- '{"skills": ["emergency_medical", "triage", "patient_transport"], "equipment": ["ambulances", "medical_supplies"]}',
- '{"phone": "555-0103", "radio": "Channel 3"}'
+ '{"type": "sandbags", "subtype": "bulk", "units": 5000, "depot": "D-001"}',
+ '{"phone": "555-0105"}'
 ),
 ('770e8400-e29b-41d4-a716-446655440004'::UUID,
- 'FAC-EVAC-N',
- 'Evacuation Center - North',
- 'facility',
- 'available',
+ 'V-001',
+ 'High-Water Vehicle',
+ 'equipment',
+ 'deployed',
  ST_SetSRID(ST_MakePoint(-74.0070, 40.7150), 4326),
- 200,
- '{"facilities": ["showers", "kitchen", "medical_bay", "parking"], "staff": 15}',
- '{"phone": "555-0104", "address": "1001 Center Rd"}'
+ 4,
+ '{"type": "vehicle", "subtype": "high-water", "units": 2, "depot": "D-001"}',
+ '{"phone": "555-0106"}'
+),
+('770e8400-e29b-41d4-a716-446655440005'::UUID,
+ 'C-ALPHA',
+ 'Emergency Response Team Alpha',
+ 'crew',
+ 'ready',
+ ST_SetSRID(ST_MakePoint(-74.0045, 40.7135), 4326),
+ 12,
+ '{"skills": ["search_rescue", "medical_aid", "evacuation"], "depot": "D-001"}',
+ '{"phone": "555-0101", "radio": "Channel 1", "email": "team-alpha@emergency.gov"}'
+),
+('770e8400-e29b-41d4-a716-446655440006'::UUID,
+ 'C-MED',
+ 'Medical Response Team',
+ 'crew',
+ 'available',
+ ST_SetSRID(ST_MakePoint(-74.0055, 40.7125), 4326),
+ 6,
+ '{"skills": ["emergency_medical", "triage", "patient_transport"], "depot": "D-001"}',
+ '{"phone": "555-0103", "radio": "Channel 3"}'
 );
 
 -- Insert current deployments
@@ -212,9 +230,48 @@ INSERT INTO gauges (id, code, name, location, river_name, gauge_type, unit, aler
  'water_level',
  'meters',
  3.8,
- 2.8,
+2.8,
  'active',
  '{"datum": "NAVD88", "zero_gauge_elevation": 8.2, "flood_stage": 3.3}'
+);
+
+-- Mississippi River focus gauges
+INSERT INTO gauges (id, code, name, location, river_name, gauge_type, unit, alert_threshold, warning_threshold, status, metadata) VALUES
+('691e9435-6617-4fcf-bddd-f83dcf9ed5d0'::UUID,
+ '07010000',
+ 'Mississippi R. at St. Louis, MO',
+ ST_SetSRID(ST_MakePoint(-90.17978, 38.62900), 4326),
+ 'Mississippi River',
+ 'water_level',
+ 'feet',
+ 9.144,  -- 30 ft flood stage
+ 8.5344, -- 28 ft action stage
+ 'active',
+ '{"usgs_id":"07010000","unit_display":"ft","stages_ft":{"action":28,"flood":30,"moderate":35,"major":40}}'
+),
+('fbb9d041-499e-47bd-91bb-19ecf1647101'::UUID,
+ '05587450',
+ 'Mississippi R. at Grafton, IL',
+ ST_SetSRID(ST_MakePoint(-90.42899, 38.96797), 4326),
+ 'Mississippi River',
+ 'water_level',
+ 'feet',
+ 8.8392, -- 29 ft
+ 8.2296, -- 27 ft
+ 'active',
+ '{"usgs_id":"05587450","unit_display":"ft","stages_ft":{"action":27,"flood":29}}'
+),
+('0da84cd0-3d8c-4d87-b186-3d92fe2571dd'::UUID,
+ '06934500',
+ 'Missouri R. at Hermann, MO',
+ ST_SetSRID(ST_MakePoint(-91.43850, 38.70981), 4326),
+ 'Missouri River',
+ 'water_level',
+ 'feet',
+ 8.5344, -- 28 ft
+ 7.9248, -- 26 ft
+ 'active',
+ '{"usgs_id":"06934500","unit_display":"ft","stages_ft":{"action":26,"flood":28}}'
 );
 
 -- Insert recent gauge readings (last 24 hours)
@@ -239,6 +296,23 @@ INSERT INTO gauge_readings (gauge_id, reading_value, reading_time, quality_flag)
 ('880e8400-e29b-41d4-a716-446655440003'::UUID, 2.8, NOW() - INTERVAL '12 hours', 'good'),
 ('880e8400-e29b-41d4-a716-446655440003'::UUID, 3.2, NOW() - INTERVAL '6 hours', 'good'),
 ('880e8400-e29b-41d4-a716-446655440003'::UUID, 3.5, NOW() - INTERVAL '1 hour', 'good');
+
+-- St. Louis corridor readings (feet stored as meters)
+INSERT INTO gauge_readings (gauge_id, reading_value, reading_time, quality_flag, metadata) VALUES
+('691e9435-6617-4fcf-bddd-f83dcf9ed5d0'::UUID, 7.4676, NOW() - INTERVAL '30 minutes', 'good', '{"unit":"ft","value_ft":24.5}'),
+('691e9435-6617-4fcf-bddd-f83dcf9ed5d0'::UUID, 7.62,   NOW() - INTERVAL '10 minutes', 'good', '{"unit":"ft","value_ft":25.0}'),
+('691e9435-6617-4fcf-bddd-f83dcf9ed5d0'::UUID, 7.7724, NOW() - INTERVAL '2 minutes',  'good', '{"unit":"ft","value_ft":25.5}'),
+
+('fbb9d041-499e-47bd-91bb-19ecf1647101'::UUID, 7.1323, NOW() - INTERVAL '28 minutes', 'good', '{"unit":"ft","value_ft":23.4}'),
+('fbb9d041-499e-47bd-91bb-19ecf1647101'::UUID, 7.2847, NOW() - INTERVAL '12 minutes', 'good', '{"unit":"ft","value_ft":23.9}'),
+('fbb9d041-499e-47bd-91bb-19ecf1647101'::UUID, 7.4066, NOW() - INTERVAL '3 minutes',  'good', '{"unit":"ft","value_ft":24.3}'),
+
+('0da84cd0-3d8c-4d87-b186-3d92fe2571dd'::UUID, 6.9494, NOW() - INTERVAL '26 minutes', 'good', '{"unit":"ft","value_ft":22.8}'),
+('0da84cd0-3d8c-4d87-b186-3d92fe2571dd'::UUID, 7.1018, NOW() - INTERVAL '11 minutes', 'good', '{"unit":"ft","value_ft":23.3}'),
+('0da84cd0-3d8c-4d87-b186-3d92fe2571dd'::UUID, 7.2238, NOW() - INTERVAL '3 minutes',  'good', '{"unit":"ft","value_ft":23.7}');
+
+-- Normalize gauge codes to match UI/tests pattern
+UPDATE gauges SET code = CASE WHEN code LIKE 'G-%' THEN code ELSE 'G-' || code END;
 
 -- Insert response plans
 INSERT INTO response_plans (name, description, plan_type, trigger_conditions, recommended_actions, required_resources, estimated_duration, priority, status) VALUES
@@ -274,6 +348,25 @@ INSERT INTO response_plans (name, description, plan_type, trigger_conditions, re
  4,
  'medium',
  'active'
+);
+
+-- Add a test-friendly plan with assignments
+INSERT INTO response_plans (id, name, version, description, plan_type, trigger_conditions, recommended_actions, required_resources, assignments, coverage, notes, estimated_duration, priority, status)
+VALUES (
+  'a70e8400-e29b-41d4-a716-446655440001'::UUID,
+  'Flood Response Alpha',
+  '1.0',
+  'Test response plan for automated validation',
+  'resource_deployment',
+  '{"river_level_gt":4.0}',
+  '["Deploy pumps", "Open shelters"]',
+  '{"pumps":4,"crews":2}',
+  '[{"zoneId":"Z-DOWNTOWN","priority":1,"actions":[{"type":"deploy","equipment":"P-001","qty":2}]}, {"zoneId":"Z-RIVERSIDE","priority":2,"actions":[{"type":"deploy","equipment":"S-001","qty":1}]}]',
+  '{"total_zones":4,"covered_zones":2,"coverage_percentage":50}',
+  'Auto-generated for tests',
+  24,
+  'high',
+  'active'
 );
 
 COMMIT;

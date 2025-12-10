@@ -58,7 +58,7 @@ const createDefaultAdmin = (): SystemUser => ({
   location: 'HQ',
   status: 'active',
   lastLogin: null,
-  zones: ['Z-ALFA', 'Z-BRAVO', 'Z-CHARLIE', 'Z-ECHO'],
+  zones: ['Z1N', 'Z1S', 'Z2', 'Z3', 'Z4', 'ZC'],
   permissions: getRolePermissions('Administrator'),
   createdAt: new Date().toISOString(),
 });
@@ -192,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       location: input.location || '',
       status: input.status,
       lastLogin: null,
-      zones: input.role === 'Administrator' ? ['Z-ALFA', 'Z-BRAVO', 'Z-CHARLIE', 'Z-ECHO'] : [],
+      zones: input.role === 'Administrator' ? ['Z1N', 'Z1S', 'Z2', 'Z3', 'Z4', 'ZC'] : [],
       permissions: getRolePermissions(input.role),
       createdAt: now,
     };

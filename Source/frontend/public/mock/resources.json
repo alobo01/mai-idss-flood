@@ -1,118 +1,23 @@
 {
   "depots": [
-    {
-      "id": "D-CENTRAL",
-      "name": "Central Depot",
-      "lat": 40.4167,
-      "lng": -3.7033
-    },
-    {
-      "id": "D-EAST",
-      "name": "East Yard",
-      "lat": 40.419,
-      "lng": -3.680
-    },
-    {
-      "id": "D-SOUTH",
-      "name": "South Facility",
-      "lat": 40.408,
-      "lng": -3.715
-    }
+    { "id": "D-CENTRAL", "name": "Downtown Logistics Hub", "lat": 38.6270, "lng": -90.1994, "capacity": 1200 },
+    { "id": "D-NORTH", "name": "North Riverfront Yard", "lat": 38.7000, "lng": -90.2100, "capacity": 900 },
+    { "id": "D-SOUTH", "name": "Southside Operations Base", "lat": 38.5800, "lng": -90.2300, "capacity": 800 }
   ],
   "equipment": [
-    {
-      "id": "P-001",
-      "type": "Pump",
-      "capacity_lps": 300,
-      "depot": "D-CENTRAL",
-      "status": "available"
-    },
-    {
-      "id": "P-002",
-      "type": "Pump",
-      "capacity_lps": 250,
-      "depot": "D-EAST",
-      "status": "available"
-    },
-    {
-      "id": "P-003",
-      "type": "Pump",
-      "capacity_lps": 400,
-      "depot": "D-SOUTH",
-      "status": "available"
-    },
-    {
-      "id": "S-010",
-      "type": "Sandbags",
-      "units": 800,
-      "depot": "D-EAST",
-      "status": "available"
-    },
-    {
-      "id": "S-011",
-      "type": "Sandbags",
-      "units": 1200,
-      "depot": "D-CENTRAL",
-      "status": "available"
-    },
-    {
-      "id": "S-012",
-      "type": "Sandbags",
-      "units": 600,
-      "depot": "D-SOUTH",
-      "status": "available"
-    },
-    {
-      "id": "V-001",
-      "type": "Vehicle",
-      "subtype": "Emergency Truck",
-      "depot": "D-CENTRAL",
-      "status": "available"
-    },
-    {
-      "id": "V-002",
-      "type": "Vehicle",
-      "subtype": "Evacuation Bus",
-      "depot": "D-EAST",
-      "status": "available"
-    }
+    { "id": "P-001", "type": "Pump", "capacity_lps": 320, "depot": "D-CENTRAL", "status": "available" },
+    { "id": "P-002", "type": "Pump", "capacity_lps": 260, "depot": "D-NORTH", "status": "available" },
+    { "id": "P-003", "type": "Pump", "capacity_lps": 420, "depot": "D-SOUTH", "status": "available" },
+    { "id": "S-010", "type": "Sandbags", "units": 900, "depot": "D-NORTH", "status": "available" },
+    { "id": "S-011", "type": "Sandbags", "units": 1400, "depot": "D-CENTRAL", "status": "available" },
+    { "id": "S-012", "type": "Sandbags", "units": 750, "depot": "D-SOUTH", "status": "available" },
+    { "id": "V-001", "type": "Vehicle", "subtype": "High-water Truck", "depot": "D-CENTRAL", "status": "available" },
+    { "id": "V-002", "type": "Vehicle", "subtype": "Evacuation Bus", "depot": "D-NORTH", "status": "available" }
   ],
   "crews": [
-    {
-      "id": "C-A1",
-      "name": "Alpha Crew",
-      "skills": ["pumping", "evacuation"],
-      "depot": "D-CENTRAL",
-      "status": "ready",
-      "lat": 40.4172,
-      "lng": -3.7050
-    },
-    {
-      "id": "C-B3",
-      "name": "Bravo Crew",
-      "skills": ["roadblock", "rescue"],
-      "depot": "D-EAST",
-      "status": "ready",
-      "lat": 40.4201,
-      "lng": -3.6820
-    },
-    {
-      "id": "C-C2",
-      "name": "Charlie Crew",
-      "skills": ["pumping", "medical"],
-      "depot": "D-SOUTH",
-      "status": "ready",
-      "lat": 40.4095,
-      "lng": -3.7128
-    },
-    {
-      "id": "C-D4",
-      "name": "Delta Crew",
-      "skills": ["evacuation", "logistics"],
-      "depot": "D-CENTRAL",
-      "status": "ready",
-      "lat": 40.4168,
-      "lng": -3.7021
-    }
+    { "id": "C-A1", "name": "Mississippi Pump Team", "skills": ["pumping", "evacuation"], "depot": "D-CENTRAL", "status": "ready", "lat": 38.6300, "lng": -90.2000 },
+    { "id": "C-B3", "name": "Riverfront Rescue", "skills": ["swiftwater", "medical"], "depot": "D-NORTH", "status": "ready", "lat": 38.6900, "lng": -90.1850 },
+    { "id": "C-C2", "name": "Southside Ops", "skills": ["pumping", "logistics"], "depot": "D-SOUTH", "status": "ready", "lat": 38.5850, "lng": -90.2350 },
+    { "id": "C-D4", "name": "Central Support", "skills": ["evacuation", "traffic"], "depot": "D-CENTRAL", "status": "ready", "lat": 38.6500, "lng": -90.2150 }
   ]
 }

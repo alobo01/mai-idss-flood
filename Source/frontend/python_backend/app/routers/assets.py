@@ -78,7 +78,7 @@ async def get_assets(
                 "lng": lng,
                 "address": row.address,
                 "capacity": row.capacity,
-                "metadata": row.metadata or {},
+                "metadata": getattr(row, "meta", None) or {},
             })
         
         return assets

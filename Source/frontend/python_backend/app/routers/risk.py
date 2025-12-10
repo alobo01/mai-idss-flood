@@ -147,7 +147,7 @@ async def get_gauges(db: AsyncSession = Depends(get_db)):
                 ST_AsGeoJSON(g.location, 6) AS location,
                 g.alert_threshold,
                 g.warning_threshold,
-                g.metadata,
+        g.metadata,
                 lr.reading_value,
                 lr.previous_value,
                 lr.reading_time
@@ -164,7 +164,7 @@ async def get_gauges(db: AsyncSession = Depends(get_db)):
             location = parse_point(row.location)
             reading = float(row.reading_value or 0)
             prev = float(row.previous_value or reading)
-            metadata = row.metadata or {}
+            metadata = getattr(row, "meta", None) or {}
             trend = determine_trend(reading, prev, metadata.get('trend'))
             
             last_updated = row.reading_time

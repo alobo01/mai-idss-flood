@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgis/postgis:15-3.3
     container_name: flood-postgres
+    ports:
+      - "5439:5432"
     environment:
       - POSTGRES_DB=flood_prediction
       - POSTGRES_USER=flood_user
@@ -49,12 +51,8 @@ services:
     ports:
       - "80:80"
     environment:
-      - VITE_API_BASE_URL=/api
       - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
       - NODE_ENV=production
-    depends_on:
-      backend:
-        condition: service_healthy
     restart: unless-stopped
 
 volumes:

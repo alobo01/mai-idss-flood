@@ -263,7 +263,7 @@ let adminData = {
       location: 'Central Office',
       status: 'active',
       lastLogin: new Date().toISOString(),
-      zones: ['Z-ALFA', 'Z-BRAVO', 'Z-CHARLIE', 'Z-ECHO'],
+      zones: ['Z1N', 'Z1S', 'Z2', 'Z3', 'Z4', 'ZC'],
       permissions: ['system_config', 'user_management', 'threshold_management', 'zone_management'],
       createdAt: '2024-01-15T10:00:00Z',
     },
@@ -618,7 +618,7 @@ app.post('/api/admin/users', (req, res) => {
     id: generateId('USR'),
     ...req.body,
     permissions: getRolePermissions(req.body.role),
-    zones: req.body.role === 'Administrator' ? ['Z-ALFA', 'Z-BRAVO', 'Z-CHARLIE', 'Z-ECHO'] : [],
+    zones: req.body.role === 'Administrator' ? ['Z1N', 'Z1S', 'Z2', 'Z3', 'Z4', 'ZC'] : [],
     createdAt: new Date().toISOString(),
     lastLogin: null,
   };

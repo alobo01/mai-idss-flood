@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     
     # Server
     port: int = 18080
+
+    # Prediction source: "api" (live external) or "db" (use ld1_history table)
+    prediction_source: str = "api"
+    ld1_table: str = "ld1_history"
     
     @property
     def database_url(self) -> str:

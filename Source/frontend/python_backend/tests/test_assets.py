@@ -30,14 +30,14 @@ class TestAssets:
     @pytest.mark.asyncio
     async def test_assets_filter_by_zone(self, client: AsyncClient):
         """Test filtering assets by zone."""
-        response = await client.get("/api/assets", params={"zoneId": "Z-ALFA"})
+        response = await client.get("/api/assets", params={"zoneId": "Z1N"})
         assert response.status_code == 200
         
         data = response.json()
         assert isinstance(data, list)
         # All returned assets should be from the specified zone
         for asset in data:
-            assert asset["zoneId"] == "Z-ALFA"
+            assert asset["zoneId"] == "Z1N"
 
     @pytest.mark.asyncio
     async def test_assets_location_format(self, client: AsyncClient):

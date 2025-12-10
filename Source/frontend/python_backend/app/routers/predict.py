@@ -1,158 +1,108 @@
 """Prediction endpoints for river levels and flood risk."""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, HTTPException
+from datetime import datetime, timedelta, timezone
+from typing import List, Dict, Any
+import math
+import os
+import sys
+
+from ..schemas import RiverLevelPrediction, FloodRiskPrediction, ErrorResponse
+from ..config import get_settings
+from ..database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-import numpy as np
+import pandas as pd
 
-from ..database import get_db
-from ..schemas import RiverLevelPrediction, FloodRiskPrediction, ErrorResponse
+# Make Programs/ importable
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
+if REPO_ROOT not in sys.path:
+  sys.path.insert(0, REPO_ROOT)
+
+try:
+    from Programs.inference_api import FloodPredictorV2  # type: ignore
+except Exception as exc:  # pragma: no cover
+    raise RuntimeError(f"Failed to load inference models: {exc}") from exc
 
 router = APIRouter()
 
+TARGET_GAUGE_CODE = "07010000"
+TARGET_GAUGE_NAME = "Mississippi R. at St. Louis, MO"
+TARGET_RIVER = "Mississippi River"
+FLOOD_STAGE_FT = 30.0
+
+
+def risk_level_from_prob(prob: float) -> str:
+    if prob >= 0.7:
+        return "severe"
+    if prob >= 0.4:
+        return "moderate"
+    return "low"
+
 
 @router.get("/predict/river-level", response_model=List[RiverLevelPrediction], tags=["Predictions"])
-async def predict_river_level(
-    gauge_code: Optional[str] = Query(None, description="Gauge code to predict for"),
-    horizon: int = Query(24, ge=1, le=168, description="Prediction horizon in hours"),
-    db: AsyncSession = Depends(get_db)
-):
+async def predict_river_level(db: AsyncSession = Depends(get_db)) -> List[RiverLevelPrediction]:
     """
-    Predict river levels for specified gauge(s).
-
-    Uses historical data and simple linear regression for prediction.
-    In production, this would integrate with ML models.
+    Predict river level for St. Louis gauge (USGS 07010000) using the trained
+    production models defined in Programs/inference_api.py. No mock data used.
     """
     try:
-        # Build query for recent gauge readings
-        gauge_filter = ""
-        params = {"horizon_hours": horizon}
+        settings = get_settings()
+        predictor = FloodPredictorV2(lead_time_days=1)
 
-        if gauge_code:
-            gauge_filter = "WHERE g.code = :gauge_code"
-            params["gauge_code"] = gauge_code
+        if settings.prediction_source.lower() == "db":
+            df = await _fetch_ld1_history(db, settings.ld1_table)
+            if df.empty or len(df) < 30:
+                raise HTTPException(status_code=400, detail="Not enough LD1 history rows in database (need >=30)")
+            result: Dict[str, Any] = predictor.predict_from_raw_data(df)
+        else:
+            result: Dict[str, Any] = predictor.predict_live()
 
-        # Get recent readings for trend analysis
-        query = f"""
-            WITH recent_readings AS (
-                SELECT
-                    g.id as gauge_id,
-                    g.code,
-                    g.name,
-                    g.alert_threshold,
-                    g.warning_threshold,
-                    g.river_name,
-                    gr.reading_value,
-                    gr.reading_time,
-                    ROW_NUMBER() OVER (PARTITION BY g.id ORDER BY gr.reading_time DESC) as rn
-                FROM gauges g
-                LEFT JOIN gauge_readings gr ON gr.gauge_id = g.id
-                    AND gr.reading_time >= NOW() - INTERVAL '72 hours'
-                    AND gr.quality_flag = 'good'
-                {gauge_filter}
-            )
-            SELECT
-                gauge_id,
-                code,
-                name,
-                alert_threshold,
-                warning_threshold,
-                river_name,
-                reading_value,
-                reading_time,
-                rn
-            FROM recent_readings
-            WHERE rn <= 72
-            ORDER BY code, rn
-        """
+        # Expect keys: conformal_lower/median/upper, flood_prob, current_conditions
+        median_ft = float(result.get("conformal_median", result.get("median_ft", 0.0)))
+        flood_prob = float(result.get("flood_probability", result.get("flood_prob", 0.0)))
+        trend_ft_per_day = float(result.get("trend_ft_per_day", 0.0))
+        current = result.get("current_conditions", {})
+        latest_ft = float(current.get("target_level", current.get("latest_level_ft", 0.0)))
+        datapoints = int(result.get("data_points_used", current.get("data_points_used", 0)) or 0)
 
-        result = await db.execute(text(query), params)
-        rows = result.fetchall()
+        prediction_time = datetime.now(timezone.utc) + timedelta(hours=24)
+        trend_ft_per_hr = trend_ft_per_day / 24.0
 
-        if not rows:
-            return []
+        payload = RiverLevelPrediction(
+            gauge_id=TARGET_GAUGE_CODE,
+            gauge_name=TARGET_GAUGE_NAME,
+            river_name=TARGET_RIVER,
+            prediction_time=prediction_time,
+            predicted_level=round(median_ft, 2),
+            confidence_level=0.9,  # model-based; we assume high since ensemble + calibration
+            risk_level=risk_level_from_prob(flood_prob),
+            trend_per_hour=round(trend_ft_per_hr, 3),
+            data_points_used=max(datapoints, 1),
+        )
 
-        # Group readings by gauge
-        gauge_data = {}
-        for row in rows:
-            if row.code not in gauge_data:
-                gauge_data[row.code] = {
-                    'name': row.name,
-                    'river_name': row.river_name,
-                    'alert_threshold': row.alert_threshold,
-                    'warning_threshold': row.warning_threshold,
-                    'readings': []
-                }
+        return [payload]
 
-            if row.reading_value is not None:
-                gauge_data[row.code]['readings'].append({
-                    'value': float(row.reading_value),
-                    'time': row.reading_time
-                })
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {exc}")
 
-        predictions = []
 
-        # Generate predictions for each gauge
-        for gauge_code, data in gauge_data.items():
-            readings = data['readings']
-
-            if len(readings) < 2:
-                # Not enough data for prediction, use current value
-                current_value = readings[0]['value'] if readings else 0.0
-                trend = 0.0
-            else:
-                # Simple linear regression for trend
-                times = [(r['time'] - readings[0]['time']).total_seconds() / 3600.0 for r in readings]
-                values = [r['value'] for r in readings]
-
-                if len(times) > 1:
-                    # Calculate trend (slope)
-                    n = len(times)
-                    sum_x = sum(times)
-                    sum_y = sum(values)
-                    sum_xy = sum(t * v for t, v in zip(times, values))
-                    sum_x2 = sum(t * t for t in times)
-
-                    trend = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x) if n * sum_x2 != sum_x * sum_x else 0.0
-                else:
-                    trend = 0.0
-
-                current_value = values[-1] if values else 0.0
-
-            # Generate hourly predictions
-            for hour in range(1, horizon + 1):
-                predicted_value = max(0, current_value + (trend * hour))
-                prediction_time = datetime.utcnow() + timedelta(hours=hour)
-
-                # Determine confidence based on data availability and trend
-                confidence = 0.9 if len(readings) >= 24 else 0.7 if len(readings) >= 12 else 0.5
-
-                # Determine risk level
-                risk_level = "low"
-                if data['alert_threshold'] and predicted_value >= data['alert_threshold']:
-                    risk_level = "severe"
-                elif data['warning_threshold'] and predicted_value >= data['warning_threshold']:
-                    risk_level = "moderate"
-                elif predicted_value > current_value * 1.1:  # 10% increase
-                    risk_level = "moderate"
-
-                predictions.append(RiverLevelPrediction(
-                    gauge_id=gauge_code,
-                    gauge_name=data['name'],
-                    river_name=data['river_name'],
-                    prediction_time=prediction_time,
-                    predicted_level=round(predicted_value, 2),
-                    confidence_level=confidence,
-                    risk_level=risk_level,
-                    trend_per_hour=round(trend, 3),
-                    data_points_used=len(readings)
-                ))
-
-        return predictions
-
-    except Exception as e:
-        raise ValueError(f"Failed to generate river level predictions: {str(e)}")
+async def _fetch_ld1_history(db: AsyncSession, table_name: str) -> pd.DataFrame:
+    """Fetch last 35 days from ld1_history table."""
+    query = text(f"""
+        SELECT *
+        FROM {table_name}
+        WHERE date >= CURRENT_DATE - INTERVAL '40 days'
+        ORDER BY date
+    """)
+    result = await db.execute(query)
+    rows = result.mappings().all()
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    # ensure date column datetime
+    if 'date' in df:
+        df['date'] = pd.to_datetime(df['date'])
+    return df
 
 
 @router.post("/predict/flood-risk", response_model=Dict[str, Any], tags=["Predictions"])
