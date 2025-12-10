@@ -266,20 +266,20 @@ export function ZoneEditor({
       const text = await file.text();
       const importedData = JSON.parse(text);
 
-      const validatedData = validateImportedData(
-        importedData,
-        validateGeoJSONFeature,
-        validateZoneProperties
-      );
+      const errors = validateImportedData(importedData);
 
-      setZones(validatedData);
-      setValidationErrors([]);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+      } else {
+        setZones(importedData);
+        setValidationErrors([]);
+      }
 
       // Update drawn layers
       if (drawnItemsRef.current && mapRef.current) {
         drawnItemsRef.current.clearLayers();
 
-        validatedData.features.forEach(feature => {
+        importedData.features.forEach(feature => {
           const layer = L.geoJSON(feature.geometry as any, {
             style: {
               color: '#3388ff',

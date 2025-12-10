@@ -246,3 +246,105 @@ export interface ZoneDetailsState {
   assignments: Assignment[];
   alerts: Alert[];
 }
+
+// Pipeline outputs
+export interface PipelineScenarioSummary {
+  scenario: string;
+  generated_at?: string;
+  timestamps?: number;
+  total_rows?: number;
+  mode?: string;
+  total_units?: number;
+  file?: string;
+}
+
+export interface PipelineScenarioInfo {
+  name: string;
+  source_file?: string;
+  total_units?: number | null;
+  max_units_per_zone?: number | null;
+  last_run_at?: string | null;
+  latest_summary?: PipelineScenarioSummary | null;
+  latest_allocation_file?: string | null;
+  result_path?: string | null;
+}
+
+export interface PipelineAllocationRow {
+  timestamp: string;
+  scenario: string;
+  zone_id: string;
+  zone_name: string;
+  impact_level: string;
+  allocation_mode: string;
+  river_level_pred: number | null;
+  global_pf: number | null;
+  pf_zone: number | null;
+  vulnerability: number | null;
+  is_critical_infra: boolean;
+  units_allocated: number;
+}
+
+export interface PipelineZoneAllocationSummary {
+  zone_id: string;
+  zone_name: string;
+  is_critical_infra: boolean;
+  total_units: number;
+  entries: number;
+  latest_timestamp: string;
+  latest_units: number;
+  last_impact?: string;
+}
+
+export interface PipelineAllocationsSummaryTotals {
+  total_units: number;
+  critical_units: number;
+  zone_count: number;
+}
+
+export interface PipelineAllocationsSummary {
+  totals: PipelineAllocationsSummaryTotals;
+  zones: PipelineZoneAllocationSummary[];
+}
+
+export interface PipelineAllocationsMetaFilters {
+  latest: boolean;
+  timestamp: string | null;
+  zone: string | null;
+  impact: string | null;
+  criticalOnly: boolean;
+  limit: number | null;
+}
+
+export interface PipelineAllocationsMeta {
+  scenario: string;
+  file: string;
+  total_rows: number;
+  returned_rows: number;
+  filters: PipelineAllocationsMetaFilters;
+  time_range: {
+    start: string | null;
+    end: string | null;
+  };
+}
+
+export interface PipelineAllocationsResponse {
+  meta: PipelineAllocationsMeta;
+  summary: PipelineAllocationsSummary;
+  data: PipelineAllocationRow[];
+}
+
+export interface PipelineStageStatus {
+  stage: string;
+  attempt: number;
+  returncode: number;
+  stdout: string;
+  stderr: string;
+}
+
+export interface PipelineScenarioStatus {
+  scenario: string;
+  completed: boolean;
+  stages: PipelineStageStatus[];
+}
+
+export type PipelineStatusMap = Record<string, PipelineScenarioStatus>;

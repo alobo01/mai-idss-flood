@@ -1,0 +1,19 @@
+{
+  "target_file": "Data/datasets/river_target_st_louis.csv",
+  "upstream_files": {
+    "grafton": "Data/datasets/river_upstream_grafton.csv",
+    "hermann": "Data/datasets/river_upstream_hermann.csv"
+  },
+  "weather_file": "Data/datasets/weather_history_st_louis.csv.gz",
+  "flood_stage": 30.0,
+  "major_flood": 40.0,
+  "val_start": "2013-01-01",
+  "test_start": "2019-01-01",
+  "timezone": "UTC",
+  "rule_based": {
+    "enabled": true,
+    "total_units": 20,
+    "allocation_mode": "crisp",
+    "max_units_per_zone": 6
+  }
+}

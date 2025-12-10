@@ -398,7 +398,7 @@ export function AdminUsers() {
           setIsUserDialogOpen(true);
         }}
         onDelete={handleDeleteUser}
-        actions={customActions}
+        rowActions={customActions}
         emptyMessage="No users found"
         loading={loading}
         pageSize={10}

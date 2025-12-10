@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
+const { parse } = require('csv-parse/sync');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +34,19 @@ const dataPath = process.env.MOCK_DATA_PATH
 
 console.log(`[API] Using data directory: ${dataPath}`);
 
+const repoRoot = path.join(__dirname, '..', '..', '..');
+const pipelineResultsPath = process.env.PIPELINE_RESULTS_PATH
+  ? path.resolve(process.env.PIPELINE_RESULTS_PATH)
+  : path.join(repoRoot, 'Results', 'v2');
+const pipelineConfigPath = process.env.PIPELINE_CONFIG_PATH
+  ? path.resolve(process.env.PIPELINE_CONFIG_PATH)
+  : path.join(repoRoot, 'pipeline_v2', 'config.yaml');
+const pipelineStatusPath = process.env.PIPELINE_STATUS_PATH
+  ? path.resolve(process.env.PIPELINE_STATUS_PATH)
+  : path.join(pipelineResultsPath, 'pipeline_status.json');
+
+console.log(`[API] Using pipeline results directory: ${pipelineResultsPath}`);
+
 // Helper functions
 const readJsonFile = (filename) => {
   try {
@@ -53,6 +68,178 @@ const writeJsonFile = (filename, data) => {
     console.error(`Error writing ${filename} to ${dataPath}:`, error);
     return false;
   }
+};
+
+// Pipeline helper utilities
+const fileExists = (filePath) => {
+  try {
+    fs.accessSync(filePath, fs.constants.F_OK);
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+const loadPipelineConfig = () => {
+  if (!fileExists(pipelineConfigPath)) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(pipelineConfigPath, 'utf8');
+    return yaml.load(raw);
+  } catch (error) {
+    console.error(`[API] Failed to parse pipeline config at ${pipelineConfigPath}`, error);
+    return null;
+  }
+};
+
+const getScenarioDir = (scenarioName) => path.join(pipelineResultsPath, scenarioName);
+
+const findLatestFile = (scenarioDir, prefix) => {
+  if (!fileExists(scenarioDir)) {
+    return null;
+  }
+
+  const files = fs
+    .readdirSync(scenarioDir)
+    .filter((file) => file.startsWith(prefix))
+    .sort();
+
+  if (!files.length) {
+    return null;
+  }
+
+  return path.join(scenarioDir, files[files.length - 1]);
+};
+
+const loadScenarioSummary = (scenarioName) => {
+  const summaryPath = findLatestFile(getScenarioDir(scenarioName), 'summary_');
+
+  if (!summaryPath) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(summaryPath, 'utf8');
+    const summary = yaml.load(raw);
+    return {
+      ...summary,
+      file: path.basename(summaryPath),
+    };
+  } catch (error) {
+    console.error(`[API] Failed to read summary for ${scenarioName}`, error);
+    return null;
+  }
+};
+
+const getScenarioConfig = (scenarioName) => {
+  const config = loadPipelineConfig();
+  if (!config?.scenarios) {
+    return null;
+  }
+
+  return config.scenarios.find((scenario) => scenario.name === scenarioName) || null;
+};
+
+const parseBoolean = (value) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  return ['true', '1', 'yes', 'y'].includes(String(value).toLowerCase());
+};
+
+const toNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const normalizeAllocationRow = (row) => ({
+  timestamp: row.timestamp,
+  scenario: row.scenario,
+  zone_id: row.zone_id,
+  zone_name: row.zone_name,
+  impact_level: row.impact_level,
+  allocation_mode: row.allocation_mode,
+  river_level_pred: toNumber(row.river_level_pred),
+  global_pf: toNumber(row.global_pf),
+  pf_zone: toNumber(row.pf_zone),
+  vulnerability: toNumber(row.vulnerability),
+  is_critical_infra: parseBoolean(row.is_critical_infra),
+  units_allocated: toNumber(row.units_allocated) ?? 0,
+});
+
+const loadAllocationsCsv = (scenarioName) => {
+  const csvPath = findLatestFile(getScenarioDir(scenarioName), 'allocations_');
+
+  if (!csvPath) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(csvPath, 'utf8');
+    const rows = parse(raw, {
+      columns: true,
+      skip_empty_lines: true,
+    }).map(normalizeAllocationRow);
+
+    return { file: csvPath, rows };
+  } catch (error) {
+    console.error(`[API] Failed to parse allocations csv for ${scenarioName}`, error);
+    return null;
+  }
+};
+
+const summarizeAllocations = (rows) => {
+  const summaryMap = new Map();
+  let totalUnits = 0;
+  let criticalUnits = 0;
+
+  rows.forEach((row) => {
+    const units = row.units_allocated || 0;
+    totalUnits += units;
+    if (row.is_critical_infra) {
+      criticalUnits += units;
+    }
+
+    if (!summaryMap.has(row.zone_id)) {
+      summaryMap.set(row.zone_id, {
+        zone_id: row.zone_id,
+        zone_name: row.zone_name,
+        is_critical_infra: row.is_critical_infra,
+        total_units: 0,
+        entries: 0,
+        latest_timestamp: row.timestamp,
+        latest_units: units,
+        last_impact: row.impact_level,
+      });
+    }
+
+    const zoneSummary = summaryMap.get(row.zone_id);
+    zoneSummary.total_units += units;
+    zoneSummary.entries += 1;
+
+    if (!zoneSummary.latest_timestamp || row.timestamp >= zoneSummary.latest_timestamp) {
+      zoneSummary.latest_timestamp = row.timestamp;
+      zoneSummary.latest_units = units;
+      zoneSummary.last_impact = row.impact_level;
+      zoneSummary.is_critical_infra = zoneSummary.is_critical_infra || row.is_critical_infra;
+    }
+  });
+
+  return {
+    totals: {
+      total_units: totalUnits,
+      critical_units: criticalUnits,
+      zone_count: summaryMap.size,
+    },
+    zones: Array.from(summaryMap.values()).sort((a, b) => (b.total_units || 0) - (a.total_units || 0)),
+  };
 };
 
 // Load initial data
@@ -259,6 +446,148 @@ app.post('/api/comms', (req, res) => {
   writeJsonFile('comms.json', commsData);
 
   res.json({ success: true, ...newMessage });
+});
+
+// Pipeline API endpoints
+app.get('/api/pipeline/scenarios', (req, res) => {
+  const config = loadPipelineConfig();
+
+  if (!config?.scenarios) {
+    return res.json({ scenarios: [] });
+  }
+
+  const scenarios = config.scenarios.map((scenario) => {
+    const summary = loadScenarioSummary(scenario.name);
+    const allocationPath = findLatestFile(getScenarioDir(scenario.name), 'allocations_');
+
+    return {
+      name: scenario.name,
+      source_file: scenario.source_file,
+      total_units: scenario.total_units ?? summary?.total_units ?? null,
+      max_units_per_zone: scenario.max_units_per_zone ?? null,
+      last_run_at: summary?.generated_at || null,
+      latest_summary: summary,
+      latest_allocation_file: allocationPath ? path.basename(allocationPath) : null,
+      result_path: fileExists(getScenarioDir(scenario.name))
+        ? path.relative(repoRoot, getScenarioDir(scenario.name))
+        : null,
+    };
+  });
+
+  res.json({ scenarios });
+});
+
+app.get('/api/pipeline/scenarios/:scenario/summary', (req, res) => {
+  const scenarioName = req.params.scenario;
+  const scenarioConfig = getScenarioConfig(scenarioName);
+
+  if (!scenarioConfig) {
+    return res.status(404).json({ error: `Scenario ${scenarioName} not found` });
+  }
+
+  const summary = loadScenarioSummary(scenarioName);
+
+  if (!summary) {
+    return res.status(404).json({ error: 'No summary available for scenario' });
+  }
+
+  res.json({ scenario: scenarioName, summary });
+});
+
+app.get('/api/pipeline/scenarios/:scenario/allocations', (req, res) => {
+  const scenarioName = req.params.scenario;
+  const scenarioConfig = getScenarioConfig(scenarioName);
+
+  if (!scenarioConfig) {
+    return res.status(404).json({ error: `Scenario ${scenarioName} not found` });
+  }
+
+  const allocationData = loadAllocationsCsv(scenarioName);
+
+  if (!allocationData) {
+    return res.status(404).json({ error: 'No allocation file available for scenario' });
+  }
+
+  const {
+    latest = 'false',
+    timestamp,
+    zone,
+    impact,
+    criticalOnly = 'false',
+    limit,
+  } = req.query;
+
+  let rows = allocationData.rows;
+
+  if (latest === 'true' && rows.length) {
+    const targetTimestamp = rows[rows.length - 1].timestamp;
+    rows = rows.filter((row) => row.timestamp === targetTimestamp);
+  }
+
+  if (timestamp) {
+    rows = rows.filter((row) => row.timestamp === timestamp);
+  }
+
+  if (zone) {
+    const zoneLower = zone.toString().toLowerCase();
+    rows = rows.filter((row) =>
+      row.zone_id?.toLowerCase() === zoneLower ||
+      row.zone_name?.toLowerCase().includes(zoneLower)
+    );
+  }
+
+  if (impact) {
+    const impactLower = impact.toString().toLowerCase();
+    rows = rows.filter((row) => row.impact_level?.toLowerCase().includes(impactLower));
+  }
+
+  if (criticalOnly === 'true') {
+    rows = rows.filter((row) => row.is_critical_infra);
+  }
+
+  const limitNumber = limit ? Number(limit) : null;
+  let limitedRows = rows;
+
+  if (limitNumber && Number.isFinite(limitNumber) && limitNumber > 0) {
+    limitedRows = rows.slice(-limitNumber);
+  }
+
+  const summary = summarizeAllocations(limitedRows);
+  const meta = {
+    scenario: scenarioName,
+    file: path.basename(allocationData.file),
+    total_rows: allocationData.rows.length,
+    returned_rows: limitedRows.length,
+    filters: {
+      latest: latest === 'true',
+      timestamp: timestamp || null,
+      zone: zone || null,
+      impact: impact || null,
+      criticalOnly: criticalOnly === 'true',
+      limit: limitNumber,
+    },
+    time_range: {
+      start: limitedRows[0]?.timestamp || null,
+      end: limitedRows[limitedRows.length - 1]?.timestamp || null,
+    },
+  };
+
+  res.json({ meta, summary, data: limitedRows });
+});
+
+app.get('/api/pipeline/status', (req, res) => {
+  if (!fileExists(pipelineStatusPath)) {
+    return res.status(404).json({ error: 'Pipeline status file not found' });
+  }
+
+  try {
+    const raw = fs.readFileSync(pipelineStatusPath, 'utf8');
+    const status = JSON.parse(raw);
+    res.json(status);
+  } catch (error) {
+    console.error('[API] Failed to read pipeline status file', error);
+    res.status(500).json({ error: 'Failed to parse pipeline status file' });
+  }
 });
 
 // Administrator API endpoints

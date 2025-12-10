@@ -1,10 +1,9 @@
-"""Quick visualization utility for allocator outputs.
+"""Quick visualization utility for pipeline_v3 rule-based outputs.
 
-This script loads the latest `allocations_*.csv` file for a scenario (or a
-user-provided CSV), filters it to a single zone, and plots predicted severity
-versus deployed response units over time. The resulting figure is saved under
-`Results/v2/<scenario>/plots/` unless a custom output path is provided. Run this
-script after executing `python run_pipeline_v2.py` to inspect flood predictions.
+Load one of the `pipeline_v3/outputs/rule_based/L*d_rule_based_allocations.csv`
+files (or a user-provided CSV), filter it to a single zone, and plot predicted
+severity versus deployed response units over time. Figures default to
+`Results/plots/` unless a custom output path is supplied.
 """
 
 from __future__ import annotations
@@ -18,12 +17,13 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
-RESULTS_ROOT = Path("Results/v2")
-DEFAULT_METRIC = "river_level_pred"
+RESULTS_ROOT = Path("pipeline_v3/outputs/rule_based")
+PLOTS_ROOT = Path("Results/plots")
+DEFAULT_METRIC = "predicted_level"
 VALID_METRICS = {
-    "river_level_pred": "Predicted river level",
+    "predicted_level": "Predicted river level",
     "global_pf": "Global probability of flood",
-    "pf_zone": "Zone probability of flood",
+    "zone_pf": "Zone probability of flood",
 }
 
 
@@ -35,9 +35,9 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--scenario",
-        default="data1",
-        help="Scenario name under Results/v2 (default: data1)",
+        "--lead",
+        default="L1d",
+        help="Lead horizon to load (e.g., L1d, L2d, L3d)",
     )
     parser.add_argument(
         "--zone",
@@ -50,8 +50,8 @@ def parse_args() -> argparse.Namespace:
         dest="csv_path",
         default=None,
         help=(
-            "Optional explicit path to an allocations CSV. If omitted the latest "
-            "file under Results/v2/<scenario>/ is used."
+            "Optional explicit path to a rule-based allocations CSV."
+            " Overrides --lead when provided."
         ),
     )
     parser.add_argument(
@@ -74,21 +74,40 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def find_latest_allocation(scenario: str) -> Path:
-    scenario_dir = RESULTS_ROOT / scenario
-    csv_candidates = sorted(scenario_dir.glob("allocations_*.csv"))
-    if not csv_candidates:
+def resolve_csv_path(lead: str, override: Optional[str]) -> Path:
+    if override:
+        path = Path(override)
+        if not path.exists():
+            raise FileNotFoundError(f"Specified CSV not found: {path}")
+        return path
+
+    sanitized = lead.strip()
+    if not sanitized:
+        raise ValueError("Lead argument cannot be empty")
+
+    filename = f"{sanitized}_rule_based_allocations.csv"
+    candidate = RESULTS_ROOT / filename
+    if not candidate.exists():
         raise FileNotFoundError(
-            f"No allocations_*.csv found under {scenario_dir}. Run run_pipeline_v2.py first."
+            f"Could not find {filename} under {RESULTS_ROOT}. Run pipeline_v3/main.py first or use --csv."
         )
-    return csv_candidates[-1]
+    return candidate
 
 
 def load_allocations(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     if "timestamp" not in df.columns:
-        raise ValueError("Expected column 'timestamp' in allocations CSV.")
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+        if "date" in df.columns:
+            df = df.rename(columns={"date": "timestamp"})
+        else:
+            raise ValueError("Expected a 'timestamp' or 'date' column in allocations CSV.")
+
+    if "predicted_level_ft" in df.columns and "predicted_level" not in df.columns:
+        df = df.rename(columns={"predicted_level_ft": "predicted_level"})
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    if df["timestamp"].isna().any():
+        raise ValueError("One or more timestamps could not be parsed in the CSV.")
     return df
 
 
@@ -103,13 +122,13 @@ def resolve_zone(df: pd.DataFrame, requested_zone: Optional[str]) -> str:
     return zones[0]
 
 
-def make_output_path(args: argparse.Namespace, scenario: str, zone_id: str) -> Path:
+def make_output_path(args: argparse.Namespace, lead: str, zone_id: str) -> Path:
     if args.output_path:
         return Path(args.output_path)
     timestamp = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    plots_dir = RESULTS_ROOT / scenario / "plots"
+    plots_dir = PLOTS_ROOT
     plots_dir.mkdir(parents=True, exist_ok=True)
-    return plots_dir / f"{zone_id}_allocations_{timestamp}.png"
+    return plots_dir / f"{lead}_{zone_id}_allocations_{timestamp}.png"
 
 
 def plot_zone_allocations(
@@ -170,10 +189,10 @@ def plot_zone_allocations(
 
 def main() -> None:
     args = parse_args()
-    csv_path = Path(args.csv_path) if args.csv_path else find_latest_allocation(args.scenario)
+    csv_path = resolve_csv_path(args.lead, args.csv_path)
     df = load_allocations(csv_path)
     zone_id = resolve_zone(df, args.zone_id)
-    output_path = make_output_path(args, args.scenario, zone_id)
+    output_path = make_output_path(args, args.lead, zone_id)
     plot_zone_allocations(df, zone_id, args.metric, output_path, args.show)
 
 
