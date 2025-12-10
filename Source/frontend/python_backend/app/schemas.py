@@ -1,6 +1,6 @@
 """Pydantic schemas for API request/response validation."""
 from datetime import datetime
-from typing import Optional, List, Any, Dict, Union
+from typing import Optional, List, Any, Dict, Union, Literal
 from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 
@@ -222,13 +222,6 @@ class RiskThresholdBase(BaseModel):
     color: Optional[str] = None
     description: Optional[str] = None
     autoAlert: bool = False
-
-    @field_validator('maxRisk')
-    @classmethod
-    def max_greater_than_min(cls, v, info):
-        if 'minRisk' in info.data and v <= info.data['minRisk']:
-            raise ValueError('maxRisk must be greater than minRisk')
-        return v
 
 
 class RiskThresholdCreate(RiskThresholdBase):
@@ -497,6 +490,52 @@ class FloodRiskZone(BaseModel):
 class FloodRiskPrediction(BaseModel):
     zones: List[FloodRiskZone]
     metadata: Dict[str, Any]
+
+
+# ============ Simulation / Streaming Gauges ============
+
+class FloodSimulationRequest(BaseModel):
+    interval_seconds: int = Field(default=10, ge=2, le=120)
+    intensity: float = Field(default=1.0, ge=0.2, le=3.0)
+    horizon_hours: int = Field(default=6, ge=1, le=72)
+
+
+class StageProbability(BaseModel):
+    stage: str
+    level_ft: float
+    probability: float = Field(ge=0.0, le=1.0)
+
+
+class StationSimulationState(BaseModel):
+    code: str
+    name: str
+    role: Literal["target", "sensor"]
+    current_level_ft: float
+    current_level_m: float
+    predicted_level_ft: float
+    predicted_level_m: float
+    probability_exceedance: float = Field(ge=0.0, le=1.0)
+    trend_ft_per_hr: float
+    last_updated: datetime
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+class FloodSimulationResponse(BaseModel):
+    ticked_at: datetime
+    interval_seconds: int
+    horizon_hours: int
+    target_station: StationSimulationState
+    sensor_stations: List[StationSimulationState]
+    critical_stages: List[StageProbability]
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 
 # ============ Rule-based Allocation ============

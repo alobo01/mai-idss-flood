@@ -429,8 +429,8 @@ export function AdminResources() {
       const newCrew = {
         ...data,
         id: `C-${Date.now()}`,
-        lat: 40.4167,
-        lng: -3.7033,
+        lat: 38.6270,
+        lng: -90.1994,
       };
       setCrews(prev => [...prev, newCrew]);
     }

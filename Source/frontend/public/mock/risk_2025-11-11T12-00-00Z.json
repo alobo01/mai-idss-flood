@@ -1,57 +1,146 @@
 [
   {
-    "zoneId": "Z-ALFA",
-    "risk": 0.78,
+    "zoneId": "Z1N",
+    "risk": 0.55,
     "drivers": [
-      {"feature": "forecast_rain_mm_6h", "contribution": 0.42},
-      {"feature": "river_gauge_m", "contribution": 0.29},
-      {"feature": "soil_saturation", "contribution": 0.07}
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.56
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.38
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.2
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
     ],
-    "thresholdBand": "Severe",
+    "thresholdBand": "High",
     "etaHours": 8
   },
   {
-    "zoneId": "Z-BRAVO",
-    "risk": 0.45,
+    "zoneId": "Z1S",
+    "risk": 0.5,
     "drivers": [
-      {"feature": "forecast_rain_mm_6h", "contribution": 0.25},
-      {"feature": "river_gauge_m", "contribution": 0.15},
-      {"feature": "soil_saturation", "contribution": 0.05}
-    ],
-    "thresholdBand": "Moderate",
-    "etaHours": 12
-  },
-  {
-    "zoneId": "Z-CHARLIE",
-    "risk": 0.62,
-    "drivers": [
-      {"feature": "forecast_rain_mm_6h", "contribution": 0.35},
-      {"feature": "river_gauge_m", "contribution": 0.20},
-      {"feature": "soil_saturation", "contribution": 0.07}
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.55
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.38
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.2
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
     ],
     "thresholdBand": "High",
-    "etaHours": 10
+    "etaHours": 8
   },
   {
-    "zoneId": "Z-DELTA",
-    "risk": 0.31,
+    "zoneId": "Z2",
+    "risk": 0.35,
     "drivers": [
-      {"feature": "forecast_rain_mm_6h", "contribution": 0.18},
-      {"feature": "river_gauge_m", "contribution": 0.10},
-      {"feature": "soil_saturation", "contribution": 0.03}
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.52
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.35
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.21
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
     ],
     "thresholdBand": "Moderate",
-    "etaHours": 14
+    "etaHours": 8
   },
   {
-    "zoneId": "Z-ECHO",
-    "risk": 0.89,
+    "zoneId": "Z3",
+    "risk": 0.22,
     "drivers": [
-      {"feature": "forecast_rain_mm_6h", "contribution": 0.48},
-      {"feature": "river_gauge_m", "contribution": 0.32},
-      {"feature": "soil_saturation", "contribution": 0.09}
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.49
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.33
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.23
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
     ],
-    "thresholdBand": "Severe",
-    "etaHours": 6
+    "thresholdBand": "Low",
+    "etaHours": 8
+  },
+  {
+    "zoneId": "Z4",
+    "risk": 0.28,
+    "drivers": [
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.51
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.34
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.22
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
+    ],
+    "thresholdBand": "Low",
+    "etaHours": 8
+  },
+  {
+    "zoneId": "ZC",
+    "risk": 0.15,
+    "drivers": [
+      {
+        "feature": "river_gauge_m",
+        "contribution": 0.48
+      },
+      {
+        "feature": "forecast_rain_mm_6h",
+        "contribution": 0.32
+      },
+      {
+        "feature": "soil_saturation",
+        "contribution": 0.23
+      },
+      {
+        "feature": "urban_runoff",
+        "contribution": 0.05
+      }
+    ],
+    "thresholdBand": "Low",
+    "etaHours": 8
   }
 ]

@@ -258,6 +258,48 @@ export interface PipelineScenarioSummary {
   file?: string;
 }
 
+// Live simulation for St. Louis corridor
+export interface StageProbability {
+  stage: string;
+  level_ft: number;
+  probability: number;
+}
+
+export interface StationSimulationState {
+  code: string;
+  name: string;
+  role: 'target' | 'sensor';
+  current_level_ft: number;
+  current_level_m: number;
+  predicted_level_ft: number;
+  predicted_level_m: number;
+  probability_exceedance: number;
+  trend_ft_per_hr: number;
+  last_updated: string;
+}
+
+export interface FloodSimulationState {
+  ticked_at: string;
+  interval_seconds: number;
+  horizon_hours: number;
+  target_station: StationSimulationState;
+  sensor_stations: StationSimulationState[];
+  critical_stages: StageProbability[];
+}
+
+// River level prediction (backend model output)
+export interface RiverLevelPrediction {
+  gauge_id: string;
+  gauge_name: string;
+  river_name?: string;
+  prediction_time: string;
+  predicted_level: number;
+  confidence_level: number;
+  risk_level: 'low' | 'moderate' | 'high' | 'severe';
+  trend_per_hour: number;
+  data_points_used: number;
+}
+
 export interface PipelineScenarioInfo {
   name: string;
   source_file?: string;

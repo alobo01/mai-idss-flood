@@ -146,6 +146,29 @@ CREATE TABLE gauge_readings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Raw hydrologic inputs
+CREATE TABLE raw_data (
+    date DATE PRIMARY KEY,
+    daily_precip DOUBLE PRECISION,
+    daily_temp_avg DOUBLE PRECISION,
+    daily_snowfall DOUBLE PRECISION,
+    daily_humidity DOUBLE PRECISION,
+    daily_wind DOUBLE PRECISION,
+    soil_deep_30d DOUBLE PRECISION,
+    target_level_max DOUBLE PRECISION,
+    hermann_level DOUBLE PRECISION,
+    grafton_level DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Model predictions
+CREATE TABLE predictions (
+    date DATE PRIMARY KEY,
+    predicted_level DOUBLE PRECISION,
+    flood_probability DOUBLE PRECISION CHECK (flood_probability >= 0 AND flood_probability <= 1),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Response plans
 CREATE TABLE response_plans (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

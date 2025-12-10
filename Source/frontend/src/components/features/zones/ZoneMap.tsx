@@ -106,7 +106,7 @@ export function ZoneMap({
         <div className="h-[600px]">
           <MapContainer
             ref={mapRef}
-            center={[40.4167, -3.7033]}
+            center={[38.6270, -90.1994]}
             zoom={12}
             className="h-full w-full"
           >

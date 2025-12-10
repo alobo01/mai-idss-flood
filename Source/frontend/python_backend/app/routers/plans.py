@@ -134,8 +134,10 @@ async def create_draft_plan(
                 (name, version, description, plan_type, trigger_conditions, recommended_actions,
                  required_resources, assignments, coverage, notes, estimated_duration, priority, status)
             VALUES
-                (:name, :version, :description, :plan_type, :trigger_conditions::jsonb, :recommended_actions::jsonb,
-                 :required_resources::jsonb, :assignments::jsonb, :coverage::jsonb, :notes, :estimated_duration, :priority, 'draft')
+                (:name, :version, :description, :plan_type,
+                 CAST(:trigger_conditions AS jsonb), CAST(:recommended_actions AS jsonb),
+                 CAST(:required_resources AS jsonb), CAST(:assignments AS jsonb), CAST(:coverage AS jsonb),
+                 :notes, :estimated_duration, :priority, 'draft')
             RETURNING id, name, version, plan_type, trigger_conditions, recommended_actions,
                 required_resources, assignments, coverage, notes, estimated_duration, priority,
                 status, created_at, updated_at

@@ -132,21 +132,8 @@ class DataFetcher:
             return df
             
         except Exception as e:
-            print(f"      ❌ Weather API Failed: {e}")
-            print(f"      Creating fallback weather data...")
-            
-            # Fallback: reasonable dummy data
-            dates = pd.date_range(str_start, str_end, freq='D')
-            df = pd.DataFrame({
-                'date': dates,
-                'daily_precip': np.random.exponential(2, len(dates)),
-                'daily_temp_avg': np.random.normal(15, 10, len(dates)),
-                'daily_snowfall': np.zeros(len(dates)),
-                'daily_humidity': np.random.uniform(60, 90, len(dates)),
-                'daily_wind': np.random.uniform(5, 15, len(dates)),
-                'soil_deep_30d': np.random.uniform(0.3, 0.5, len(dates)),
-            })
-            return df
+            # No fabricated data; surface the failure
+            raise RuntimeError(f"Weather API failed: {e}")
     
     def _fetch_usgs_data(self):
         """
@@ -206,17 +193,7 @@ class DataFetcher:
                     raise ValueError("No timeSeries")
                     
             except Exception as e:
-                print(f"      ⚠️  Error: {e}")
-                print(f"      Creating fallback data...")
-                
-                # Fallback: dummy data
-                dates = pd.date_range(datetime.now() - timedelta(days=35), 
-                                    datetime.now(), freq='D')
-                df_station = pd.DataFrame({
-                    'date': dates,
-                    f'{key}_level': np.random.uniform(10, 20, len(dates))
-                })
-                dfs_river.append(df_station)
+                raise RuntimeError(f"USGS fetch failed for {site_id}: {e}")
             
             time.sleep(1)  # Be nice to USGS API
         

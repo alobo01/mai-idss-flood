@@ -58,7 +58,7 @@ async def get_communications(
         
         communications = []
         for row in rows:
-            metadata = row.metadata or {}
+            metadata = getattr(row, "meta", None) or {}
             timestamp = row.created_at
             if isinstance(timestamp, datetime):
                 timestamp = timestamp.isoformat()
@@ -104,7 +104,7 @@ async def create_communication(
         
         query = text("""
             INSERT INTO communications (channel, sender, recipient, message, direction, priority, status, metadata)
-            VALUES (:channel, :sender, :recipient, :message, :direction, :priority, 'sent', :metadata::jsonb)
+            VALUES (:channel, :sender, :recipient, :message, :direction, :priority, 'sent', CAST(:metadata AS jsonb))
             RETURNING created_at, priority, recipient, direction
         """)
         

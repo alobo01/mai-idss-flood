@@ -1,0 +1,7 @@
+include README.md
+include INSTALL.md
+include requirements.txt
+
+recursive-include level_prediction *.py
+recursive-include level_prediction/models *.json *.pkl *.h5
+recursive-include level_prediction/examples *.py

@@ -165,7 +165,7 @@ def sample_plan_draft():
         "name": "Test Plan",
         "assignments": [
             {
-                "zoneId": "Z-ALFA",
+                "zoneId": "Z1N",
                 "priority": 1,
                 "actions": [
                     {"action": "deploy", "resource": "CREW-01", "quantity": 1}

@@ -45,7 +45,7 @@ async def get_alerts(
         
         alerts = []
         for row in rows:
-            metadata = row.metadata or {}
+            metadata = getattr(row, "meta", None) or {}
             row_dict = {
                 'resolved': row.resolved,
                 'acknowledged': row.acknowledged,

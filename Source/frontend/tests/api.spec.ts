@@ -28,7 +28,7 @@ test.describe('Flood Prediction API parity with PLAN', () => {
     expect(geoJson.features.length).toBeGreaterThanOrEqual(4);
 
     const sample = geoJson.features[0];
-    expect(sample.properties.id).toMatch(/^Z-/);
+    expect(sample.properties.id).toMatch(/^Z/);
     expect(typeof sample.properties.name).toBe('string');
     expect(Array.isArray(sample.properties.critical_assets)).toBe(true);
     expect(sample.properties.population).toBeGreaterThan(0);
@@ -46,7 +46,7 @@ test.describe('Flood Prediction API parity with PLAN', () => {
     expect(assets.length).toBeGreaterThan(0);
     assets.forEach(asset => {
       expect(asset.id).toBeTruthy();
-      expect(asset.zoneId).toMatch(/^Z-/);
+      expect(asset.zoneId).toMatch(/^Z/);
       expect(typeof asset.type).toBe('string');
       expect(asset.criticality).toMatch(/low|medium|high|critical/i);
       expect(asset.location?.type).toBe('Point');
@@ -72,7 +72,7 @@ test.describe('Flood Prediction API parity with PLAN', () => {
 
     expect(risk.length).toBeGreaterThan(0);
     for (const entry of risk) {
-      expect(entry.zoneId).toMatch(/^Z-/);
+      expect(entry.zoneId).toMatch(/^Z/);
       expect(entry.risk).toBeGreaterThanOrEqual(0);
       expect(entry.risk).toBeLessThanOrEqual(1);
       expect(entry.thresholdBand).toMatch(/Low|Moderate|High|Severe/);
@@ -163,7 +163,7 @@ test.describe('Flood Prediction API parity with PLAN', () => {
     const damageIndex = await getJson<Array<{ zoneId: string; infra_index: number; human_index: number }>>(request, '/api/damage-index');
     expect(damageIndex.length).toBeGreaterThan(0);
     damageIndex.forEach(row => {
-      expect(row.zoneId).toMatch(/^Z-/);
+      expect(row.zoneId).toMatch(/^Z/);
       expect(row.infra_index).toBeGreaterThanOrEqual(0);
       expect(row.infra_index).toBeLessThanOrEqual(1);
       expect(row.human_index).toBeGreaterThanOrEqual(0);
@@ -190,7 +190,7 @@ test.describe('Flood Prediction API parity with PLAN', () => {
     expect(typeof plan.version).toBe('string');
     expect(plan.assignments.length).toBeGreaterThan(0);
     plan.assignments.forEach(assignment => {
-      expect(assignment.zoneId).toMatch(/^Z-/);
+      expect(assignment.zoneId).toMatch(/^Z/);
       expect(Array.isArray(assignment.actions)).toBe(true);
       expect(assignment.actions.length).toBeGreaterThan(0);
     });

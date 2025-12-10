@@ -3,399 +3,42 @@
     "id": "M-1",
     "channel": "global",
     "from": "Coordinator",
-    "text": "All crews check radios and report readiness status",
+    "text": "All crews: simulate rapid crest, report readiness every 15s tick",
     "timestamp": "2025-11-11T12:00:00Z"
   },
   {
     "id": "M-2",
-    "channel": "task:Z-ALFA",
-    "from": "C-A1",
-    "text": "Starting pump deployment at Riverside North",
-    "timestamp": "2025-11-11T12:18:00Z"
+    "channel": "task:Z1N",
+    "from": "C-B3",
+    "text": "Staging on Hall St; swiftwater gear ready for riverfront deployment",
+    "timestamp": "2025-11-11T12:05:00Z"
   },
   {
     "id": "M-3",
-    "channel": "global",
-    "from": "Coordinator",
-    "text": "Weather alert: Heavy rainfall expected in next 2-3 hours",
-    "timestamp": "2025-11-11T12:25:00Z"
+    "channel": "task:Z2",
+    "from": "C-A1",
+    "text": "Traffic cones placed around Barnes ER dock, pumps en route",
+    "timestamp": "2025-11-11T12:12:00Z"
   },
   {
     "id": "M-4",
-    "channel": "task:Z-ECHO",
+    "channel": "task:Z1S",
     "from": "C-C2",
-    "text": "En route to Riverside South with pump P-003",
-    "timestamp": "2025-11-11T12:30:00Z"
+    "text": "Monitoring seepage near River City Pump Station, no overflow yet",
+    "timestamp": "2025-11-11T12:18:00Z"
   },
   {
     "id": "M-5",
-    "channel": "task:Z-ALFA",
-    "from": "C-A1",
-    "text": "Road blocked near Hospital HN1, requesting clearance team",
-    "timestamp": "2025-11-11T12:35:00Z"
+    "channel": "task:Z4",
+    "from": "C-D4",
+    "text": "Northside Trauma Center access clear, signage placed",
+    "timestamp": "2025-11-11T12:24:00Z"
   },
   {
     "id": "M-6",
     "channel": "global",
     "from": "Coordinator",
-    "text": "Bravo Crew: Priority assignment to clear Hospital HN1 access",
-    "timestamp": "2025-11-11T12:40:00Z"
-  },
-  {
-    "id": "M-7",
-    "channel": "task:Z-CHARLIE",
-    "from": "C-B3",
-    "text": "Access protection barriers in place at Residential Heights",
-    "timestamp": "2025-11-11T12:45:00Z"
-  },
-  {
-    "id": "M-8",
-    "channel": "task:Z-ECHO",
-    "from": "C-C2",
-    "text": "Pump operational at Riverside South, water level stabilizing",
-    "timestamp": "2025-11-11T12:55:00Z"
-  },
-  {
-    "id": "COMM-1763055036137-7vtf42ivn",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:30:36.137Z"
-  },
-  {
-    "id": "COMM-1763055061992-89bc5otsd",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:31:01.992Z"
-  },
-  {
-    "id": "COMM-1763055090905-qzbcy409i",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:31:30.905Z"
-  },
-  {
-    "id": "COMM-1763055114565-70iouspre",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:31:54.565Z"
-  },
-  {
-    "id": "COMM-1763055150926-ip1h7mbky",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:32:30.926Z"
-  },
-  {
-    "id": "COMM-1763055304404-zbz28rs0d",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:35:04.404Z"
-  },
-  {
-    "id": "COMM-1763055330847-2e2d145fw",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:35:30.847Z"
-  },
-  {
-    "id": "COMM-1763055358458-hkb7l2gyv",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:35:58.458Z"
-  },
-  {
-    "id": "COMM-1763055388034-0o1v1euw2",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:36:28.034Z"
-  },
-  {
-    "id": "COMM-1763055426599-knfg9wnng",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T17:37:06.599Z"
-  },
-  {
-    "id": "COMM-1763058980593-v0h5okhln",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:36:20.593Z"
-  },
-  {
-    "id": "COMM-1763059878520-ud7jrxolp",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:51:18.520Z"
-  },
-  {
-    "id": "COMM-1763059902092-2hd08mla0",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:51:42.092Z"
-  },
-  {
-    "id": "COMM-1763059935042-ycorqomro",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:52:15.042Z"
-  },
-  {
-    "id": "COMM-1763059958213-hk7f8ee8n",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:52:38.213Z"
-  },
-  {
-    "id": "COMM-1763059987915-njsc9smr4",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:53:07.915Z"
-  },
-  {
-    "id": "COMM-1763060192477-wjhv3f0h0",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:56:32.477Z"
-  },
-  {
-    "id": "COMM-1763060213937-0wlw8a87o",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:56:53.937Z"
-  },
-  {
-    "id": "COMM-1763060241462-qip36i4kl",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:57:21.462Z"
-  },
-  {
-    "id": "COMM-1763060273741-kdq5cajwk",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:57:53.741Z"
-  },
-  {
-    "id": "COMM-1763060300825-86rlaagfy",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T18:58:20.825Z"
-  },
-  {
-    "id": "COMM-1763060550554-soco7s70u",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:02:30.554Z"
-  },
-  {
-    "id": "COMM-1763060568826-tulzyw07v",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:02:48.826Z"
-  },
-  {
-    "id": "COMM-1763060587240-aqxinj028",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:03:07.240Z"
-  },
-  {
-    "id": "COMM-1763060614177-uwo29slbg",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:03:34.177Z"
-  },
-  {
-    "id": "COMM-1763060638250-g9chsojyb",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:03:58.250Z"
-  },
-  {
-    "id": "COMM-1763060930420-4m7rspdkh",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:08:50.420Z"
-  },
-  {
-    "id": "COMM-1763060949850-3v9t6igqs",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:09:09.850Z"
-  },
-  {
-    "id": "COMM-1763060974875-t4901pvag",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:09:34.875Z"
-  },
-  {
-    "id": "COMM-1763061001101-cvxnnpnze",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:10:01.101Z"
-  },
-  {
-    "id": "COMM-1763061025489-agq31jrlh",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:10:25.489Z"
-  },
-  {
-    "id": "COMM-1763061562382-ypwa61kcr",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:19:22.383Z"
-  },
-  {
-    "id": "COMM-1763061581680-3jh8xmvj7",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:19:41.680Z"
-  },
-  {
-    "id": "COMM-1763061608132-m6kbz2n6p",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:20:08.132Z"
-  },
-  {
-    "id": "COMM-1763061631289-skqf6wmsu",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:20:31.289Z"
-  },
-  {
-    "id": "COMM-1763061659259-i089awkh7",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:20:59.259Z"
-  },
-  {
-    "id": "COMM-1763062906621-uug4vxsx2",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:41:46.621Z"
-  },
-  {
-    "id": "COMM-1763062926434-0ovajtdrk",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:42:06.434Z"
-  },
-  {
-    "id": "COMM-1763062953849-ypmo929f1",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:42:33.849Z"
-  },
-  {
-    "id": "COMM-1763062980457-lly68fzwz",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:43:00.457Z"
-  },
-  {
-    "id": "COMM-1763063016399-zz4t1o7o8",
-    "channel": "global",
-    "from": "Test User",
-    "text": "Test communication message",
-    "timestamp": "2025-11-13T19:43:36.399Z"
-  },
-  {
-    "id": "COMM-1763063553283-3u85jpg5w",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763063553242",
-    "timestamp": "2025-11-13T19:52:33.283Z"
-  },
-  {
-    "id": "COMM-1763063569880-8zb7rjej4",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763063569818",
-    "timestamp": "2025-11-13T19:52:49.880Z"
-  },
-  {
-    "id": "COMM-1763063605578-4syuu5udp",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763063605527",
-    "timestamp": "2025-11-13T19:53:25.578Z"
-  },
-  {
-    "id": "COMM-1763117370470-pw9iela8g",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763117370408",
-    "timestamp": "2025-11-14T10:49:30.470Z"
-  },
-  {
-    "id": "COMM-1763117382332-235rbkgq8",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763117382326",
-    "timestamp": "2025-11-14T10:49:42.332Z"
-  },
-  {
-    "id": "COMM-1763117414314-fk5zs39dw",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763117414275",
-    "timestamp": "2025-11-14T10:50:14.314Z"
-  },
-  {
-    "id": "COMM-1763117448436-7cwuan0iv",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763117448392",
-    "timestamp": "2025-11-14T10:50:48.436Z"
-  },
-  {
-    "id": "COMM-1763117469092-l2fj6kp1f",
-    "channel": "global",
-    "from": "Playwright",
-    "text": "Smoke test message 1763117469086",
-    "timestamp": "2025-11-14T10:51:09.092Z"
+    "text": "Sim timeline: every 15s adds 1h of data; watch dashboards update",
+    "timestamp": "2025-11-11T12:30:00Z"
   }
 ]

@@ -35,14 +35,9 @@ class FloodPredictorV2:
         """Load all trained models"""
         
         # XGBoost
-        self.xgb_q10 = xgb.XGBRegressor()
-        self.xgb_q10.load_model(f"{self.model_dir}/xgb_q10.json")
-        
-        self.xgb_q50 = xgb.XGBRegressor()
-        self.xgb_q50.load_model(f"{self.model_dir}/xgb_q50.json")
-        
-        self.xgb_q90 = xgb.XGBRegressor()
-        self.xgb_q90.load_model(f"{self.model_dir}/xgb_q90.json")
+        self.xgb_q10 = self._load_xgb_regressor(f"{self.model_dir}/xgb_q10.json")
+        self.xgb_q50 = self._load_xgb_regressor(f"{self.model_dir}/xgb_q50.json")
+        self.xgb_q90 = self._load_xgb_regressor(f"{self.model_dir}/xgb_q90.json")
         
         # Bayesian
         self.bayes_model = joblib.load(f"{self.model_dir}/bayes_model.pkl")
@@ -66,6 +61,13 @@ class FloodPredictorV2:
         self.lstm_scaler_y = joblib.load(f"{self.model_dir}/lstm_scaler_y.pkl")
         
         print("  ✓ All models loaded")
+
+    def _load_xgb_regressor(self, path):
+        """Instantiate regressor, ensure estimator type, and load model"""
+        model = xgb.XGBRegressor()
+        model._estimator_type = "regressor"
+        model.load_model(path)
+        return model
     
     def _load_calibration(self):
         """Load conformal calibration"""

@@ -1,0 +1,122 @@
+[
+  {
+    "zoneId": "Z1N",
+    "risk": 0.721,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  },
+  {
+    "zoneId": "Z1S",
+    "risk": 0.71,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  },
+  {
+    "zoneId": "Z2",
+    "risk": 0.636,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  },
+  {
+    "zoneId": "Z3",
+    "risk": 0.508,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  },
+  {
+    "zoneId": "Z4",
+    "risk": 0.526,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  },
+  {
+    "zoneId": "ZC",
+    "risk": 0.618,
+    "drivers": [
+      {
+        "feature": "hermann_level",
+        "contribution": 0.46
+      },
+      {
+        "feature": "grafton_level",
+        "contribution": 0.5
+      },
+      {
+        "feature": "daily_precip",
+        "contribution": 0.04
+      }
+    ],
+    "thresholdBand": "High",
+    "etaHours": 6
+  }
+]

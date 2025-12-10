@@ -1,5 +1,22 @@
 """Rule-based resource allocation and zone management endpoints."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pathlib import Path
+import sys
+
+# Ensure repository root is on sys.path so we can reuse shared Models/*
+ROOT_DIR = Path(__file__).resolve().parents[3]  # /srv/app/ -> parents[3] == repo root in container
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+try:
+    from Models.zone_builder import build_zones_from_config, compute_pf_by_zone_from_global  # type: ignore
+    from Models.rule_based import allocate_resources as pipeline_allocate  # type: ignore
+    PIPELINE_MODELS_AVAILABLE = True
+except ModuleNotFoundError:
+    PIPELINE_MODELS_AVAILABLE = False
+    build_zones_from_config = None  # type: ignore
+    compute_pf_by_zone_from_global = None  # type: ignore
+    pipeline_allocate = None  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 from sqlalchemy.orm import selectinload
@@ -325,6 +342,41 @@ async def allocate_resources_rule_based(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Resource allocation failed: {str(e)}")
+
+
+@router.get("/rule-based/pipeline", tags=["Rule-based"])
+async def pipeline_rule_based_allocation(
+    global_pf: float = Query(0.5, ge=0.0, le=1.0, description="Global flood probability from predictive model"),
+    total_units: int = Query(12, ge=0, le=100, description="Total deployable response units"),
+    mode: str = Query("crisp", pattern="^(crisp|fuzzy|proportional)$", description="Allocation mode"),
+    max_units_per_zone: int = Query(6, ge=1, le=20, description="Hard cap per zone")
+):
+    """
+    Bridge endpoint that uses the shared rule-based engine from `Models.rule_based`
+    and zone definitions from `Models.zone_builder` (pipeline_v3) to produce
+    per-zone allocations. This keeps the API aligned with the model logic used
+    in offline pipeline runs.
+    """
+    if not PIPELINE_MODELS_AVAILABLE:
+        raise HTTPException(status_code=501, detail="Pipeline rule-based models not bundled in this image")
+    try:
+        pf_by_zone = compute_pf_by_zone_from_global(global_pf)
+        zones = build_zones_from_config(pf_by_zone)
+        allocations = pipeline_allocate(
+            zones,
+            total_units=total_units,
+            mode=mode,
+            max_units_per_zone=max_units_per_zone,
+        )
+        return {
+            "global_pf": global_pf,
+            "mode": mode,
+            "total_units": total_units,
+            "max_units_per_zone": max_units_per_zone,
+            "allocations": allocations,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Pipeline rule-based allocation failed: {exc}")
 
 
 def calculate_resource_allocation(population: int, critical_assets: int, priority: float, available_resources: Dict[str, int]) -> Dict[str, Any]:

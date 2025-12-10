@@ -4,100 +4,120 @@
     {
       "type": "Feature",
       "properties": {
-        "id": "Z-ALFA",
-        "name": "Riverside North",
-        "population": 12450,
-        "critical_assets": ["Hospital HN1", "School SN3"],
+        "id": "Z1N",
+        "name": "North Riverfront Floodplain",
+        "population": 36000,
+        "critical_assets": ["Chain of Rocks Water Plant", "Riverport Rail Yard"],
         "admin_level": 10
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-3.71, 40.41],
-          [-3.70, 40.41],
-          [-3.70, 40.42],
-          [-3.71, 40.42],
-          [-3.71, 40.41]
+          [-90.215, 38.76],
+          [-90.17, 38.76],
+          [-90.17, 38.70],
+          [-90.24, 38.70],
+          [-90.215, 38.76]
         ]]
       }
     },
     {
       "type": "Feature",
       "properties": {
-        "id": "Z-BRAVO",
-        "name": "Industrial District",
-        "population": 8200,
-        "critical_assets": ["Power Plant PP1", "Water Treatment WT1"],
+        "id": "Z1S",
+        "name": "South Riverfront Floodplain",
+        "population": 32000,
+        "critical_assets": ["Anheuser-Busch Brewery", "River City Pump Station"],
         "admin_level": 10
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-3.70, 40.41],
-          [-3.69, 40.41],
-          [-3.69, 40.42],
-          [-3.70, 40.42],
-          [-3.70, 40.41]
+          [-90.24, 38.63],
+          [-90.17, 38.63],
+          [-90.17, 38.56],
+          [-90.26, 38.56],
+          [-90.24, 38.63]
         ]]
       }
     },
     {
       "type": "Feature",
       "properties": {
-        "id": "Z-CHARLIE",
-        "name": "Residential Heights",
-        "population": 15800,
-        "critical_assets": ["School SC1", "Community Center CC1"],
+        "id": "Z2",
+        "name": "Central Business & Medical Core",
+        "population": 48000,
+        "critical_assets": ["Barnes-Jewish Hospital", "Downtown Power Substation", "Civic Emergency Center"],
         "admin_level": 10
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-3.71, 40.42],
-          [-3.70, 40.42],
-          [-3.70, 40.43],
-          [-3.71, 40.43],
-          [-3.71, 40.42]
+          [-90.24, 38.66],
+          [-90.18, 38.66],
+          [-90.18, 38.63],
+          [-90.25, 38.63],
+          [-90.24, 38.66]
         ]]
       }
     },
     {
       "type": "Feature",
       "properties": {
-        "id": "Z-DELTA",
-        "name": "Commercial Zone",
-        "population": 6700,
-        "critical_assets": ["Shopping Mall SM1", "Transit Hub TH1"],
+        "id": "Z3",
+        "name": "Inland South Residential Plateau",
+        "population": 54000,
+        "critical_assets": ["Southwest EMS Station", "Carondelet Clinic"],
         "admin_level": 10
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-3.70, 40.42],
-          [-3.69, 40.42],
-          [-3.69, 40.43],
-          [-3.70, 40.43],
-          [-3.70, 40.42]
+          [-90.32, 38.62],
+          [-90.22, 38.62],
+          [-90.22, 38.58],
+          [-90.33, 38.58],
+          [-90.32, 38.62]
         ]]
       }
     },
     {
       "type": "Feature",
       "properties": {
-        "id": "Z-ECHO",
-        "name": "Riverside South",
-        "population": 9300,
-        "critical_assets": ["Emergency Services ES1", "Stadium ST1"],
+        "id": "Z4",
+        "name": "Inland North Residential Plateau",
+        "population": 58000,
+        "critical_assets": ["Northside Trauma Center", "University Health Clinic"],
         "admin_level": 10
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [-3.71, 40.40],
-          [-3.70, 40.40],
-          [-3.70, 40.41],
-          [-3.71, 40.41],
-          [-3.71, 40.40]
+          [-90.33, 38.70],
+          [-90.22, 38.70],
+          [-90.22, 38.64],
+          [-90.34, 38.64],
+          [-90.33, 38.70]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "ZC",
+        "name": "Central / Special ZIPs",
+        "population": 8000,
+        "critical_assets": ["Civic Center Transit Hub", "City Hall Complex"],
+        "admin_level": 10
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-90.22, 38.68],
+          [-90.19, 38.68],
+          [-90.19, 38.66],
+          [-90.23, 38.66],
+          [-90.22, 38.68]
         ]]
       }
     }

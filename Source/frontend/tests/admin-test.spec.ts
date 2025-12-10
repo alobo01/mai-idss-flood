@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+const PLANNER_ONLY = process.env.PLANNER_ONLY === 'true';
+if (PLANNER_ONLY) {
+  test.skip();
+}
+
 test.describe('Admin Debug Test', () => {
   test('Check admin threshold page', async ({ page }) => {
     // Set admin role and navigate to threshold page

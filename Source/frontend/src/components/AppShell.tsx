@@ -34,27 +34,12 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const navigationConfig = {
-  Administrator: [
-    { to: getAdminPath('regions'), icon: MapPin, label: 'Regions' },
-    { to: getAdminPath('thresholds'), icon: Shield, label: 'Thresholds' },
-    { to: getAdminPath('resources'), icon: Layers, label: 'Resources' },
-    { to: getAdminPath('users'), icon: Users, label: 'Users' },
-  ],
-  Planner: [
-    { to: '/planner/map', icon: MapPin, label: 'Risk Map' },
-    { to: '/planner/scenarios', icon: TrendingUp, label: 'Scenarios' },
-    { to: '/planner/alerts', icon: AlertTriangle, label: 'Alerts' },
-  ],
-  Coordinator: [
-    { to: '/coordinator/ops', icon: Radio, label: 'Ops Board' },
-    { to: '/coordinator/resources', icon: Layers, label: 'Resources' },
-  ],
-  'Data Analyst': [
-    { to: '/analyst/overview', icon: BarChart3, label: 'Overview' },
-    { to: '/analyst/exports', icon: Layers, label: 'Exports' },
-  ],
-};
+const plannerNavigation = [
+  { to: '/planner/map', icon: MapPin, label: 'Risk Map' },
+  { to: '/planner/rule-based', icon: Layers, label: 'Rule-Based' },
+  { to: '/planner/scenarios', icon: TrendingUp, label: 'Scenarios' },
+  { to: '/planner/alerts', icon: AlertTriangle, label: 'Alerts' },
+];
 
 const roleColors = {
   Administrator: 'bg-blue-500',
@@ -75,17 +60,12 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   const handleRoleSwitch = (role: Role) => {
-    setCurrentRole(role);
-    // Navigate to the first page of that role
-    const roleNavigation = navigationConfig[role];
-    if (roleNavigation.length > 0) {
-      navigate(roleNavigation[0].to);
-    }
+    // Force planner view regardless of role selection
+    setCurrentRole('Planner');
+    navigate('/planner/map');
   };
 
-  const isAdministrator = currentUser?.role === 'Administrator';
-
-  const navigation = currentRole ? navigationConfig[currentRole] : [];
+  const navigation = plannerNavigation;
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,29 +124,6 @@ export function AppShell({ children }: AppShellProps) {
                     <div className="text-xs text-muted-foreground">Role: {currentUser.role}</div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-
-                  {/* Role switching for administrators */}
-                  {isAdministrator && (
-                    <>
-                      <DropdownMenuLabel className="text-xs font-semibold">
-                        View as Role:
-                      </DropdownMenuLabel>
-                      {(['Administrator', 'Planner', 'Coordinator', 'Data Analyst'] as Role[]).map((role) => (
-                        <DropdownMenuItem
-                          key={role}
-                          onClick={() => handleRoleSwitch(role)}
-                          className={currentRole === role ? 'bg-accent' : ''}
-                        >
-                          <div className={`w-3 h-3 rounded-full mr-2 ${roleColors[role]}`} />
-                          {role}
-                          {currentRole === role && (
-                            <span className="ml-auto text-xs">✓</span>
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
 
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600">
                     <LogOut className="h-4 w-4 mr-2" />

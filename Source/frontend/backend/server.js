@@ -1475,7 +1475,7 @@ app.get('/api/risk', async (req, res) => {
     }
 
     const query = `
-      SELECT
+      SELECT DISTINCT ON (z.code)
         z.code as zone_code,
         ra.risk_level,
         ra.risk_factors,
@@ -1483,8 +1483,7 @@ app.get('/api/risk', async (req, res) => {
       FROM risk_assessments ra
       JOIN zones z ON ra.zone_id = z.id
       ${filter}
-      ORDER BY ra.forecast_time DESC, ra.risk_level DESC
-      LIMIT 200
+      ORDER BY z.code, ra.forecast_time DESC
     `;
 
     const result = await pool.query(query, params);
@@ -2063,6 +2062,43 @@ function calculateVulnerability(attrs) {
 }
 
 /**
+ * Mirror of Models/zone_builder.compute_pf_by_zone_from_global.
+ * Uses river proximity as a weight around the global probability.
+ */
+function computePfByZoneFromGlobal(globalPf) {
+  const values = Object.values(ZONE_ATTRIBUTES).map((attrs) => attrs.river_proximity || 0);
+  const maxRiver = values.length > 0 ? Math.max(...values) : 1;
+  const pfByZone = {};
+
+  for (const [zoneId, attrs] of Object.entries(ZONE_ATTRIBUTES)) {
+    const rpNorm = maxRiver > 0 ? (attrs.river_proximity || 0) / maxRiver : 1;
+    const weight = 0.5 + 0.5 * rpNorm;
+    pfByZone[zoneId] = clamp(globalPf * weight);
+  }
+
+  return pfByZone;
+}
+
+/**
+ * Build zone objects from config for the rule engine.
+ */
+function buildZonesFromConfig(pfByZone) {
+  return Object.entries(ZONE_ATTRIBUTES).map(([zoneId, attrs]) => {
+    const vulnerability = calculateVulnerability(attrs);
+    const isCritical = (attrs.hospital_count || 0) > 0;
+    const pf = pfByZone[zoneId] !== undefined ? pfByZone[zoneId] : 0;
+
+    return {
+      id: zoneId,
+      name: attrs.name || zoneId,
+      pf: clamp(pf),
+      vulnerability,
+      is_critical_infra: isCritical,
+    };
+  });
+}
+
+/**
  * Classify impact level based on flood probability and vulnerability.
  * Matches Python rule_based.py logic.
  */
@@ -2358,6 +2394,54 @@ app.post('/api/rule-based/allocate', async (req, res) => {
     console.error('Error:', error);
     res.status(500).json({
       error: 'Failed to compute allocation',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * Lightweight pipeline-style endpoint that mirrors Models/rule_based.py
+ * for the planner view. Accepts a global flood probability and returns
+ * per-zone allocations using the shared rule engine.
+ */
+app.get('/api/rule-based/pipeline', async (req, res) => {
+  try {
+    const globalPf = clamp(req.query.global_pf ?? 0.5);
+    const totalUnits = Math.max(0, parseInt(req.query.total_units ?? '12', 10) || 0);
+    const mode = String(req.query.mode || 'crisp').toLowerCase();
+    const maxUnitsPerZone = Math.max(1, parseInt(req.query.max_units_per_zone ?? '6', 10) || 1);
+
+    const validModes = ['crisp', 'fuzzy', 'proportional'];
+    if (!validModes.includes(mode)) {
+      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` });
+    }
+
+    const pfByZone = computePfByZoneFromGlobal(Number(globalPf));
+    const zones = buildZonesFromConfig(pfByZone);
+
+    let allocations = allocateResources(zones, totalUnits, mode);
+
+    // Respect per-zone caps while keeping metadata for the UI
+    allocations = allocations.map((alloc) => ({
+      ...alloc,
+      units_allocated: Math.min(alloc.units_allocated, maxUnitsPerZone),
+    }));
+
+    const totalAllocated = allocations.reduce((sum, a) => sum + a.units_allocated, 0);
+
+    res.json({
+      global_pf: Number(Number(globalPf).toFixed(3)),
+      mode,
+      total_units: totalUnits,
+      max_units_per_zone: maxUnitsPerZone,
+      total_allocated: totalAllocated,
+      allocations,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Rule-based pipeline error:', error);
+    res.status(500).json({
+      error: 'Pipeline allocation failed',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }

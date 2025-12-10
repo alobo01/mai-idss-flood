@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+// Planner-only runs: skip full multi-role E2E suite when PLANNER_ONLY=true
+const PLANNER_ONLY = process.env.PLANNER_ONLY === 'true';
+if (PLANNER_ONLY) {
+  test.skip();
+}
+
 const ADMIN_BASE_PATH = '/administrator';
 const LEGACY_ADMIN_PATH = '/admin';
 
@@ -138,6 +144,10 @@ test.describe('Flood Prediction System - E2E Tests', () => {
 
     // Test navigation to different planner pages
     await expect(page.getByRole('link', { name: 'Risk Map' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Rule-Based' })).toBeVisible();
+
+    await page.click('text=Rule-Based');
+    await expect(page.getByRole('heading', { name: 'Rule-Based Allocation' })).toBeVisible();
 
     await page.click('text=Alerts');
     await expect(page.getByText('Alerts Timeline')).toBeVisible();
@@ -361,6 +371,7 @@ test.describe('Flood Prediction System - E2E Tests', () => {
 
     const plannerPages = [
       { url: '/planner/map', content: 'Planner Risk Map' },
+      { url: '/planner/rule-based', content: 'Rule-Based Allocation' },
       { url: '/planner/scenarios', content: 'Scenario Workbench' },
       { url: '/planner/alerts', content: 'Alerts Timeline' },
     ];
