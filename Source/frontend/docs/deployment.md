@@ -1,116 +1,65 @@
-# 🚀 Deployment
+# Deployment Guide
 
-Comprehensive deployment guide for the Flood Prediction Frontend application in various environments.
+This guide covers deployment options for the Flood Prediction Frontend application, including Docker, production builds, and development setup.
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Prerequisites](#prerequisites)
-- [Development Deployment](#development-deployment)
+- [Quick Start](#quick-start)
 - [Docker Deployment](#docker-deployment)
-- [Production Deployment](#production-deployment)
-- [Cloud Deployment](#cloud-deployment)
+- [Production Build](#production-build)
 - [Environment Configuration](#environment-configuration)
-- [Monitoring and Logging](#monitoring-and-logging)
-- [Security Considerations](#security-considerations)
+- [Reverse Proxy Setup](#reverse-proxy-setup)
+- [Monitoring and Health Checks](#monitoring-and-health-checks)
 - [Troubleshooting](#troubleshooting)
-
-## Overview
-
-The Flood Prediction Frontend supports multiple deployment strategies optimized for different use cases:
-
-- **Development**: Hot-reload local development with the API
-- **Docker**: Containerized deployment with orchestration
-- **Production**: Optimized builds with CDN and load balancing
-- **Cloud**: Managed services and auto-scaling
 
 ## Prerequisites
 
+- Node.js 18+ (for local development)
+- Docker & Docker Compose (for containerized deployment)
+- Nginx (for production reverse proxy, optional)
+- SSL certificate (for production HTTPS)
+
 ### System Requirements
 
-**Minimum**:
-- **CPU**: 2 cores
-- **Memory**: 4GB RAM
-- **Storage**: 10GB available space
-- **Network**: Stable internet connection
+- **Minimum**: 2GB RAM, 1 CPU core
+- **Recommended**: 4GB RAM, 2+ CPU cores
+- **Storage**: 500MB for application + sample data
 
-**Recommended**:
-- **CPU**: 4+ cores
-- **Memory**: 8GB+ RAM
-- **Storage**: 50GB+ SSD
-- **Network**: High-speed internet
+## Quick Start
 
-### Software Requirements
-
-- **Docker**: 20.10+ (for containerized deployment)
-- **Docker Compose**: 2.0+ (for orchestration)
-- **Node.js**: 18+ (for local development)
-- **Git**: 2.30+ (for source control)
-
-## Development Deployment
-
-### Local Development Setup
+### Docker (Recommended)
 
 ```bash
-# 1. Clone the repository
+# Clone and start the application
 git clone <repository-url>
-cd flood-prediction-frontend
+cd frontend
+docker compose up -d
 
-# 2. Install dependencies
-npm install
-
-# 3. Install Playwright browsers (for testing)
-npx playwright install
-
-# 4. Start API (in terminal 1)
-npm run api
-
-# 5. Start frontend (in terminal 2)
-cd ..
-npm run dev
+# Access the application
+open http://localhost:18080
 ```
 
-### Development URLs
+### Local Development
 
-- **Frontend**: http://localhost:5173
-- **API**: http://localhost:18080
-- **API Health**: http://localhost:18080/health
+```bash
+# Install dependencies
+npm install
 
-### Development Configuration
+# Start development server
+npm run dev
 
-```env
-# .env.development
-VITE_API_BASE_URL=http://localhost:18080
-VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-VITE_WS_URL=ws://localhost:18080
-VITE_ENVIRONMENT=development
-VITE_LOG_LEVEL=debug
+# Start API (in another terminal)
+npm run api
 ```
 
 ## Docker Deployment
 
-### Quick Start
+### Production Docker Compose
 
-```bash
-# Build and start all services
-docker compose up --build
-
-# Run in background
-docker compose up --build -d
-
-# View logs
-docker compose logs -f
-
-# Stop services
-docker compose down
-```
-
-### Docker Compose Configuration
+The provided `docker-compose.yml` is configured for production use:
 
 ```yaml
-# docker-compose.yml
-version: "3.9"
-
 services:
   postgres:
     image: postgis/postgis:15-3.3
@@ -130,7 +79,7 @@ services:
       dockerfile: Dockerfile
     container_name: flood-backend
     ports:
-      - "18080:18080"
+      - "8081:18080"
     environment:
       - NODE_ENV=production
       - DB_HOST=postgres
@@ -138,692 +87,380 @@ services:
       - DB_USER=flood_user
       - DB_PASSWORD=flood_password
       - DB_NAME=flood_prediction
-    restart: unless-stopped
-    networks:
-      - flood-network
     depends_on:
       - postgres
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:18080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: flood-frontend
     ports:
-      - "5173:80"
+      - "8080:80"
     environment:
-      - NODE_ENV=production
       - VITE_API_BASE_URL=http://backend:18080
-      - VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+      - NODE_ENV=production
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
-    networks:
-      - flood-network
-
-networks:
-  flood-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+```
 
 volumes:
   postgres_data:
     driver: local
 
-```
-
-### Multi-Stage Dockerfile
-
-```dockerfile
-# Dockerfile
-FROM node:20-alpine AS build
-
-# Set working directory
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy source code
-COPY . .
-
-# Build application
-RUN npm run build
-
-# Production stage
-FROM nginx:alpine AS production
-
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built application
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy mock data (if needed)
-COPY public/mock /usr/share/nginx/html/mock
-
-# Create non-root user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001
-
-# Set permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d
-
-# Switch to non-root user
-USER nginx
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
-
-# Expose port
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-### Production Docker Configuration
-
-```yaml
-# docker-compose.prod.yml
-version: "3.9"
-
-services:
-  web:
-    extends:
-      file: docker-compose.yml
-      service: web
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-
-  nginx-proxy:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - web
-    restart: unless-stopped
-    networks:
-      - flood-network
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    restart: unless-stopped
-    networks:
-      - flood-network
-
-volumes:
-  redis-data:
-    driver: local
-```
-
-## Production Deployment
-
-### Production Build
+### Building and Running
 
 ```bash
-# Create production build
+# Build and start all services
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+### Container Architecture
+
+- **Frontend Container**: Nginx serving optimized static files
+- **Backend Container**: Node.js Express server connected to PostgreSQL
+- **Network**: Internal Docker network for service communication
+- **Health Checks**: Backend health gate keeps frontend from starting early
+
+## Production Build
+
+### Building Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Build for production
 npm run build
 
-# Preview production build
-npm run preview
-
-# Build for specific environment
-npm run build:production
+# The build output is in ./dist/
 ```
+
+### Build Configuration
+
+The production build includes:
+- TypeScript compilation
+- Code minification and optimization
+- Asset bundling and compression
+- Source map generation (disabled in production)
+
+### Environment Variables
+
+Configure these environment variables for production:
+
+```bash
+# API Configuration
+VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_MAP_TILES_URL=https://tile-server.yourdomain.com/{z}/{x}/{y}.png
+
+# Build Configuration
+NODE_ENV=production
+```
+
+## Environment Configuration
+
+### Development
+
+Create `.env.development`:
+```env
+VITE_API_BASE_URL=http://localhost:8081
+VITE_MAP_TILES_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+NODE_ENV=development
+```
+
+### Production
+
+Create `.env.production`:
+```env
+VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_MAP_TILES_URL=https://tile-server.yourdomain.com/{z}/{x}/{y}.png
+NODE_ENV=production
+```
+
+### Configuration Files
+
+- `vite.config.ts` - Vite build configuration
+- `nginx.conf` - Production Nginx configuration
+- `docker-compose.yml` - Docker service orchestration
+
+## Reverse Proxy Setup
 
 ### Nginx Configuration
 
+For production deployment behind Nginx:
+
 ```nginx
-# nginx-proxy.conf
-upstream flood_backend {
-    server web:80;
-}
-
-# Rate limiting
-limit_req_zone $binary_remote_addr zone=flood_api:10m rate=10r/s;
-
 server {
     listen 80;
-    server_name flood-prediction.example.com;
+    server_name your-domain.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name flood-prediction.example.com;
+    server_name your-domain.com;
 
-    # SSL Configuration
-    ssl_certificate /etc/nginx/ssl/cert.pem;
-    ssl_certificate_key /etc/nginx/ssl/key.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
 
-    # Security Headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
-
-    # Gzip compression
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-
-    # Static assets caching
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        add_header X-Content-Type-Options nosniff;
-    }
-
-    # API proxy with rate limiting
-    location /api/ {
-        limit_req zone=flood_api burst=20 nodelay;
-        proxy_pass http://flood_backend/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # WebSocket proxy
-    location /ws {
-        proxy_pass http://flood_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-
-    # Main application
+    # Frontend static files
     location / {
-        proxy_pass http://flood_backend;
+        root /var/www/flood-frontend/dist;
+        try_files $uri $uri/ /index.html;
+
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # API proxy
+    location /api/ {
+        proxy_pass http://localhost:8081;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Handle client-side routing
-        try_files $uri $uri/ @fallback;
-    }
-
-    location @fallback {
-        proxy_pass http://flood_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Health check endpoint
-    location /health {
-        access_log off;
-        proxy_pass http://flood_backend/health;
     }
 }
 ```
 
-### Production Environment Variables
-
-```env
-# .env.production
-NODE_ENV=production
-VITE_API_BASE_URL=https://api.flood-prediction.example.com
-VITE_MAP_TILES_URL=https://tiles.flood-prediction.example.com/{z}/{x}/{y}.png
-VITE_WS_URL=wss://ws.flood-prediction.example.com
-VITE_ENVIRONMENT=production
-VITE_LOG_LEVEL=error
-VITE_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
-VITE_GOOGLE_ANALYTICS_ID=GA_MEASUREMENT_ID
-```
-
-## Cloud Deployment
-
-### AWS Deployment
-
-#### ECS (Elastic Container Service)
-
-```json
-{
-  "family": "flood-prediction",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::account:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::account:role/ecsTaskRole",
-  "containerDefinitions": [
-    {
-      "name": "flood-frontend",
-      "image": "your-account.dkr.ecr.region.amazonaws.com/flood-frontend:latest",
-      "portMappings": [
-        {
-          "containerPort": 80,
-          "protocol": "tcp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "VITE_API_BASE_URL",
-          "value": "https://api.flood-prediction.example.com"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/flood-prediction",
-          "awslogs-region": "us-west-2",
-          "awslogs-stream-prefix": "ecs"
-        }
-      }
-    }
-  ]
-}
-```
-
-#### CloudFront Distribution
-
-```json
-{
-  "DistributionConfig": {
-    "CallerReference": "flood-prediction-cdn",
-    "Origins": {
-      "Quantity": 1,
-      "Items": [
-        {
-          "Id": "ECS-Origin",
-          "DomainName": "load-balancer.example.com",
-          "CustomOriginConfig": {
-            "HTTPPort": 80,
-            "HTTPSPort": 443,
-            "OriginProtocolPolicy": "https-only"
-          }
-        }
-      ]
-    },
-    "DefaultCacheBehavior": {
-      "TargetOriginId": "ECS-Origin",
-      "ViewerProtocolPolicy": "redirect-to-https",
-      "TrustedSigners": {
-        "Enabled": false,
-        "Quantity": 0
-      },
-      "ForwardedValues": {
-        "QueryString": true,
-        "Cookies": {
-          "Forward": "all"
-        }
-      },
-      "MinTTL": 0,
-      "Compress": true
-    },
-    "Enabled": true,
-    "HttpVersion": "http2",
-    "PriceClass": "PriceClass_All"
-  }
-}
-```
-
-### Google Cloud Platform
-
-#### Cloud Run Deployment
+### SSL Configuration
 
 ```bash
-# Build and push to Google Container Registry
-gcloud builds submit --tag gcr.io/PROJECT-ID/flood-frontend
+# Generate SSL certificate (Let's Encrypt recommended)
+certbot --nginx -d your-domain.com
 
-# Deploy to Cloud Run
-gcloud run deploy flood-frontend \
-  --image gcr.io/PROJECT-ID/flood-frontend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --memory 512Mi \
-  --cpu 1 \
-  --timeout 300s \
-  --set-env-vars VITE_API_BASE_URL=https://api.example.com
+# Or use self-signed for development
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/nginx-selfsigned.key \
+  -out /etc/ssl/certs/nginx-selfsigned.crt
 ```
 
-#### Cloud Load Balancer
+## Monitoring and Health Checks
 
-```yaml
-# cloud-load-balancer.yaml
-apiVersion: cloud.google.com/v1
-kind: Service
-metadata:
-  name: flood-frontend-lb
-  annotations:
-    cloud.google.com/load-balancer-type: "External"
-spec:
-  type: LoadBalancer
-  selector:
-    app: flood-frontend
-  ports:
-    - port: 80
-      targetPort: 80
-    - port: 443
-      targetPort: 443
-```
+### Application Health
 
-### Azure Container Instances
+- **Frontend**: Health check via Nginx status
+- **API**: `GET /health` endpoint returns service status
+- **Containers**: Built-in Docker health checks
+
+### Monitoring Endpoints
 
 ```bash
-# Deploy to Azure Container Instances
-az container create \
-  --resource-group flood-prediction-rg \
-  --name flood-frontend \
-  --image your-registry.azurecr.io/flood-frontend:latest \
-  --cpu 1 \
-  --memory 2 \
-  --ports 80 443 \
-  --environment-variables VITE_API_BASE_URL=https://api.example.com
+# API Health Check
+curl http://localhost:8081/health
+
+# Container Status
+docker compose ps
+
+# Resource Usage
+docker stats
 ```
 
-## Environment Configuration
-
-### Environment-Specific Builds
-
-```json
-// package.json scripts
-{
-  "scripts": {
-    "build:development": "vite build --mode development",
-    "build:staging": "vite build --mode staging",
-    "build:production": "vite build --mode production",
-    "build:test": "vite build --mode test"
-  }
-}
-```
-
-### Vite Configuration
-
-```typescript
-// vite.config.ts
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-
-  return {
-    plugins: [react()],
-    resolve: {
-      alias: {
-        '@': resolve(__dirname, 'src'),
-      },
-    },
-    build: {
-      outDir: 'dist',
-      sourcemap: mode !== 'production',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            router: ['react-router-dom'],
-            query: ['@tanstack/react-query'],
-            ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          },
-        },
-      },
-    },
-    server: {
-      host: true,
-      port: 5173,
-      proxy: {
-        '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:18080',
-          changeOrigin: true,
-        },
-      },
-    },
-    define: {
-      __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-    },
-  };
-});
-```
-
-## Monitoring and Logging
-
-### Health Checks
-
-```typescript
-// src/health.ts
-export const healthCheck = async () => {
-  try {
-    const response = await fetch('/api/health');
-    if (!response.ok) {
-      throw new Error(`Health check failed: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Health check error:', error);
-    throw error;
-  }
-};
-
-// Periodic health monitoring
-setInterval(async () => {
-  try {
-    await healthCheck();
-  } catch (error) {
-    // Report health check failure
-    reportError(error);
-  }
-}, 60000); // Check every minute
-```
-
-### Error Reporting
-
-```typescript
-// src/errorReporting.ts
-import * as Sentry from '@sentry/react';
-
-if (import.meta.env.PROD) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,
-    tracesSampleRate: 0.1,
-    release: `flood-frontend@${__APP_VERSION__}`,
-  });
-}
-
-export const reportError = (error: Error, context?: any) => {
-  if (import.meta.env.PROD) {
-    Sentry.captureException(error, { extra: context });
-  } else {
-    console.error('Error reported:', error, context);
-  }
-};
-```
-
-### Performance Monitoring
-
-```typescript
-// src/performance.ts
-export const reportPerformance = (name: string, duration: number) => {
-  // Send to analytics service
-  if (window.gtag) {
-    window.gtag('event', 'performance_metric', {
-      event_category: 'Web Vitals',
-      event_label: name,
-      value: Math.round(duration),
-      custom_map: { metric_name: name, metric_value: duration }
-    });
-  }
-};
-
-// Core Web Vitals monitoring
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
-
-getCLS(reportPerformance);
-getFID(reportPerformance);
-getFCP(reportPerformance);
-getLCP(reportPerformance);
-getTTFB(reportPerformance);
-```
-
-## Security Considerations
-
-### Content Security Policy
-
-```html
-<!-- index.html -->
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' https://www.googletagmanager.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: https:;
-  font-src 'self' data:;
-  connect-src 'self' https://api.flood-prediction.example.com wss://ws.flood-prediction.example.com;
-  frame-src 'none';
-  base-uri 'self';
-  form-action 'self';
-">
-```
-
-### Security Headers
-
-```nginx
-# Security headers in nginx configuration
-add_header X-Frame-Options "DENY" always;
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-XSS-Protection "1; mode=block" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
-```
-
-### Environment Variable Security
+### Logging
 
 ```bash
-# Use encrypted secrets in production
-# AWS Secrets Manager
-aws secretsmanager get-secret-value --secret-id flood-prediction/secrets
+# View application logs
+docker compose logs -f
 
-# Google Secret Manager
-gcloud secrets versions access latest --secret=flood-prediction-secrets
-
-# Azure Key Vault
-az keyvault secret show --vault-name flood-prediction-kv --name app-secrets
+# View specific service logs
+docker compose logs -f api
+docker compose logs -f web
 ```
 
 ## Troubleshooting
 
-### Common Deployment Issues
+### Common Issues
 
-**Build Failures**:
+#### 1. Containers Won't Start
+
 ```bash
-# Clear build cache
-rm -rf node_modules dist
-npm install
-npm run build
+# Check for port conflicts
+netstat -tulpn | grep :18080
+netstat -tulpn | grep :8081
 
-# Check for missing dependencies
-npm audit
-npm audit fix
+# Check Docker daemon
+docker version
+docker compose version
 ```
 
-**Container Issues**:
-```bash
-# Check container logs
-docker compose logs web
-docker compose logs backend
-
-# Inspect container
-docker compose exec web sh
-docker compose exec backend sh
-
-# Rebuild containers
-docker compose build --no-cache
-```
-
-**Performance Issues**:
-```bash
-# Analyze bundle size
-npm run build:analyze
-
-# Check network requests
-# Open browser dev tools > Network tab
-
-# Monitor memory usage
-docker stats
-```
-
-### Health Check Failures
+#### 2. API Connection Errors
 
 ```bash
-# Test health endpoint manually
-curl http://localhost:18080/health
+# Verify API is accessible
+curl http://localhost:8081/health
+curl http://localhost:8081/api/zones
 
-# Check container health
-docker compose ps
-
-# Restart unhealthy services
-docker compose restart
-```
-
-### Network Issues
-
-```bash
 # Check network connectivity
 docker network ls
-docker network inspect flood-prediction_flood-network
-
-# Test API connectivity
-curl -v http://localhost:18080/api/zones
-
-# Check DNS resolution
-nslookup api.flood-prediction.example.com
+docker network inspect flood-network
 ```
 
-### Debug Commands
+#### 3. Build Failures
 
 ```bash
-# Full debug information
-docker compose version
-docker info
-docker system df
-docker system events
+# Clear build cache
+docker builder prune
 
-# Production debugging
-docker compose --file docker-compose.prod.yml logs --tail=100
-docker compose --file docker-compose.prod.yml exec web nginx -t
+# Rebuild from scratch
+docker compose build --no-cache
+
+# Check disk space
+df -h
 ```
 
-This deployment guide provides comprehensive instructions for deploying the Flood Prediction Frontend across various environments and platforms. Choose the deployment method that best fits your infrastructure requirements and scaling needs.
+#### 4. Memory Issues
+
+```bash
+# Check container resource usage
+docker stats
+
+# Increase memory limits in docker-compose.yml
+services:
+  web:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+```
+
+### Performance Optimization
+
+#### 1. Frontend Optimization
+
+- Enable Gzip compression (configured in nginx.conf)
+- Use CDN for static assets
+- Implement proper caching headers
+- Monitor bundle size
+
+#### 2. API Optimization
+
+- Enable response compression
+- Implement API rate limiting
+- Use Redis for caching (when replacing the API)
+- Monitor response times
+
+#### 3. Container Optimization
+
+```bash
+# Use multi-stage builds (already implemented)
+# Minimize image layers
+# Use specific version tags
+FROM nginx:alpine  # Good
+FROM nginx:latest  # Avoid
+```
+
+## Security Considerations
+
+### Container Security
+
+- Use non-root users when possible
+- Regular base image updates
+- Scan images for vulnerabilities
+```bash
+docker scan frontend-api
+docker scan frontend-web
+```
+
+### Network Security
+
+- Use HTTPS in production
+- Implement firewall rules
+- Secure API endpoints with authentication
+- Rate limiting and DDoS protection
+
+### Data Security
+
+- Validate all inputs (Zod schemas implemented)
+- Sanitize user inputs
+- Secure sensitive configuration
+- Regular security audits
+
+## Scaling and High Availability
+
+### Horizontal Scaling
+
+```yaml
+# docker-compose.scale.yml
+services:
+  web:
+    deploy:
+      replicas: 3
+
+  api:
+    deploy:
+      replicas: 2
+```
+
+### Load Balancing
+
+Configure Nginx as load balancer:
+
+```nginx
+upstream api_servers {
+    server api1:18080;
+    server api2:18080;
+    server api3:18080;
+}
+
+server {
+    location /api/ {
+        proxy_pass http://api_servers;
+    }
+}
+```
+
+## Backup and Recovery
+
+### Data Backup
+
+```bash
+# Backup static assets
+tar -czf backup-$(date +%Y%m%d).tar.gz dist/
+
+# Backup configuration
+cp docker-compose.yml docker-compose.yml.backup
+cp nginx.conf nginx.conf.backup
+```
+
+### Disaster Recovery
+
+1. Maintain regular backups
+2. Document recovery procedures
+3. Test backup restoration
+4. Monitor system health
+
+## Support and Maintenance
+
+### Regular Maintenance
+
+- Update dependencies regularly
+```bash
+npm audit
+npm update
+```
+
+- Monitor Docker image updates
+- Review and rotate SSL certificates
+- Update security patches
+
+### Performance Monitoring
+
+Set up monitoring for:
+- Response times
+- Error rates
+- Resource utilization
+- User experience metrics
+
+---
+
+For additional support or questions, refer to the project documentation or create an issue in the repository.
