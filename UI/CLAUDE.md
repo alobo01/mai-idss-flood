@@ -12,7 +12,9 @@ This is a flood prediction system with three main components:
 
 The system uses XGBoost, Bayesian, and LSTM models to generate 1-3 day flood forecasts with uncertainty quantification via conformal prediction.
 
-## Common Development Commands
+## Docker-First Development
+
+**IMPORTANT**: All development, testing, and execution in this codebase is done through Docker. The system is designed to run entirely in containers - do not install Python dependencies or run services directly on the host machine.
 
 ### Full Stack Development
 ```bash
@@ -26,48 +28,44 @@ docker compose logs -f
 docker compose down
 ```
 
-### Backend Development
+### Backend Development (in Docker)
 ```bash
-cd backend
+# Backend runs in Docker container
+# Access container shell for debugging
+docker compose exec backend bash
 
-# Install dependencies
-pip install -r requirements.txt
+# Run backend commands in container
+docker compose exec backend python run.py
 
-# Run in development mode (requires database running)
-python run.py
-
-# Access API docs
+# Access API docs (when backend is running)
 # http://localhost:8003/docs (Swagger)
 # http://localhost:8003/redoc
 ```
 
-### Frontend Development
+### Frontend Development (in Docker)
 ```bash
-cd frontend
+# Frontend runs in Docker container
+# Access container shell for debugging
+docker compose exec frontend bash
 
-# Install dependencies
-npm install
-
-# Development server
-npm run dev
-
-# Production build
-npm run build
+# Frontend hot-reloads automatically in development mode
+# Access at http://localhost:8001
 ```
 
-### Database Operations
+### Database Operations (in Docker)
 ```bash
-# Load sample data into database
-python UI/scripts/load_raw_dataset.py --csv UI/database/demo_data/raw_dataset.csv
+# Access database container
+docker compose exec database psql -U flood_user -d flood_prediction
 
-# Fetch ZIP code geojson data
-python UI/scripts/fetch_and_store_zip_geojson.py --output Data/zip_zones.geojson
+# Run scripts via backend container (has required dependencies)
+docker compose exec backend python UI/scripts/load_raw_dataset.py --csv UI/database/demo_data/raw_dataset.csv
+docker compose exec backend python UI/scripts/fetch_and_store_zip_geojson.py --output Data/zip_zones.geojson
 ```
 
-### Model Training
+### Model Training (in Docker)
 ```bash
-cd Programs
-python 06_train_models.py  # Trains all 1, 2, 3-day models
+# Model training runs in backend container with access to models directory
+docker compose exec backend python Programs/06_train_models.py
 ```
 
 ## Key Architecture Patterns
@@ -102,12 +100,29 @@ Trained models are stored in `Results/L{1,2,3}d/models/` relative to the `Progra
 - `docker-compose.yml`: Service orchestration and networking
 - `frontend/vite.config.ts`: Build configuration and API proxy
 
-## Development Workflow
-1. Start services with `docker compose up -d`
-2. Backend auto-reloads on code changes in development mode
-3. Frontend hot-reloads via Vite
-4. Database persists data in Docker volumes
-5. Models are mounted from `Results/` directory into backend container
+## Development Workflow (Docker-Only)
+
+1. **Start all services**: `docker compose up -d`
+2. **Backend auto-reloads** on code changes in development mode (in container)
+3. **Frontend hot-reloads** via Vite (in container)
+4. **Database persists** data in Docker volumes
+5. **Models are mounted** from `Results/` directory into backend container
+6. **All testing** happens in the backend container via `docker compose exec`
+
+### Container Access for Debugging
+```bash
+# Access individual service containers
+docker compose exec backend bash    # Python/Debugging shell
+docker compose exec frontend bash   # Node.js/Shell access
+docker compose exec database psql -U flood_user -d flood_prediction  # DB shell
+```
+
+### Local Development Flow
+- Edit code locally using your IDE
+- Changes automatically sync into containers via volume mounts
+- Services hot-reload within containers
+- Run tests and commands via `docker compose exec`
+- Never install dependencies directly on host machine
 
 ## API Endpoints
 - `GET /predict`: Main prediction endpoint (1-3 day forecasts)
@@ -126,3 +141,37 @@ Key variables for development:
 - `DB_HOST=localhost`, `DB_PORT=5439`
 - `DB_NAME=flood_prediction`, `DB_USER=flood_user`, `DB_PASSWORD=flood_password`
 - `API_HOST=0.0.0.0`, `API_PORT=8003`
+
+## Testing (Docker-Only)
+
+### Backend Testing Configuration
+The backend uses pytest with the following configuration (from `backend/pytest.ini`):
+- Test files: `tests/test_*.py`
+- Minimum coverage: 80%
+- Test markers: `unit`, `integration`, `slow`, `database`, `external`
+- Coverage reports: terminal, HTML (`htmlcov/`), and XML
+
+**IMPORTANT**: All tests must be run in the Docker container - they are designed to run with the container's environment and database connections.
+
+### Test Commands (in Docker)
+```bash
+# Run all tests
+docker compose exec backend python -m pytest
+
+# Run with coverage reports
+docker compose exec backend python -m pytest --cov=app --cov-report=html
+
+# Run specific test file
+docker compose exec backend python -m pytest tests/test_api.py
+
+# Run tests by marker
+docker compose exec backend python -m pytest -m unit
+docker compose exec backend python -m pytest -m integration
+docker compose exec backend python -m pytest -m database
+
+# Run tests without external dependencies
+docker compose exec backend python -m pytest -m "not external"
+
+# Run tests with specific output format
+docker compose exec backend python -m pytest --tb=short -v
+```
