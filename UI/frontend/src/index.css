@@ -65,6 +65,28 @@
   @apply dark:bg-gray-900;
 }
 
+/* Fix z-index issues for map overlays */
+.leaflet-control-container {
+  z-index: 999;
+}
+
+/* Ensure map overlay elements appear above tiles */
+.leaflet-pane {
+  z-index: 1;
+}
+
+.leaflet-overlay-pane {
+  z-index: 4;
+}
+
+.leaflet-marker-pane {
+  z-index: 5;
+}
+
+.leaflet-popup-pane {
+  z-index: 7;
+}
+
 .leaflet-control-attribution {
   @apply dark:bg-gray-800 dark:text-gray-300;
 }
@@ -132,9 +154,14 @@
     @apply focus-operator min-h-[44px] min-w-[44px] font-semibold text-base px-4 py-2;
   }
 
+  /* Emergency badge improvements for better contrast */
+  .button-emergency.status-indicator {
+    @apply border-2 bg-card text-foreground font-bold;
+  }
+
   /* Card headers - better contrast */
   .card-header-emergency {
-    @apply bg-card border-b-2 border-border px-6 py-4;
+    @apply bg-muted border-b-2 border-border px-6 py-4;
   }
 
   /* Table improvements */
@@ -147,7 +174,7 @@
   }
 
   .table-emergency td {
-    @apply px-4 py-3 border-b border-border;
+    @apply px-4 py-3 border-b border-border text-foreground;
   }
 
   /* Alert improvements */
@@ -193,6 +220,17 @@
 /* Skip link for keyboard users */
 .skip-link {
   @apply absolute top-0 left-0 -translate-y-full focus:translate-y-0 bg-primary text-primary-foreground px-4 py-2 z-50;
+}
+
+/* Map overlay z-index fixes */
+.map-overlay {
+  z-index: 1000;
+  position: relative;
+}
+
+/* Ensure absolute positioned overlays in map are above tiles */
+.leaflet-container ~ .absolute {
+  z-index: 1000;
 }
 
 /* High contrast mode support */

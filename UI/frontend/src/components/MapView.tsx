@@ -54,12 +54,16 @@ const MapController: React.FC<{
         });
 
         if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [20, 20] });
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 11 });
         }
       } catch (error) {
         console.warn('Could not fit map to bounds:', error);
         // Fall back to default center/zoom
+        map.setView([38.627, -90.199], 11);
       }
+    } else {
+      // If no zones, ensure we're centered on St. Louis
+      map.setView([38.627, -90.199], 11);
     }
 
     const handleClick = (e: any) => {
@@ -287,7 +291,7 @@ export function MapView({
           </MapContainer>
 
           {/* Map controls overlay */}
-          <div className="absolute top-4 right-4 space-y-3">
+          <div className="absolute top-4 right-4 space-y-3 z-[1000]">
             <Card className="p-4 border-2 border-border shadow-lg bg-card">
               <div className="status-indicator text-sm">
                 <Clock className="h-4 w-4" aria-hidden="true" />
@@ -320,7 +324,7 @@ export function MapView({
 
           {/* Legends */}
           {(layers.rule || layers.risk) && (
-            <div className="absolute bottom-4 left-4 space-y-4">
+            <div className="absolute bottom-4 left-4 space-y-4 z-[1000]">
               {layers.rule && (
                 <Card className="p-4 border-2 border-border shadow-lg bg-card">
                   <div className="text-sm font-bold mb-3 text-foreground">Rule-based categories</div>

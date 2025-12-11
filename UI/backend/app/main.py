@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from .prediction.data_fetcher import DataFetcher
 from .db import (
     get_all_zones,
+    get_all_resource_types,
     get_last_30_days_raw_data,
     get_latest_prediction,
     get_prediction_history,
@@ -151,7 +152,7 @@ async def rule_based_dispatch(
     total_units: int = Query(20, ge=1, le=200, description="Total deployable response units"),
     mode: str = Query(
         "fuzzy",
-        pattern="^(crisp|fuzzy|proportional)$",
+        pattern="^(crisp|fuzzy|proportional|optimized)$",
         description="Allocation mode used by the rule-based planner",
     ),
     lead_time: int = Query(1, ge=1, le=7, description="Lead time (days ahead) for the cached prediction"),
@@ -160,6 +161,10 @@ async def rule_based_dispatch(
         ge=1,
         le=100,
         description="Optional hard cap on units per zone",
+    ),
+    use_optimizer: bool = Query(
+        False,
+        description="Use LP optimizer for fair allocation (ignores total_units, uses resource capacities)",
     ),
 ):
     """Build a rule-based dispatch plan using the latest cached prediction."""
@@ -184,11 +189,20 @@ async def rule_based_dispatch(
     pf_by_zone = compute_pf_by_zone_from_global(zone_rows, global_pf)
     zones = build_zones_from_data(zone_rows, pf_by_zone)
     zone_lookup = {zone.id: zone for zone in zones}
+    
+    # Get resource capacities if using optimizer
+    resource_capacities = None
+    if use_optimizer:
+        resource_data = get_all_resource_types()
+        resource_capacities = {r["resource_id"]: r.get("capacity", 0) for r in resource_data}
+    
     dispatch = build_dispatch_plan(
         zones,
         total_units=total_units,
         mode=mode.lower(),
         max_units_per_zone=max_units_per_zone,
+        use_optimizer=use_optimizer,
+        resource_capacities=resource_capacities,
     )
 
     for allocation in dispatch:
@@ -207,18 +221,30 @@ async def rule_based_dispatch(
 
     aggregated_resources = _aggregate_resource_units(dispatch)
     total_allocated_units = sum(zone.get("units_allocated", 0) for zone in dispatch)
+    
+    # Get resource type metadata
+    resource_metadata = {r["resource_id"]: r for r in get_all_resource_types()}
 
+    # Extract fairness level if using optimizer
+    fairness_level = None
+    if use_optimizer and dispatch:
+        fairness_level = dispatch[0].get("fairness_level")
+    
     return {
         "lead_time_days": lead_time,
         "mode": mode.lower(),
-        "total_units": total_units,
+        "use_optimizer": use_optimizer,
+        "total_units": total_units if not use_optimizer else total_allocated_units,
         "max_units_per_zone": max_units_per_zone,
         "global_flood_probability": global_pf,
         "last_prediction": latest,
         "resource_summary": {
             "total_allocated_units": total_allocated_units,
             "per_resource_type": aggregated_resources,
+            "available_capacity": resource_capacities if use_optimizer else None,
         },
+        "fairness_level": fairness_level,
+        "resource_metadata": resource_metadata,
         "impact_color_map": IMPACT_COLOR_MAP,
         "zones": dispatch,
     }
@@ -243,6 +269,64 @@ async def zones():
         return {"rows": df.to_dict(orient="records")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load zones: {e}")
+
+
+@app.get("/resource-types")
+async def resource_types():
+    """
+    Return all available resource types with metadata (name, description, icon).
+    """
+    try:
+        resources = get_all_resource_types()
+        if not resources:
+            raise HTTPException(status_code=404, detail="No resource types found")
+        return {"rows": resources}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load resource types: {e}")
+
+
+class ResourceCapacityUpdate(BaseModel):
+    """Model for updating resource capacity"""
+    capacities: Dict[str, int] = Field(description="Map of resource_id to new capacity")
+
+
+@app.put("/resource-types/capacities")
+async def update_resource_capacities(update: ResourceCapacityUpdate):
+    """
+    Update capacities for multiple resource types.
+    """
+    from .db import get_connection
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        updated_count = 0
+        for resource_id, capacity in update.capacities.items():
+            cursor.execute(
+                "UPDATE resource_types SET capacity = %s WHERE resource_id = %s",
+                (capacity, resource_id)
+            )
+            updated_count += cursor.rowcount
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        logger.info(f"Updated {updated_count} resource capacities")
+        
+        # Return updated resources
+        resources = get_all_resource_types()
+        return {
+            "success": True,
+            "updated_count": updated_count,
+            "resources": resources
+        }
+    except Exception as e:
+        logger.error(f"Failed to update resource capacities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update capacities: {e}")
 
 
 @app.get("/gauges")
