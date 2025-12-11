@@ -13,9 +13,13 @@ export function useBackendData() {
   useEffect(() => {
     let cancelled = false;
     let intervalId: number | undefined;
+    let isFirstLoad = true;
 
     async function fetchData() {
-      setLoading(true);
+      // Only show loading on first load, not on periodic updates
+      if (isFirstLoad) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const [predRes, rawRes, histRes] = await Promise.all([
@@ -42,7 +46,10 @@ export function useBackendData() {
           setError(e.message || 'Request failed');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && isFirstLoad) {
+          setLoading(false);
+          isFirstLoad = false;
+        }
       }
     }
 

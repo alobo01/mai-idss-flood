@@ -94,6 +94,7 @@ export function ResourcesPage() {
   const [heuristicResult, setHeuristicResult] = useState<DispatchResult | null>(null);
   const [optimizedResult, setOptimizedResult] = useState<DispatchResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedLeadTime, setSelectedLeadTime] = useState<number>(1);
   const [saving, setSaving] = useState(false);
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const { toast } = useToast();
@@ -125,13 +126,13 @@ export function ResourcesPage() {
   const fetchAllocations = async () => {
     setLoading(true);
     try {
-      // Fetch heuristic allocation
-      const heuristicRes = await fetch('/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=1');
+      // Fetch heuristic allocation (use selected lead time)
+      const heuristicRes = await fetch(`/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=${selectedLeadTime}`);
       const heuristicData = await heuristicRes.json();
       setHeuristicResult(heuristicData);
 
-      // Fetch optimized allocation
-      const optimizedRes = await fetch('/api/rule-based/dispatch?use_optimizer=true&lead_time=1');
+      // Fetch optimized allocation (use selected lead time)
+      const optimizedRes = await fetch(`/api/rule-based/dispatch?use_optimizer=true&lead_time=${selectedLeadTime}`);
       const optimizedData = await optimizedRes.json();
       setOptimizedResult(optimizedData);
     } catch (error) {
@@ -150,6 +151,11 @@ export function ResourcesPage() {
     fetchResources();
     fetchAllocations();
   }, []);
+
+  // Re-fetch allocations when lead time changes
+  useEffect(() => {
+    fetchAllocations();
+  }, [selectedLeadTime]);
 
   const handleCapacityChange = (resourceId: string, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -237,10 +243,24 @@ export function ResourcesPage() {
             Manage resource capacities and view allocation strategies
           </p>
         </div>
-        <Button onClick={fetchAllocations} disabled={loading}>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">Lead time (days)</Label>
+            <select
+              value={selectedLeadTime}
+              onChange={(e) => setSelectedLeadTime(parseInt(e.target.value))}
+              className="border rounded px-2 py-1 bg-white"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </div>
+          <Button onClick={fetchAllocations} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="capacity" className="space-y-4">

@@ -139,31 +139,127 @@ def predict_next_days(raw_data: pd.DataFrame, lead_times: List[int] = [1, 2, 3])
                     else:
                         risk_level = "LOW"
                         risk_color = "🟢"
+                # Try to include full intervals when possible. The DB cache only
+                # stores median and probability; compute intervals from models
+                # if the model files are available. If not available, include a
+                # small naive interval around the cached median so the API
+                # response remains consistent with the non-cached flow.
+                try:
+                    missing = _missing_model_files(lead_time)
+                    if not missing:
+                        predictor = FloodPredictorV2(
+                            lead_time_days=lead_time,
+                            model_dir=str(_model_dir_for_lead(lead_time))
+                        )
+                        # Compute full result (intervals, model breakdown)
+                        result = predictor.predict_from_raw_data(raw_data)
 
-                prediction = {
-                    'lead_time_days': lead_time,
-                    'forecast_date': forecast_date.strftime('%Y-%m-%d'),
-                    'forecast': {
-                        'median': round(cached['predicted_level'], 2) if cached['predicted_level'] is not None else None,
-                        'xgboost': None,
-                        'bayesian': None,
-                        'lstm': None,
-                    },
-                    'prediction_interval_80pct': None,
-                    'conformal_interval_80pct': None,
-                    'flood_risk': {
-                        'probability': round(cached['flood_probability'], 3) if cached['flood_probability'] is not None else None,
-                        'threshold_ft': 30.0,
-                        'risk_level': risk_level,
-                        'risk_indicator': risk_color,
-                    },
-                    'cached': True,
-                    'cached_at': str(cached.get('created_at'))
-                }
+                        # Prefer model-produced forecast but retain cached median/prob
+                        forecast = result.get('forecast', {})
+                        if cached.get('predicted_level') is not None:
+                            forecast['median'] = round(cached['predicted_level'], 2)
 
-                predictions.append(prediction)
-                logger.info(f"✓ Used cache for {lead_time}-day prediction: {prediction['forecast']['median']} ft")
-                continue
+                        prediction = {
+                            'lead_time_days': lead_time,
+                            'forecast_date': forecast_date.strftime('%Y-%m-%d'),
+                            'forecast': forecast,
+                            'prediction_interval_80pct': result.get('prediction_interval_80pct'),
+                            'conformal_interval_80pct': result.get('conformal_interval_80pct'),
+                            'flood_risk': {
+                                'probability': round(cached['flood_probability'], 3) if cached['flood_probability'] is not None else result.get('flood_risk', {}).get('probability'),
+                                'threshold_ft': 30.0,
+                                'risk_level': risk_level,
+                                'risk_indicator': risk_color,
+                            },
+                            'cached': True,
+                            'cached_at': str(cached.get('created_at'))
+                        }
+
+                        predictions.append(prediction)
+                        logger.info(f"✓ Used cache+models for {lead_time}-day prediction: {prediction['forecast']['median']} ft")
+                        continue
+                    else:
+                        # No model files: do NOT fabricate intervals. If the
+                        # cached record already contains interval bounds, return
+                        # them and mark as enriched-from-cache. Otherwise signal
+                        # that intervals are not enriched due to missing models.
+                        lower = cached.get('lower_bound_80')
+                        upper = cached.get('upper_bound_80')
+                        if lower is not None and upper is not None:
+                            pi = {'lower': round(float(lower), 2), 'upper': round(float(upper), 2), 'width': round(float(upper) - float(lower), 2)}
+                            intervals_enriched = True
+                            intervals_reason = 'cached'
+                        else:
+                            pi = None
+                            intervals_enriched = False
+                            intervals_reason = 'models_missing'
+
+                        prediction = {
+                            'lead_time_days': lead_time,
+                            'forecast_date': forecast_date.strftime('%Y-%m-%d'),
+                            'forecast': {
+                                'median': round(cached['predicted_level'], 2) if cached['predicted_level'] is not None else None,
+                                'xgboost': None,
+                                'bayesian': None,
+                                'lstm': None,
+                            },
+                            'prediction_interval_80pct': pi,
+                            'conformal_interval_80pct': None,
+                            'intervals_enriched': intervals_enriched,
+                            'intervals_enrichment_reason': intervals_reason,
+                            'flood_risk': {
+                                'probability': round(cached['flood_probability'], 3) if cached['flood_probability'] is not None else None,
+                                'threshold_ft': 30.0,
+                                'risk_level': risk_level,
+                                'risk_indicator': risk_color,
+                            },
+                            'cached': True,
+                            'cached_at': str(cached.get('created_at'))
+                        }
+
+                        predictions.append(prediction)
+                        logger.info(f"✓ Used cache (no models) for {lead_time}-day prediction: {prediction['forecast']['median']} ft")
+                        continue
+                except Exception as e:
+                    logger.warning(f"Failed to enrich cached prediction with intervals: {e}")
+                    # Do not fabricate intervals - surface enrichment failure.
+                    lower = cached.get('lower_bound_80')
+                    upper = cached.get('upper_bound_80')
+                    if lower is not None and upper is not None:
+                        pi = {'lower': round(float(lower), 2), 'upper': round(float(upper), 2), 'width': round(float(upper) - float(lower), 2)}
+                        intervals_enriched = True
+                        intervals_reason = 'cached'
+                    else:
+                        pi = None
+                        intervals_enriched = False
+                        intervals_reason = f'enrichment_failed: {str(e)}'
+
+                    prediction = {
+                        'lead_time_days': lead_time,
+                        'forecast_date': forecast_date.strftime('%Y-%m-%d'),
+                        'forecast': {
+                            'median': round(cached['predicted_level'], 2) if cached['predicted_level'] is not None else None,
+                            'xgboost': None,
+                            'bayesian': None,
+                            'lstm': None,
+                        },
+                        'prediction_interval_80pct': pi,
+                        'conformal_interval_80pct': None,
+                        'intervals_enriched': intervals_enriched,
+                        'intervals_enrichment_reason': intervals_reason,
+                        'flood_risk': {
+                            'probability': round(cached['flood_probability'], 3) if cached['flood_probability'] is not None else None,
+                            'threshold_ft': 30.0,
+                            'risk_level': risk_level,
+                            'risk_indicator': risk_color,
+                        },
+                        'cached': True,
+                        'cached_at': str(cached.get('created_at'))
+                    }
+
+                    predictions.append(prediction)
+                    logger.info(f"✓ Used cache (enrichment failed) for {lead_time}-day prediction: {prediction['forecast']['median']} ft")
+                    continue
 
             missing = _missing_model_files(lead_time)
             if missing:
@@ -208,7 +304,20 @@ def predict_next_days(raw_data: pd.DataFrame, lead_times: List[int] = [1, 2, 3])
             
             # Save to cache (database) - store median forecast and flood probability
             try:
-                insert_prediction(forecast_date.strftime('%Y-%m-%d'), float(result['forecast']['median']), float(result['flood_risk']['probability']), days_ahead=lead_time)
+                pi = result.get('prediction_interval_80pct') or {}
+                lower = pi.get('lower') if isinstance(pi, dict) else None
+                upper = pi.get('upper') if isinstance(pi, dict) else None
+
+                insert_prediction(
+                    forecast_date.strftime('%Y-%m-%d'),
+                    float(result['forecast']['median']),
+                    float(result['flood_risk']['probability']),
+                    days_ahead=lead_time,
+                    lower_bound_80=lower,
+                    upper_bound_80=upper,
+                    model_version=None,
+                    model_type=None,
+                )
             except Exception as e:
                 logger.warning(f"Failed to cache prediction for {forecast_date}: {e}")
             

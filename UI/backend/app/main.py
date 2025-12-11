@@ -18,6 +18,7 @@ from .db import (
     get_last_30_days_raw_data,
     get_latest_prediction,
     get_prediction_history,
+    get_prediction_history_with_actuals,
 )
 from .prediction_service import predict_next_days
 from .rule_based import (
@@ -131,10 +132,11 @@ async def raw_data():
 
 @app.get("/prediction-history")
 async def prediction_history(limit: int = 90):
-    """Return recent stored predictions (all horizons)."""
-    df = get_prediction_history(limit=limit)
+    """Return recent stored predictions (all horizons) joined with observed values for comparison."""
+    df = get_prediction_history_with_actuals(limit=limit)
     if df is None or df.empty:
         raise HTTPException(status_code=404, detail="No prediction history found")
+    # Normalize columns and convert to serializable types
     return {"rows": df.to_dict(orient="records")}
 
 
@@ -156,6 +158,12 @@ async def rule_based_dispatch(
         description="Allocation mode used by the rule-based planner",
     ),
     lead_time: int = Query(1, ge=1, le=7, description="Lead time (days ahead) for the cached prediction"),
+    global_pf: Optional[float] = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Optional override for global flood probability (0-1). If provided, uses this instead of cached prediction.",
+    ),
     max_units_per_zone: Optional[int] = Query(
         None,
         ge=1,
@@ -169,18 +177,27 @@ async def rule_based_dispatch(
 ):
     """Build a rule-based dispatch plan using the latest cached prediction."""
     latest = get_latest_prediction(days_ahead=lead_time)
-    if latest is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No cached prediction found for the {lead_time}-day horizon",
-        )
 
-    global_pf = latest.get("flood_probability")
-    if global_pf is None:
-        logger.warning("Latest prediction for %s-day lead time missing flood_probability", lead_time)
-        global_pf = 0.0
+    # Use explicit override if provided
+    if global_pf is not None:
+        try:
+            global_pf = float(global_pf)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid global_pf value")
+        global_pf = max(0.0, min(1.0, global_pf))
+    else:
+        if latest is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No cached prediction found for the {lead_time}-day horizon (and no global_pf override provided)",
+            )
 
-    global_pf = max(0.0, min(1.0, float(global_pf)))
+        global_pf = latest.get("flood_probability")
+        if global_pf is None:
+            logger.warning("Latest prediction for %s-day lead time missing flood_probability", lead_time)
+            global_pf = 0.0
+
+        global_pf = max(0.0, min(1.0, float(global_pf)))
 
     zone_rows = get_all_zones()
     if not zone_rows:
@@ -195,11 +212,15 @@ async def rule_based_dispatch(
     if use_optimizer:
         resource_data = get_all_resource_types()
         resource_capacities = {r["resource_id"]: r.get("capacity", 0) for r in resource_data}
-    
+    # Force fuzzy heuristic allocation regardless of the `mode` query param.
+    # The optimizer path (`use_optimizer=True`) is still respected.
+    forced_mode = "fuzzy"
+    logger.info("Forcing allocation mode to fuzzy (overriding mode=%s)", mode)
+
     dispatch = build_dispatch_plan(
         zones,
         total_units=total_units,
-        mode=mode.lower(),
+        mode=forced_mode,
         max_units_per_zone=max_units_per_zone,
         use_optimizer=use_optimizer,
         resource_capacities=resource_capacities,
@@ -218,6 +239,28 @@ async def rule_based_dispatch(
         zone_meta = zone_lookup.get(zone_id)
         allocation["vulnerability"] = round(zone_meta.vulnerability, 3) if zone_meta else None
         allocation["is_critical_infra"] = zone_meta.is_critical_infra if zone_meta else None
+        # Impact factor (iz) = pf * vulnerability
+        try:
+            pf_val = float(allocation.get("pf") or 0.0)
+            vuln_val = float(allocation.get("vulnerability") or 0.0)
+            impact_factor = round(pf_val * vuln_val, 4)
+        except Exception:
+            impact_factor = None
+        allocation["impact_factor"] = impact_factor
+
+        # Simple vulnerability category: LOW / MEDIUM / HIGH
+        def _vuln_category(v: Optional[float]) -> Optional[str]:
+            if v is None:
+                return None
+            if v < 0.33:
+                return "LOW"
+            if v < 0.66:
+                return "MEDIUM"
+            return "HIGH"
+
+        allocation["vulnerability_category"] = _vuln_category(allocation.get("vulnerability"))
+        # For backward compatibility provide a generic `category` field equal to vulnerability category
+        allocation["category"] = allocation["vulnerability_category"]
 
     aggregated_resources = _aggregate_resource_units(dispatch)
     total_allocated_units = sum(zone.get("units_allocated", 0) for zone in dispatch)
@@ -229,10 +272,17 @@ async def rule_based_dispatch(
     fairness_level = None
     if use_optimizer and dispatch:
         fairness_level = dispatch[0].get("fairness_level")
-    
+    # Check whether the fuzzy engine (simpful) is available for real fuzzy resource priorities
+    try:
+        from .rule_based import allocations as _allocs
+        fuzzy_engine_available = bool(getattr(_allocs, "_HAS_SIMPFUL", False))
+    except Exception:
+        fuzzy_engine_available = False
+
     return {
         "lead_time_days": lead_time,
-        "mode": mode.lower(),
+        "mode": forced_mode,
+        "fuzzy_engine_available": fuzzy_engine_available,
         "use_optimizer": use_optimizer,
         "total_units": total_units if not use_optimizer else total_allocated_units,
         "max_units_per_zone": max_units_per_zone,

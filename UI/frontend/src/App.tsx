@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PlannerMap } from './pages/planner/Map';
 import { ResourcesPage } from './pages/planner/Resources';
 import { AppProvider } from './contexts/AppContext';
@@ -16,6 +16,10 @@ function App() {
         </a>
 
         <div className="container mx-auto p-6">
+          <header className="flex items-center space-x-4 mb-4">
+            <img src="/images/logo.png" alt="IDSS logo" className="h-10 w-10 rounded" />
+            <h1 className="text-lg font-semibold">IDSS Flood Risk</h1>
+          </header>
           <main id="main-content">
             <Tabs defaultValue="map" className="space-y-4">
               <TabsList>

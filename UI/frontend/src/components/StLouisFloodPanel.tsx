@@ -35,10 +35,11 @@ const Sparkline: React.FC<{ series: number[]; predictions?: number[]; upper?: nu
       {upperPoly.length === lowerPoly.length && upperPoly.length > 0 && (
         <polygon
           points={[...upperPoly, ...lowerPoly].join(' ')}
-          fill="#0ea5e92b"
+          fill="#0ea5e9"
+          fillOpacity="0.3"
           stroke="#0ea5e9"
           strokeWidth="1"
-          strokeOpacity="0.4"
+          strokeOpacity="0.6"
         />
       )}
       <polyline fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" points={obsPts.join(' ')} />
@@ -163,7 +164,7 @@ export function StLouisFloodPanel() {
                   <div className="flex items-center gap-4 text-xs">
                     <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-slate-800 rounded" /> Observed</span>
                     <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-sky-600 rounded border border-sky-600 border-dashed" /> Forecast</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-2 bg-sky-200/80 rounded-sm" /> 80% PI</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-2 bg-sky-500/80 rounded-sm" /> 80% PI</span>
                   </div>
                 </div>
                 <Sparkline series={historySeries} predictions={predictedSeries} upper={predictedUpper} lower={predictedLower} />
