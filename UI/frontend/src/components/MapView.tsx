@@ -74,7 +74,7 @@ export function MapView({
   className = ''
 }: MapViewProps) {
   const [mapCenter] = useState<[number, number]>([38.627, -90.199]); // St. Louis
-  const [mapZoom] = useState(11);
+  const [mapZoom] = useState(15);
 
   // Validate zones data
   if (!zones || !zones.features || zones.features.length === 0) {

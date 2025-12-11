@@ -12,6 +12,8 @@ export function useBackendData() {
 
   useEffect(() => {
     let cancelled = false;
+    let intervalId: number | undefined;
+
     async function fetchData() {
       setLoading(true);
       setError(null);
@@ -43,9 +45,18 @@ export function useBackendData() {
         if (!cancelled) setLoading(false);
       }
     }
+
+    // Initial fetch
     fetchData();
+
+    // Poll every 10 seconds
+    intervalId = window.setInterval(() => {
+      fetchData();
+    }, 10000);
+
     return () => {
       cancelled = true;
+      if (intervalId !== undefined) window.clearInterval(intervalId);
     };
   }, []);
 
