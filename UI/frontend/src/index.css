@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Emergency Operator Conservative Theme - Enhanced Contrast */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+    --primary: 240 10% 15%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 15%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Dark mode optimized for emergency operators */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Leaflet styles for dark mode */
+.leaflet-container {
+  @apply dark:bg-gray-900;
+}
+
+.leaflet-control-attribution {
+  @apply dark:bg-gray-800 dark:text-gray-300;
+}
+
+.leaflet-control-zoom {
+  @apply dark:bg-gray-800 dark:border-gray-600;
+}
+
+.leaflet-control-zoom a {
+  @apply dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600;
+}
+
+.leaflet-control-zoom a:hover {
+  @apply dark:bg-gray-600;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply dark:bg-gray-800 dark:text-gray-200;
+}
+
+.leaflet-popup-tip {
+  @apply dark:bg-gray-800;
+}
+
+/* Emergency Operator UI Enhancements */
+@layer utilities {
+  /* High contrast focus indicators for keyboard navigation */
+  .focus-operator {
+    @apply focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Emergency status colors - WCAG AA compliant */
+  .emergency-severe {
+    @apply bg-red-600 text-white font-bold border-2 border-red-700;
+  }
+
+  .emergency-high {
+    @apply bg-orange-600 text-white font-semibold border-2 border-orange-700;
+  }
+
+  .emergency-moderate {
+    @apply bg-yellow-600 text-black font-semibold border-2 border-yellow-700;
+  }
+
+  .emergency-low {
+    @apply bg-green-600 text-white font-medium border-2 border-green-700;
+  }
+
+  /* Critical data display - larger, high contrast */
+  .critical-data {
+    @apply text-2xl font-bold text-foreground tabular-nums;
+  }
+
+  .critical-label {
+    @apply text-sm font-semibold uppercase tracking-wider text-foreground;
+  }
+
+  /* Status indicators with icons */
+  .status-indicator {
+    @apply flex items-center gap-2 text-sm font-medium;
+  }
+
+  /* Button enhancements for emergency operators */
+  .button-emergency {
+    @apply focus-operator min-h-[44px] min-w-[44px] font-semibold text-base px-4 py-2;
+  }
+
+  /* Card headers - better contrast */
+  .card-header-emergency {
+    @apply bg-card border-b-2 border-border px-6 py-4;
+  }
+
+  /* Table improvements */
+  .table-emergency {
+    @apply text-base;
+  }
+
+  .table-emergency th {
+    @apply bg-muted font-bold text-foreground px-4 py-3 text-left border-b-2 border-border;
+  }
+
+  .table-emergency td {
+    @apply px-4 py-3 border-b border-border;
+  }
+
+  /* Alert improvements */
+  .alert-emergency {
+    @apply border-2 font-semibold text-base p-4 rounded-lg;
+  }
+
+  /* Risk level badges with better contrast */
+  .risk-severe {
+    @apply bg-red-100 text-red-900 border-2 border-red-300 font-bold;
+  }
+
+  .risk-high {
+    @apply bg-orange-100 text-orange-900 border-2 border-orange-300 font-bold;
+  }
+
+  .risk-moderate {
+    @apply bg-yellow-100 text-yellow-900 border-2 border-yellow-300 font-bold;
+  }
+
+  .risk-low {
+    @apply bg-green-100 text-green-900 border-2 border-green-300 font-semibold;
+  }
+
+  /* Dark mode risk badges */
+  .dark .risk-severe {
+    @apply bg-red-900 text-red-100 border-red-700;
+  }
+
+  .dark .risk-high {
+    @apply bg-orange-900 text-orange-100 border-orange-700;
+  }
+
+  .dark .risk-moderate {
+    @apply bg-yellow-900 text-yellow-100 border-yellow-700;
+  }
+
+  .dark .risk-low {
+    @apply bg-green-900 text-green-100 border-green-700;
+  }
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  @apply absolute top-0 left-0 -translate-y-full focus:translate-y-0 bg-primary text-primary-foreground px-4 py-2 z-50;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: 0 0% 0%;
+    --muted-foreground: 0 0% 20%;
+  }
+
+  .emergency-severe,
+  .emergency-high,
+  .emergency-moderate,
+  .emergency-low {
+    @apply border-4;
+  }
+}

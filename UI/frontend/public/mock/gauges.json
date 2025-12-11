@@ -1,0 +1,57 @@
+[
+  {
+    "id": "G-MISS-NORTH",
+    "name": "Mississippi River - North",
+    "lat": 38.7700,
+    "lng": -90.1800,
+    "level_m": 7.9,
+    "trend": "rising",
+    "alert_threshold": 7.5,
+    "critical_threshold": 8.2,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-MISS-DOWNTOWN",
+    "name": "Mississippi River - Downtown STL",
+    "lat": 38.6300,
+    "lng": -90.1800,
+    "level_m": 7.2,
+    "trend": "rising",
+    "alert_threshold": 7.0,
+    "critical_threshold": 7.8,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-MISS-SOUTH",
+    "name": "Mississippi River - South City",
+    "lat": 38.5600,
+    "lng": -90.2000,
+    "level_m": 6.9,
+    "trend": "steady",
+    "alert_threshold": 6.8,
+    "critical_threshold": 7.4,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-DES-PERES",
+    "name": "River des Peres",
+    "lat": 38.5900,
+    "lng": -90.3000,
+    "level_m": 2.1,
+    "trend": "rising",
+    "alert_threshold": 2.3,
+    "critical_threshold": 2.8,
+    "last_updated": "2025-11-11T12:00:00Z"
+  },
+  {
+    "id": "G-METRO-STORM",
+    "name": "Metro Storm Drain",
+    "lat": 38.6450,
+    "lng": -90.2500,
+    "level_m": 1.8,
+    "trend": "steady",
+    "alert_threshold": 2.2,
+    "critical_threshold": 2.6,
+    "last_updated": "2025-11-11T12:00:00Z"
+  }
+]

@@ -18,10 +18,12 @@ CREATE TABLE IF NOT EXISTS raw_data (
 
 -- Model predictions
 CREATE TABLE IF NOT EXISTS predictions (
-    date DATE PRIMARY KEY,
+    date DATE NOT NULL,
     predicted_level DOUBLE PRECISION,
     flood_probability DOUBLE PRECISION CHECK (flood_probability >= 0 AND flood_probability <= 1),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    days_ahead INTEGER CHECK (days_ahead >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT predictions_pkey PRIMARY KEY (date, days_ahead)
 );
 
 -- Zone metadata
