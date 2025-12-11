@@ -1,27 +1,43 @@
-# Flood Prediction API Backend
+# Flood Prediction Backend
 
-FastAPI backend for the flood prediction system. Provides a `/predict` endpoint that generates 1-3 day river level forecasts using trained ML models.
+A sophisticated FastAPI-based microservice that provides real-time flood predictions, risk assessments, and resource allocation optimization for emergency response planning. This backend integrates advanced machine learning models with rule-based algorithms to deliver actionable intelligence for flood disaster management.
 
-## Features
+## 🌊 Overview
 
-- **Single prediction endpoint** (`/predict`) that returns 1, 2, and 3-day forecasts
-- **Dual data sources**: Use database or real-time APIs (USGS + weather)
-- **Automatic model loading**: Loads pre-trained XGBoost, Bayesian, and LSTM models
-- **Uncertainty quantification**: Conformal prediction intervals
-- **Flood risk assessment**: Probability and risk level for each forecast
+The backend serves as the computational core of the MAI IDSS (Intelligent Decision Support System), providing:
 
-## Project Structure
+- **Multi-horizon flood predictions** (1-3 days ahead) using ensemble ML models
+- **Uncertainty quantification** via conformal prediction intervals
+- **Rule-based resource allocation** with fuzzy logic optimization
+- **Real-time data integration** from USGS gauges and weather APIs
+- **Geospatial analysis** with PostGIS-enabled PostgreSQL database
+
+## 🏗 Architecture
+
+### Core Components
 
 ```
 backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py                 # FastAPI app and routes
-│   ├── db.py                   # Database connection and queries
-│   └── prediction_service.py   # Prediction logic using FloodPredictorV2
-├── requirements.txt            # Python dependencies
-├── .env.example               # Environment variables template
-└── run.py                     # Development server launcher
+│   ├── main.py                    # FastAPI application entry point
+│   ├── db.py                      # Database connection and queries
+│   ├── prediction_service.py      # ML model orchestration
+│   ├── prediction/                # ML inference modules
+│   │   ├── inference_api.py       # Core prediction engine
+│   │   ├── feature_engineer.py    # Data preprocessing
+│   │   └── data_fetcher.py        # Real-time API integration
+│   └── rule_based/                # Resource allocation system
+│       ├── allocations.py         # Resource distribution logic
+│       ├── optimizer.py           # Linear programming optimization
+│       ├── zones.py               # Zone management
+│       └── zone_config.py         # Zone configurations
+├── models/                        # Trained ML models
+│   ├── L1d/                       # 1-day ahead models
+│   ├── L2d/                       # 2-day ahead models
+│   └── L3d/                       # 3-day ahead models
+├── requirements.txt               # Python dependencies
+├── Dockerfile                     # Container configuration
+└── run.py                        # Development server
 ```
 
 ## Setup

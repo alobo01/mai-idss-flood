@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { AlertTriangle, Clock, Activity, Droplets, TrendingUp, ShieldHalf, Waves } from 'lucide-react';
+import { AlertTriangle, Clock, Activity, Droplets, TrendingUp, ShieldHalf, Waves, Calendar } from 'lucide-react';
 import { useBackendData } from '@/hooks/useBackendData';
 import { BackendPrediction, PredictionHistoryItem } from '@/types';
 
@@ -104,7 +104,7 @@ export function StLouisFloodPanel() {
             St. Louis River Dashboard
           </CardTitle>
           <p className="text-sm text-gray-600">
-            Live gauges + 1–3 day forecasts with uncertainty
+            Database readings with 1–3 day forecasts and uncertainty
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap text-xs">

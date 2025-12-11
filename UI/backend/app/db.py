@@ -272,3 +272,33 @@ def get_all_zones() -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Failed to fetch zones: {e}")
         return []
+
+
+def get_all_resource_types() -> List[Dict[str, Any]]:
+    """Fetch all resource types from the database."""
+    query = """
+        SELECT
+            resource_id,
+            name,
+            description,
+            icon,
+            display_order,
+            capacity
+        FROM resource_types
+        ORDER BY display_order
+    """
+
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        if df.empty:
+            return []
+        records = df.to_dict(orient="records")
+        normalized = []
+        for row in records:
+            normalized.append({str(k): v for k, v in row.items()})
+        return normalized
+    except Exception as e:
+        logger.error(f"Failed to fetch resource types: {e}")
+        return []
