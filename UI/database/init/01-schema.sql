@@ -18,10 +18,12 @@ CREATE TABLE IF NOT EXISTS raw_data (
 
 -- Model predictions
 CREATE TABLE IF NOT EXISTS predictions (
-    date DATE PRIMARY KEY,
+    date DATE NOT NULL,
     predicted_level DOUBLE PRECISION,
     flood_probability DOUBLE PRECISION CHECK (flood_probability >= 0 AND flood_probability <= 1),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    days_ahead INTEGER CHECK (days_ahead >= 0),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT predictions_pkey PRIMARY KEY (date, days_ahead)
 );
 
 -- Zone metadata
@@ -46,6 +48,17 @@ CREATE TABLE IF NOT EXISTS zip_zones (
 CREATE TABLE IF NOT EXISTS zip_geojson (
     zip_code CHAR(5) PRIMARY KEY,
     geojson JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Resource types catalog
+CREATE TABLE IF NOT EXISTS resource_types (
+    resource_id VARCHAR(20) PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    icon TEXT NOT NULL,
+    display_order INTEGER NOT NULL,
+    capacity INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -96,3 +109,14 @@ INSERT INTO zip_zones (zip_code, zone_id) VALUES
   ('63179', 'ZC'),
   ('63188', 'ZC')
 ON CONFLICT (zip_code) DO NOTHING;
+
+-- Seed resource types with default capacities
+INSERT INTO resource_types (resource_id, name, description, icon, display_order, capacity) VALUES
+  ('R1_UAV', 'UAV Reconnaissance', 'Unmanned aerial vehicles for aerial surveillance and damage assessment', '🚁', 1, 10),
+  ('R2_ENGINEERING', 'Engineering Teams', 'Specialized engineering teams for infrastructure assessment and emergency repairs', '🔧', 2, 15),
+  ('R3_PUMPS', 'Water Pumps', 'High-capacity water pumps for flood water removal and drainage', '💧', 3, 20),
+  ('R4_RESCUE', 'Rescue Teams', 'Swift water rescue teams and emergency response personnel', '🚤', 4, 25),
+  ('R5_EVAC', 'Evacuation Support', 'Personnel and vehicles for coordinated evacuation operations', '🚐', 5, 30),
+  ('R6_MEDICAL', 'Medical Strike Teams', 'Mobile medical units and emergency healthcare personnel', '⚕️', 6, 12),
+  ('R7_CI', 'Critical Infrastructure', 'Teams specialized in protecting and restoring critical infrastructure', '🏭', 7, 8)
+ON CONFLICT (resource_id) DO NOTHING;

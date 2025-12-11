@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgis/postgis:15-3.3
@@ -11,18 +13,69 @@ services:
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
+      - ../database/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U flood_user -d flood_prediction"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - flood-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: UI/backend/Dockerfile
+    container_name: flood-backend
+    ports:
+      - "8003:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=flood_prediction
+      - DB_USER=flood_user
+      - DB_PASSWORD=flood_password
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      - ../Programs:/Programs:ro
+      - ../Results:/Results:ro
+      - ../Data:/Data:ro
+      - ./backend/models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - flood-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-/api}
+    container_name: flood-frontend
+    ports:
+      - "8001:80"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-/api}
+    depends_on:
+      - backend
+    networks:
+      - flood-network
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  default:
-    name: flood-network
+  flood-network:
+    driver: bridge

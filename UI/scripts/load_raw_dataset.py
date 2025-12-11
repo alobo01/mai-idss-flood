@@ -23,13 +23,48 @@ from typing import Any, Dict
 import psycopg2
 
 DEFAULT_CSV = Path("../database/demo_data/raw_dataset.csv")
+FEATURE_COLUMNS = [
+    "daily_precip",
+    "daily_temp_avg",
+    "daily_snowfall",
+    "daily_humidity",
+    "daily_wind",
+    "soil_deep_30d",
+    "target_level_max",
+    "hermann_level",
+    "grafton_level",
+]
+MAX_MISSING_FEATURES = 2
 
 
 def load_rows(csv_path: Path):
     with csv_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            yield row
+            sanitized = sanitize_row(row)
+            if sanitized is None:
+                continue
+            yield sanitized
+
+
+def sanitize_row(row: Dict[str, Any]) -> Dict[str, Any] | None:
+    missing = []
+    for feature in FEATURE_COLUMNS:
+        value = row.get(feature)
+        if value is None or (isinstance(value, str) and value.strip() == ""):
+            missing.append(feature)
+            row[feature] = 0
+    if missing:
+        date = row.get("date", "<unknown date>")
+        print(
+            f"Warning: {len(missing)} missing feature(s) for {date}; setting {', '.join(missing)} to 0"
+        )
+    if len(missing) > MAX_MISSING_FEATURES:
+        print(
+            f"Warning: dropping row for {row.get('date', '<unknown>')} because {len(missing)} features missing"
+        )
+        return None
+    return row
 
 
 def upsert_rows(conn, rows):
