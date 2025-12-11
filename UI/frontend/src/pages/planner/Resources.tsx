@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ResourceType {
@@ -27,6 +27,9 @@ interface ZoneAllocation {
   satisfaction_level?: number;
   priority_index: number;
   impact_level: string;
+  pf?: number;
+  vulnerability?: number;
+  is_critical_infra?: boolean;
 }
 
 interface DispatchResult {
@@ -41,6 +44,49 @@ interface DispatchResult {
   };
   zones: ZoneAllocation[];
   resource_metadata: Record<string, ResourceType>;
+}
+
+// Helper function to generate rule explanation based on antecedents
+function getRuleExplanation(zone: ZoneAllocation): { title: string; details: string[] } {
+  const pf = zone.pf ?? 0;
+  const vulnerability = zone.vulnerability ?? 0;
+  const iz = pf * vulnerability; // Impact zone (flood probability × vulnerability)
+  const isCriticalInfra = zone.is_critical_infra ?? false;
+  const impact = zone.impact_level;
+
+  const details: string[] = [];
+  
+  // Antecedent 1: Flood probability
+  details.push(`Flood probability (PF): ${(pf * 100).toFixed(1)}%`);
+  
+  // Antecedent 2: Vulnerability
+  details.push(`Zone vulnerability: ${vulnerability.toFixed(2)}`);
+  
+  // Derived impact zone
+  details.push(`Impact zone (PF × Vulnerability): ${iz.toFixed(3)}`);
+  
+  // Antecedent 3: Critical infrastructure status
+  if (isCriticalInfra) {
+    details.push(`⚠️ Critical infrastructure present (+10% allocation boost)`);
+  }
+  
+  // Rule classification
+  let ruleTitle = '';
+  if (iz < 0.3) {
+    ruleTitle = 'Rule: NORMAL (IZ < 0.3) → 0% base allocation';
+  } else if (iz < 0.6) {
+    ruleTitle = 'Rule: ADVISORY (0.3 ≤ IZ < 0.6) → 10% base allocation';
+  } else if (iz < 0.8) {
+    ruleTitle = 'Rule: WARNING (0.6 ≤ IZ < 0.8) → 30% base allocation';
+  } else {
+    const criticalBonus = isCriticalInfra ? ' + 10% critical infra bonus' : '';
+    ruleTitle = `Rule: CRITICAL (IZ ≥ 0.8) → ${isCriticalInfra ? '60%' : '50%'} base allocation${criticalBonus}`;
+  }
+  
+  return {
+    title: ruleTitle,
+    details
+  };
 }
 
 export function ResourcesPage() {
@@ -320,33 +366,52 @@ export function ResourcesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {heuristicResult.zones.map(zone => (
-                      <div key={zone.zone_id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold">{zone.zone_name}</h4>
-                            <Badge className={getImpactColor(zone.impact_level)}>
-                              {zone.impact_level}
-                            </Badge>
+                    {heuristicResult.zones.map(zone => {
+                      const explanation = getRuleExplanation(zone);
+                      return (
+                        <div key={zone.zone_id} className="border rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold">{zone.zone_name}</h4>
+                              <Badge className={getImpactColor(zone.impact_level)}>
+                                {zone.impact_level}
+                              </Badge>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold">{zone.units_allocated}</p>
+                              <p className="text-xs text-muted-foreground">units allocated</p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold">{zone.units_allocated}</p>
-                            <p className="text-xs text-muted-foreground">units allocated</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                          {resources.map(resource => {
-                            const allocated = zone.resource_units[resource.resource_id] || 0;
-                            return (
-                              <div key={resource.resource_id} className="text-center border rounded p-2">
-                                <div className="text-xl">{resource.icon}</div>
-                                <div className="text-lg font-semibold">{allocated}</div>
+                          
+                          {/* Rule Explanation */}
+                          <div className="mb-3 p-3 bg-muted/50 rounded-md border border-muted">
+                            <div className="flex items-start space-x-2">
+                              <Info className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                              <div className="text-sm space-y-1">
+                                <p className="font-semibold text-blue-900 dark:text-blue-100">{explanation.title}</p>
+                                <div className="text-muted-foreground space-y-0.5">
+                                  {explanation.details.map((detail, idx) => (
+                                    <p key={idx} className="text-xs leading-relaxed">{detail}</p>
+                                  ))}
+                                </div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
+                            {resources.map(resource => {
+                              const allocated = zone.resource_units[resource.resource_id] || 0;
+                              return (
+                                <div key={resource.resource_id} className="text-center border rounded p-2">
+                                  <div className="text-xl">{resource.icon}</div>
+                                  <div className="text-lg font-semibold">{allocated}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

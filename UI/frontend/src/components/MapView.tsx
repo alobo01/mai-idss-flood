@@ -41,29 +41,12 @@ const MapController: React.FC<{
   const map = useMap();
 
   useEffect(() => {
-    // Fit map to show all zones when data loads
-    if (zones?.features?.length > 0) {
-      try {
-        const bounds = L.latLngBounds([]);
-        zones.features.forEach((feature) => {
-          if (feature.geometry?.coordinates?.[0]) {
-            feature.geometry.coordinates[0].forEach((coord: number[]) => {
-              bounds.extend([coord[1], coord[0]]);
-            });
-          }
-        });
-
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 11 });
-        }
-      } catch (error) {
-        console.warn('Could not fit map to bounds:', error);
-        // Fall back to default center/zoom
-        map.setView([38.627, -90.199], 11);
-      }
-    } else {
-      // If no zones, ensure we're centered on St. Louis
-      map.setView([38.627, -90.199], 11);
+    // Always center on the St. Louis gauge for a city-level view.
+    // Avoid auto-fitting large geojson bounds which would zoom out to the whole region.
+    try {
+      map.setView([38.627, -90.199], 15);
+    } catch (error) {
+      console.warn('Could not set map view to St. Louis center:', error);
     }
 
     const handleClick = (e: any) => {
