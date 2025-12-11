@@ -10,6 +10,19 @@ This file merges:
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
+# simpful import for fuzzy resource priorities
+try:
+    from simpful import (
+        FuzzySystem,
+        AutoTriangle,
+        TriangleFuzzySet,
+        LinguisticVariable,
+    )
+    _HAS_SIMPFUL = True
+except Exception:
+    _HAS_SIMPFUL = False
+
+
 # ---------------------------------------------------------------------------
 # Optional import for extended zone attributes (safe fallback)
 # ---------------------------------------------------------------------------
@@ -36,7 +49,17 @@ class Zone:
 # Resource type definitions (your extension)
 # ---------------------------------------------------------------------------
 
-RESOURCE_TYPES = ["R1_UAV", "R2_ENGINEERING", "R3_PUMPS", "R4_RESCUE", "R5_EVAC"]
+RESOURCE_TYPES = [
+    "R1_UAV",
+    "R2_ENGINEERING",
+    "R3_PUMPS",
+    "R4_RESCUE",
+    "R5_EVAC",
+    "R6_MEDICAL",
+    "R7_CI",
+]
+
+
 
 
 def _get_zone_attrs(zone: Zone) -> Dict[str, float]:
@@ -157,12 +180,183 @@ def recommend_resources_fuzzy(zone: Zone, total_units: int) -> Dict:
         "units_allocated": units,
     }
 
+# ---------------------------------------------------------------------------
+# FUZZY MULTI-RESOURCE PRIORITIES USING SIMPFUL
+# ---------------------------------------------------------------------------
+
+_RESOURCE_FS: Optional["FuzzySystem"] = None  # type: ignore[name-defined]
+
+
+def _build_resource_fuzzy_system() -> "FuzzySystem":  # type: ignore[name-defined]
+    """
+    Fuzzy system that maps zone + hazard attributes to a [0,1] priority for each resource.
+    Inputs and outputs live in [0,1] and use low/medium/high fuzzy sets.
+    """
+    FS = FuzzySystem(show_banner=False)
+
+
+    # ---- Input variables (all normalized in [0,1]) ----
+    # PF: flood probability / intensity
+    PF_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+    V_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+    RIVER_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+    ELEV_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+    POP_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+    CI_LV = AutoTriangle(
+        3,
+        terms=["low", "medium", "high"],
+        universe_of_discourse=[0.0, 1.0],
+    )
+
+    FS.add_linguistic_variable("PF", PF_LV)
+    FS.add_linguistic_variable("VULN", V_LV)
+    FS.add_linguistic_variable("RIVER", RIVER_LV)
+    FS.add_linguistic_variable("ELEV", ELEV_LV)
+    FS.add_linguistic_variable("POP", POP_LV)
+    FS.add_linguistic_variable("CI", CI_LV)
+
+    # ---- Output variables: priority in [0,1] for each resource ----
+    def _priority_lv() -> LinguisticVariable:
+        return LinguisticVariable(
+            [
+                TriangleFuzzySet(0.0, 0.0, 0.4, term="low"),
+                TriangleFuzzySet(0.0, 0.5, 1.0, term="medium"),
+                TriangleFuzzySet(0.6, 1.0, 1.0, term="high"),
+            ],
+            universe_of_discourse=[0.0, 1.0],
+        )
+
+    FS.add_linguistic_variable("R1_UAV_PRI", _priority_lv())
+    FS.add_linguistic_variable("R2_ENGINEERING_PRI", _priority_lv())
+    FS.add_linguistic_variable("R3_PUMPS_PRI", _priority_lv())
+    FS.add_linguistic_variable("R4_RESCUE_PRI", _priority_lv())
+    FS.add_linguistic_variable("R5_EVAC_PRI", _priority_lv())
+    FS.add_linguistic_variable("R6_MEDICAL_PRI", _priority_lv())
+    FS.add_linguistic_variable("R7_CI_PRI", _priority_lv())
+
+
+    # ---- Fuzzy rules (Mamdani style) ----
+
+
+    rules = [
+        # UAV & engineering when close to river and PF not low
+        "IF (RIVER IS high) AND (PF IS medium) THEN (R1_UAV_PRI IS medium)",
+        "IF (RIVER IS high) AND (PF IS medium) THEN (R2_ENGINEERING_PRI IS low)",
+
+        "IF (RIVER IS high) AND (PF IS high) THEN (R1_UAV_PRI IS high)",
+        "IF (RIVER IS high) AND (PF IS high) THEN (R2_ENGINEERING_PRI IS medium)",
+
+        # Engineering for highly vulnerable + high PF
+        "IF (VULN IS high) AND (PF IS high) THEN (R2_ENGINEERING_PRI IS high)",
+
+        # Pumps for high elevation risk and non-low PF
+        "IF (ELEV IS high) AND (PF IS medium) THEN (R3_PUMPS_PRI IS medium)",
+        "IF (ELEV IS high) AND (PF IS high) THEN (R3_PUMPS_PRI IS high)",
+
+        # Rescue for high PF OR high vulnerability
+        "IF (PF IS high) OR (VULN IS high) THEN (R4_RESCUE_PRI IS high)",
+
+        # Evacuation for high population and non-low PF
+        "IF (POP IS high) AND (PF IS medium) THEN (R5_EVAC_PRI IS medium)",
+        "IF (POP IS high) AND (PF IS high) THEN (R5_EVAC_PRI IS high)",
+
+        # Critical infrastructure boosts engineering + evac
+        "IF (CI IS high) THEN (R2_ENGINEERING_PRI IS medium)",
+        "IF (CI IS high) THEN (R5_EVAC_PRI IS medium)",
+        # Medical strike teams: high population and non-low PF (health surge),
+        # plus extra emphasis if CI (e.g. hospitals) is high.
+        "IF (POP IS high) AND (PF IS medium) THEN (R6_MEDICAL_PRI IS medium)",
+        "IF (POP IS high) AND (PF IS high) THEN (R6_MEDICAL_PRI IS high)",
+        "IF (CI IS high) AND (PF IS high) THEN (R6_MEDICAL_PRI IS high)",
+
+        # CI protection / repair: triggered mainly by high CI exposure, more strongly
+        # when flood risk is high.
+        "IF (CI IS high) THEN (R7_CI_PRI IS medium)",
+        "IF (CI IS high) AND (PF IS high) THEN (R7_CI_PRI IS high)",
+     ]
+
+
+    FS.add_rules(rules)
+    return FS
+
+
+if _HAS_SIMPFUL:
+    _RESOURCE_FS = _build_resource_fuzzy_system()
+else:
+    _RESOURCE_FS = None
+
+
+def fuzzy_resource_scores(zone: Zone) -> Dict[str, float]:
+    """
+    Compute resource priority scores in [0,1] using the simpful fuzzy system.
+
+    If simpful is not available, fall back to the legacy crisp rules.
+    """
+    global _RESOURCE_FS
+
+    if not _HAS_SIMPFUL or _RESOURCE_FS is None:
+        # Fallback: maintain behaviour if the library is missing.
+        return old_rule_based_resource_scores(zone)
+
+    FS = _RESOURCE_FS
+
+    attrs = _get_zone_attrs(zone)
+    river = attrs["river_proximity"]
+    elev = attrs["elevation_risk"]
+    pop = attrs["pop_density"]
+    ci = attrs["crit_infra_score"]
+
+    # Clamp all inputs to [0,1] to match the universe_of_discourse
+    clamp = lambda x: max(0.0, min(1.0, float(x)))
+
+    FS.set_variable("PF", clamp(zone.pf))
+    FS.set_variable("VULN", clamp(zone.vulnerability))
+    FS.set_variable("RIVER", clamp(river))
+    FS.set_variable("ELEV", clamp(elev))
+    FS.set_variable("POP", clamp(pop))
+    FS.set_variable("CI", clamp(ci))
+
+    out = FS.inference()
+
+    # Map the fuzzy outputs to your resource types (crisp scores in [0,1])
+    scores = {
+    "R1_UAV":         float(out.get("R1_UAV_PRI", 0.0)),
+    "R2_ENGINEERING": float(out.get("R2_ENGINEERING_PRI", 0.0)),
+    "R3_PUMPS":       float(out.get("R3_PUMPS_PRI", 0.0)),
+    "R4_RESCUE":      float(out.get("R4_RESCUE_PRI", 0.0)),
+    "R5_EVAC":        float(out.get("R5_EVAC_PRI", 0.0)),
+    "R6_MEDICAL":     float(out.get("R6_MEDICAL_PRI", 0.0)),
+    "R7_CI":          float(out.get("R7_CI_PRI", 0.0)),
+    }
+
+
+    return scores
 
 # ---------------------------------------------------------------------------
-# MULTI-RESOURCE RULES (your extension)
+# OLD JUST IF SIMPFUL DOESNT WORK
 # ---------------------------------------------------------------------------
 
-def rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
+def old_rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
     attrs = _get_zone_attrs(zone)
     river, elev, pop, ci = (
         attrs["river_proximity"],
@@ -199,18 +393,32 @@ def rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
     return scores
 
 
-def resource_priority_list(zone: Zone) -> Dict:
-    scores = rule_based_resource_scores(zone)
-    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
-    ranked_nonzero = [k for k, v in ranked if v > 0]
+def resource_priority_list(zone: Zone, threshold: float = 0.05) -> Dict:
+    """
+    Return resource priorities for a zone.
+
+    - Uses simpful fuzzy system if available.
+    - Filters out resources with very low priority (<= threshold),
+      so 'unnecessary' resources are not returned at all.
+    """
+    scores = fuzzy_resource_scores(zone)
+
+    # Filter out resources with negligible priority
+    filtered_scores = {k: v for k, v in scores.items() if v > threshold}
+
+    # Sort by descending priority
+    ranked = sorted(filtered_scores.items(), key=lambda kv: kv[1], reverse=True)
+    ranked_resources = [k for k, _ in ranked]
+
+    # You already had this combined index, keep it (Antonio only wants priority)
     priority_index = 0.6 * zone.pf + 0.4 * zone.vulnerability
 
     return {
         "zone_id": zone.id,
         "zone_name": zone.name,
         "priority_index": priority_index,
-        "resource_scores": scores,
-        "resource_priority": ranked_nonzero,
+        "resource_scores": filtered_scores,
+        "resource_priority": ranked_resources,
     }
 
 
@@ -325,4 +533,3 @@ def allocate_resources(zones: List[Zone], total_units: int, mode: str = "crisp",
     _rebalance_units(recs, diff, iz_map, max_units_per_zone)
 
     return recs
-
