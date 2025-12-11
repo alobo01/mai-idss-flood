@@ -1,0 +1,70 @@
+[
+  {
+    "id": "A-2001",
+    "zoneId": "Z1N",
+    "severity": "Severe",
+    "type": "System",
+    "title": "Rapid rise at Chain of Rocks",
+    "description": "North riverfront gauge exceeded 7.5 m and rising",
+    "eta": "2025-11-11T18:00:00Z",
+    "status": "open",
+    "timestamp": "2025-11-11T12:05:00Z"
+  },
+  {
+    "id": "A-2002",
+    "zoneId": "Z1S",
+    "severity": "High",
+    "type": "System",
+    "title": "South floodwall seepage",
+    "description": "Field teams report seepage near River City Pump Station",
+    "eta": "2025-11-11T17:00:00Z",
+    "status": "open",
+    "timestamp": "2025-11-11T12:12:00Z"
+  },
+  {
+    "id": "A-2003",
+    "zoneId": "Z2",
+    "severity": "Moderate",
+    "type": "Crew",
+    "crewId": "C-A1",
+    "title": "Hospital access check",
+    "description": "Requesting traffic control around Barnes-Jewish emergency dock",
+    "eta": null,
+    "status": "open",
+    "timestamp": "2025-11-11T12:18:00Z"
+  },
+  {
+    "id": "A-2004",
+    "zoneId": "Z3",
+    "severity": "Low",
+    "type": "System",
+    "title": "Surface ponding expected",
+    "description": "Low-lying streets in southwest neighborhoods may pond within 3h",
+    "eta": "2025-11-11T15:00:00Z",
+    "status": "open",
+    "timestamp": "2025-11-11T12:25:00Z"
+  },
+  {
+    "id": "A-2005",
+    "zoneId": "Z4",
+    "severity": "High",
+    "type": "System",
+    "title": "Urban drainage stress",
+    "description": "Storm drain capacity nearing limits near Natural Bridge corridor",
+    "eta": "2025-11-11T16:00:00Z",
+    "status": "open",
+    "timestamp": "2025-11-11T12:32:00Z"
+  },
+  {
+    "id": "A-2006",
+    "zoneId": "ZC",
+    "severity": "Operational",
+    "type": "Crew",
+    "crewId": "C-D4",
+    "title": "Transit hub staging",
+    "description": "Setting up sandbag corridor around Civic Center transit entrances",
+    "eta": null,
+    "status": "acknowledged",
+    "timestamp": "2025-11-11T12:40:00Z"
+  }
+]
