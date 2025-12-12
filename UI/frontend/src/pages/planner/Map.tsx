@@ -25,12 +25,14 @@ export function PlannerMap() {
   });
   const { zones, zonesGeo, gauges } = useZones();
 
+  const { leadTimeDays } = useAppContext();
+
   // Get fuzzy logic derived states
   const { data: rulePipeline } = useRuleBasedPipeline({
-    globalPf: 0.55,
     totalUnits: 12,
     mode: 'fuzzy', // Always use fuzzy logic derived states
     maxUnitsPerZone: 6,
+    leadTime: leadTimeDays,
   });
 
   const handleLayerToggle = (layer: keyof typeof layers) => {
@@ -55,15 +57,31 @@ export function PlannerMap() {
             Interactive flood risk assessment and scenario planning
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
-            <span>{timeHorizon} forecast</span>
-          </Badge>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="flex items-center space-x-1">
+              <Clock className="h-3 w-3" />
+              <span>{timeHorizon === '1d' ? '1 Day' : timeHorizon === '2d' ? '2 Days' : '3 Days'} forecast</span>
+            </Badge>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium">Forecast:</span>
+            {(['1d', '2d', '3d'] as TimeHorizon[]).map((horizon) => (
+              <button
+                key={horizon}
+                onClick={() => handleTimeHorizonChange(horizon)}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  timeHorizon === horizon
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {horizon === '1d' ? '1 Day' : horizon === '2d' ? '2 Days' : '3 Days'}
+              </button>
+            ))}
+          </div>
           </div>
       </div>
-
-      <StLouisFloodPanel />
 
       <Tabs defaultValue="map" className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -92,7 +110,9 @@ export function PlannerMap() {
             layers={layers}
           />
 
-          </TabsContent>
+          {/* St. Louis Dashboard - placed under the map */}
+          <StLouisFloodPanel />
+        </TabsContent>
 
         <TabsContent value="analysis">
           <Card>

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface ResourceType {
   resource_id: string;
@@ -94,7 +95,7 @@ export function ResourcesPage() {
   const [heuristicResult, setHeuristicResult] = useState<DispatchResult | null>(null);
   const [optimizedResult, setOptimizedResult] = useState<DispatchResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedLeadTime, setSelectedLeadTime] = useState<number>(1);
+  const { leadTimeDays, setLeadTimeDays } = useAppContext();
   const [saving, setSaving] = useState(false);
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const { toast } = useToast();
@@ -103,13 +104,24 @@ export function ResourcesPage() {
   const fetchResources = async () => {
     try {
       const response = await fetch('/api/resource-types');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
-      setResources(data.rows);
-      
+
+      // Check if data and data.rows exist and are arrays
+      const resourceRows = data?.data?.rows || data?.rows || [];
+      if (!Array.isArray(resourceRows)) {
+        console.error('Invalid resource data structure:', data);
+        throw new Error('Invalid resource data format received');
+      }
+
+      setResources(resourceRows);
+
       // Initialize edited capacities
       const capacities: Record<string, number> = {};
-      data.rows.forEach((r: ResourceType) => {
-        capacities[r.resource_id] = r.capacity;
+      resourceRows.forEach((r: ResourceType) => {
+        capacities[r.resource_id] = r.capacity || 0;
       });
       setEditedCapacities(capacities);
     } catch (error) {
@@ -119,6 +131,9 @@ export function ResourcesPage() {
         description: 'Failed to load resource types',
         variant: 'destructive',
       });
+      // Set empty arrays to prevent further errors
+      setResources([]);
+      setEditedCapacities({});
     }
   };
 
@@ -127,12 +142,12 @@ export function ResourcesPage() {
     setLoading(true);
     try {
       // Fetch heuristic allocation (use selected lead time)
-      const heuristicRes = await fetch(`/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=${selectedLeadTime}`);
+      const heuristicRes = await fetch(`/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=${leadTimeDays}`);
       const heuristicData = await heuristicRes.json();
       setHeuristicResult(heuristicData);
 
       // Fetch optimized allocation (use selected lead time)
-      const optimizedRes = await fetch(`/api/rule-based/dispatch?use_optimizer=true&lead_time=${selectedLeadTime}`);
+      const optimizedRes = await fetch(`/api/rule-based/dispatch?use_optimizer=true&lead_time=${leadTimeDays}`);
       const optimizedData = await optimizedRes.json();
       setOptimizedResult(optimizedData);
     } catch (error) {
@@ -155,7 +170,7 @@ export function ResourcesPage() {
   // Re-fetch allocations when lead time changes
   useEffect(() => {
     fetchAllocations();
-  }, [selectedLeadTime]);
+  }, [leadTimeDays]);
 
   const handleCapacityChange = (resourceId: string, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -223,7 +238,7 @@ export function ResourcesPage() {
       return shortages;
     }
     
-    Object.entries(zone.resource_scores).forEach(([resourceId, score]) => {
+    Object.entries(zone.resource_scores || {}).forEach(([resourceId, score]) => {
       if (score > 0.05) {  // Fuzzy system says this resource is necessary
         const allocated = zone.resource_units[resourceId] || 0;
         if (allocated === 0 && result.resource_metadata[resourceId]) {
@@ -247,8 +262,8 @@ export function ResourcesPage() {
           <div className="flex items-center space-x-2">
             <Label className="text-sm">Lead time (days)</Label>
             <select
-              value={selectedLeadTime}
-              onChange={(e) => setSelectedLeadTime(parseInt(e.target.value))}
+              value={leadTimeDays}
+              onChange={(e) => setLeadTimeDays(parseInt(e.target.value))}
               className="border rounded px-2 py-1 bg-white"
             >
               <option value={1}>1</option>
@@ -290,7 +305,7 @@ export function ResourcesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {resources.map(resource => (
+                {(resources || []).map(resource => (
                   <div key={resource.resource_id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start space-x-3">
                       <span className="text-3xl">{resource.icon}</span>
@@ -363,7 +378,7 @@ export function ResourcesPage() {
                   <div className="space-y-4">
                     <h4 className="font-semibold">Resource Distribution</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {Object.entries(heuristicResult.resource_summary.per_resource_type).map(([resourceId, count]) => {
+                      {Object.entries(heuristicResult?.resource_summary?.per_resource_type || {}).map(([resourceId, count]) => {
                         const meta = heuristicResult.resource_metadata[resourceId];
                         return (
                           <div key={resourceId} className="border rounded p-3">
@@ -386,7 +401,7 @@ export function ResourcesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {heuristicResult.zones.map(zone => {
+                    {(heuristicResult?.zones || []).map(zone => {
                       const explanation = getRuleExplanation(zone);
                       return (
                         <div key={zone.zone_id} className="border rounded-lg p-4">
@@ -410,7 +425,7 @@ export function ResourcesPage() {
                               <div className="text-sm space-y-1">
                                 <p className="font-semibold text-blue-900 dark:text-blue-100">{explanation.title}</p>
                                 <div className="text-muted-foreground space-y-0.5">
-                                  {explanation.details.map((detail, idx) => (
+                                  {(explanation?.details || []).map((detail, idx) => (
                                     <p key={idx} className="text-xs leading-relaxed">{detail}</p>
                                   ))}
                                 </div>
@@ -477,7 +492,7 @@ export function ResourcesPage() {
                   <div className="space-y-4">
                     <h4 className="font-semibold">Resource Utilization</h4>
                     <div className="space-y-3">
-                      {Object.entries(optimizedResult.resource_summary.per_resource_type).map(([resourceId, allocated]) => {
+                      {Object.entries(optimizedResult?.resource_summary?.per_resource_type || {}).map(([resourceId, allocated]) => {
                         const meta = optimizedResult.resource_metadata[resourceId];
                         const capacity = optimizedResult.resource_summary.available_capacity?.[resourceId] || 0;
                         const percentage = capacity > 0 ? (allocated / capacity) * 100 : 0;
@@ -507,7 +522,7 @@ export function ResourcesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {optimizedResult.zones.map(zone => {
+                    {(optimizedResult?.zones || []).map(zone => {
                       const shortages = checkResourceShortage(zone, optimizedResult);
                       const hasShortages = shortages.length > 0;
                       return (
