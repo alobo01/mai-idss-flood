@@ -112,6 +112,8 @@ export const HistoricalDataPanel: React.FC = () => {
         const probKey = `flood_prob_${pred.days_ahead}d` as keyof ChartDataPoint;
 
         (existing as any)[leadKey] = pred.predicted_level;
+        (existing as any)[lowerKey] = pred.lower_bound_80 ?? null;
+        (existing as any)[upperKey] = pred.upper_bound_80 ?? null;
         (existing as any)[probKey] = pred.flood_probability ? pred.flood_probability * 100 : null;
         existing.aboveThreshold = existing.aboveThreshold || ((pred.flood_probability || 0) >= threshold);
       }

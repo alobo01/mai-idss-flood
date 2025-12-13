@@ -8,12 +8,56 @@ import { PipelineRuleBasedAllocation } from '@/hooks/useRuleBased';
 import type {
   GeoJSON as GeoJSONType,
   RiskPoint,
-  GaugePoint
+  GaugePoint,
+  RuleScenario
 } from '@/types';
+import { RULE_SCENARIO_LABELS } from '@/types';
 import { fixLeafletIcons } from '@/lib/leaflet-config';
 
 // Initialize Leaflet icons once when module loads
 fixLeafletIcons();
+
+const adjustColorBrightness = (color: string, amount: number) => {
+  const normalized = color.replace('#', '');
+  if (!/^[0-9A-Fa-f]{6}$/.test(normalized)) return color;
+
+  const clamp = (value: number) => Math.max(0, Math.min(255, value));
+  const factor = Math.max(-1, Math.min(1, amount));
+
+  const mix = (value: number) => {
+    if (factor >= 0) {
+      return clamp(Math.round(value + (255 - value) * factor));
+    }
+    return clamp(Math.round(value + value * factor));
+  };
+
+  const r = mix(parseInt(normalized.slice(0, 2), 16));
+  const g = mix(parseInt(normalized.slice(2, 4), 16));
+  const b = mix(parseInt(normalized.slice(4, 6), 16));
+
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+};
+
+const applyScenarioTint = (color: string, scenario?: RuleScenario) => {
+  if (!scenario || scenario === 'normal') return color;
+  const tintAmount = scenario === 'best' ? 0.18 : -0.18;
+  return adjustColorBrightness(color, tintAmount);
+};
+
+const formatLevelSourceLabel = (source?: string | null) => {
+  switch (source) {
+    case 'prediction_interval_lower':
+      return 'PI lower';
+    case 'prediction_interval_upper':
+      return 'PI upper';
+    case 'median':
+      return 'Median';
+    case 'fallback':
+      return 'Fallback';
+    default:
+      return 'Selected';
+  }
+};
 
 interface MapViewProps {
   zones: GeoJSONType;
@@ -30,6 +74,12 @@ interface MapViewProps {
   };
   gauges?: GaugePoint[];
   className?: string;
+  scenario?: RuleScenario;
+  selectedProbability?: number | null;
+  selectedLevel?: number | null;
+  selectedLevelSource?: string | null;
+  piLower?: number | null;
+  piUpper?: number | null;
 }
 
 // Component to handle map events and bounds
@@ -73,7 +123,13 @@ export function MapView({
   onZoneSelect,
   layers = { zones: true, risk: true, rule: true, gauges: true },
   gauges = [],
-  className = ''
+  className = '',
+  scenario,
+  selectedProbability,
+  selectedLevel,
+  selectedLevelSource,
+  piLower,
+  piUpper,
 }: MapViewProps) {
   const [mapCenter] = useState<[number, number]>([38.627, -90.199]); // St. Louis
   const [mapZoom] = useState(15);
@@ -95,31 +151,59 @@ export function MapView({
   }
 
   // Get risk color based on value - high contrast version
+  const currentScenario = scenario ?? 'normal';
+
   const getRiskColor = (riskValue: number): string => {
-    if (riskValue >= 0.75) return '#dc2626'; // red-600 (higher contrast)
-    if (riskValue >= 0.5) return '#ea580c'; // orange-600 (higher contrast)
-    if (riskValue >= 0.25) return '#ca8a04'; // yellow-600 (higher contrast)
-    return '#15803d'; // green-600 (higher contrast)
+    let baseColor = '#15803d'; // green-600
+    if (riskValue >= 0.75) baseColor = '#dc2626'; // red-600
+    else if (riskValue >= 0.5) baseColor = '#ea580c'; // orange-600
+    else if (riskValue >= 0.25) baseColor = '#ca8a04'; // yellow-600
+    return applyScenarioTint(baseColor, currentScenario);
   };
 
   // Rule-based impact colors - high contrast version
   const getRuleColor = (impact?: string): string => {
+    let baseColor = '#374151';
     switch ((impact || '').toUpperCase()) {
       case 'CRITICAL':
-        return '#991b1b'; // red-800 (highest contrast)
+        baseColor = '#991b1b';
+        break;
       case 'WARNING':
-        return '#c2410c'; // orange-800 (high contrast)
+        baseColor = '#c2410c';
+        break;
       case 'ADVISORY':
-        return '#a16207'; // yellow-800 (high contrast)
+        baseColor = '#a16207';
+        break;
       case 'NORMAL':
-        return '#166534'; // green-800 (high contrast)
-      default:
-        return '#374151'; // gray-700 fallback (better contrast)
+        baseColor = '#166534';
+        break;
     }
+    return applyScenarioTint(baseColor, currentScenario);
   };
 
   const getZoneId = (feature: any) =>
     feature?.properties?.id || feature?.properties?.zone_id || feature?.properties?.zoneId;
+
+  const scenarioLevelLabel =
+    selectedLevel != null && Number.isFinite(selectedLevel) ? `${selectedLevel.toFixed(2)} ft` : '—';
+  const scenarioPiRangeLabel =
+    piLower != null &&
+    piUpper != null &&
+    Number.isFinite(piLower) &&
+    Number.isFinite(piUpper)
+      ? `${piLower.toFixed(2)} – ${piUpper.toFixed(2)} ft`
+      : '—';
+  const scenarioProbabilityLabel =
+    selectedProbability != null && Number.isFinite(selectedProbability)
+      ? `${(selectedProbability * 100).toFixed(0)}%`
+      : '—';
+  const scenarioLevelSourceLabel = formatLevelSourceLabel(selectedLevelSource);
+  const scenarioAccentClass =
+    currentScenario === 'worst'
+      ? 'text-red-600'
+      : currentScenario === 'best'
+        ? 'text-emerald-600'
+        : 'text-foreground';
 
   // Style GeoJSON zones based on risk data
   const getZoneStyle = (feature: any) => {
@@ -159,14 +243,7 @@ export function MapView({
     };
   };
 
-  // Handle zone click
-  const handleZoneClick = (feature: any, layer: any) => {
-    const zoneId = getZoneId(feature);
-    if (onZoneSelect) {
-      onZoneSelect(zoneId);
-    }
-
-    // Bind popup to the layer
+  const buildZonePopupContent = (feature: any, zoneId: string) => {
     const zoneName = feature.properties.name || feature.properties.zone_id || zoneId;
     const population = feature.properties.population ?? feature.properties.pop_density;
     const zipCode = feature.properties.zip_code || feature.properties.zip || feature.properties.zipCode;
@@ -208,7 +285,17 @@ export function MapView({
     }
 
     popupContent += `</div>`;
-    layer.bindPopup(popupContent);
+    return popupContent;
+  };
+
+  // Attach per-feature events (click/select)
+  const onEachZoneFeature = (feature: any, layer: any) => {
+    layer.on('click', () => {
+      const zoneId = getZoneId(feature);
+      if (!zoneId) return;
+      onZoneSelect?.(zoneId);
+      layer.bindPopup(buildZonePopupContent(feature, zoneId)).openPopup();
+    });
   };
 
   // Gauge markers only
@@ -251,9 +338,10 @@ export function MapView({
             {/* GeoJSON zones layer */}
             {layers.zones && (
               <GeoJSON
+                key={`zones-${selectedZone ?? 'none'}-${layers.rule ? 'rule' : 'no-rule'}-${layers.risk ? 'risk' : 'no-risk'}`}
                 data={zones as any}
                 style={getZoneStyle}
-                onEachFeature={handleZoneClick}
+                onEachFeature={onEachZoneFeature}
                 eventHandlers={{
                   add: () => {
                     // Ensure proper layer ordering when zones are added
@@ -274,13 +362,13 @@ export function MapView({
           {/* Risk Level Legend */}
           {layers.rule && (
             <div className="absolute bottom-4 left-4 z-[1000]">
-              <Card className="p-4 border-2 border-border shadow-lg bg-card">
-                <div className="text-sm font-bold mb-3 text-foreground">Risk Level</div>
-                <div className="space-y-2">
-                  <div className="status-indicator">
-                    <div className="w-5 h-5 rounded border-2 border-red-700" style={{ backgroundColor: getRuleColor('CRITICAL') }} aria-hidden="true" />
-                    <span className="font-medium">Critical</span>
-                  </div>
+            <Card className="p-4 border-2 border-border shadow-lg bg-card">
+              <div className="text-sm font-bold mb-3 text-foreground">Risk Level</div>
+              <div className="space-y-2">
+                <div className="status-indicator">
+                  <div className="w-5 h-5 rounded border-2 border-red-700" style={{ backgroundColor: getRuleColor('CRITICAL') }} aria-hidden="true" />
+                  <span className="font-medium">Critical</span>
+                </div>
                   <div className="status-indicator">
                     <div className="w-5 h-5 rounded border-2 border-orange-700" style={{ backgroundColor: getRuleColor('WARNING') }} aria-hidden="true" />
                     <span className="font-medium">Warning</span>
@@ -289,14 +377,36 @@ export function MapView({
                     <div className="w-5 h-5 rounded border-2 border-yellow-700" style={{ backgroundColor: getRuleColor('ADVISORY') }} aria-hidden="true" />
                     <span className="font-medium">Advisory</span>
                   </div>
-                  <div className="status-indicator">
-                    <div className="w-5 h-5 rounded border-2 border-green-700" style={{ backgroundColor: getRuleColor('NORMAL') }} aria-hidden="true" />
-                    <span className="font-medium">Normal</span>
-                  </div>
+                <div className="status-indicator">
+                  <div className="w-5 h-5 rounded border-2 border-green-700" style={{ backgroundColor: getRuleColor('NORMAL') }} aria-hidden="true" />
+                  <span className="font-medium">Normal</span>
                 </div>
-              </Card>
-            </div>
-          )}
+              </div>
+              <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground space-y-1">
+                <div className="flex items-center justify-between">
+                  <span>Scenario</span>
+                  <span className={`font-semibold ${scenarioAccentClass}`}>{RULE_SCENARIO_LABELS[currentScenario]}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Forecast level</span>
+                  <span className="font-semibold text-foreground">{scenarioLevelLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Level source</span>
+                  <span className="font-semibold text-foreground">{scenarioLevelSourceLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>PI range</span>
+                  <span className="font-semibold text-foreground">{scenarioPiRangeLabel}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Probability</span>
+                  <span className="font-semibold text-foreground">{scenarioProbabilityLabel}</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
         </div>
       </Card>
     </div>

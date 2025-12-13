@@ -224,6 +224,8 @@ class TestAPIEndpoints:
         mock_get_prediction.return_value = {
             "flood_probability": 0.3,
             "predicted_level": 12.5,
+            "lower_bound_80": 11.8,
+            "upper_bound_80": 13.4,
             "created_at": datetime.now().isoformat()
         }
 
@@ -252,8 +254,44 @@ class TestAPIEndpoints:
         assert data["lead_time_days"] == 1
         assert data["total_units"] == 30
         assert data["global_flood_probability"] == 0.3
+        assert data["scenario"] == "normal"
+        assert data["last_prediction"]["selected_level"] == 12.5
+        assert data["last_prediction"]["selected_probability"] == 0.3
         assert len(data["zones"]) == 1
         assert data["zones"][0]["zone_id"] == "ZONE_001"
+
+    @patch('app.main.get_latest_prediction')
+    @patch('app.main.get_all_zones')
+    @patch('app.main.build_dispatch_plan')
+    @patch('app.main.get_all_resource_types')
+    def test_rule_based_dispatch_best_scenario(
+        self, mock_get_resources, mock_build_dispatch, mock_get_zones, mock_get_prediction,
+        sample_zone_data, sample_resource_types
+    ):
+        """Ensure scenario=best picks the lower PI bound."""
+        mock_get_prediction.return_value = {
+            "flood_probability": 0.45,
+            "predicted_level": 13.5,
+            "lower_bound_80": 11.8,
+            "upper_bound_80": 15.1,
+            "created_at": datetime.now().isoformat()
+        }
+        mock_get_zones.return_value = sample_zone_data
+        mock_get_resources.return_value = sample_resource_types
+
+        mock_build_dispatch.return_value = [
+            {"zone_id": "ZONE_007", "units_allocated": 5, "impact_level": "ADVISORY", "allocation_mode": "fuzzy"},
+        ]
+
+        response = self.client.get(
+            "/rule-based/dispatch?total_units=30&mode=fuzzy&lead_time=1&scenario=best"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["global_flood_probability"] == 0.45
+        assert data["scenario"] == "best"
+        assert data["last_prediction"]["selected_level"] == 11.8
+        assert data["last_prediction"]["selected_level_source"] == "prediction_interval_lower"
 
     @patch('app.main.get_latest_prediction')
     def test_rule_based_dispatch_no_prediction(self, mock_get_prediction):

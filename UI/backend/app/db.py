@@ -215,6 +215,36 @@ def get_all_raw_data() -> Optional[pd.DataFrame]:
         return None
 
 
+def get_last_raw_data_date() -> Optional[str]:
+    """
+    Get the date of the last row in raw_data table
+
+    Returns:
+        ISO 8601 date string of the last raw data row, or None if no data exists
+    """
+    query = """
+        SELECT date
+        FROM raw_data
+        ORDER BY date DESC
+        LIMIT 1
+    """
+
+    try:
+        # Use SQLAlchemy engine to avoid pandas warning
+        engine = get_sqlalchemy_engine()
+        df = pd.read_sql_query(query, engine)
+
+        if df.empty:
+            return None
+
+        last_date = pd.to_datetime(df.iloc[0]['date'])
+        return last_date.isoformat()
+
+    except Exception as e:
+        logger.error(f"Failed to get last raw data date: {e}")
+        return None
+
+
 def insert_prediction(forecast_date: str, predicted_level: float, flood_probability: float, days_ahead: int = 1,
                       lower_bound_80: Optional[float] = None, upper_bound_80: Optional[float] = None,
                       model_version: Optional[str] = None, model_type: Optional[str] = None) -> None:

@@ -3,6 +3,11 @@ import { GaugePoint, ZoneRow, GeoFeatureCollection } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
+function extractRows<T>(json: any): T[] {
+  const rows = json?.data?.rows ?? json?.rows ?? [];
+  return Array.isArray(rows) ? (rows as T[]) : [];
+}
+
 export function useZones() {
   const [zones, setZones] = useState<ZoneRow[]>([]);
   const [zonesGeo, setZonesGeo] = useState<GeoFeatureCollection | null>(null);
@@ -23,8 +28,8 @@ export function useZones() {
       const zJson = await zRes.json();
       const gJson = await gRes.json();
       const zgJson = await zgRes.json();
-      setZones(zJson.rows || []);
-      setGauges(gJson.rows || []);
+      setZones(extractRows<ZoneRow>(zJson));
+      setGauges(extractRows<GaugePoint>(gJson));
       setZonesGeo(zgJson || null);
       setError(null);
     } catch (e: any) {

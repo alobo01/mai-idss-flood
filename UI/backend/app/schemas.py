@@ -2,7 +2,7 @@
 Pydantic schemas for type safety and validation across the backend.
 """
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -29,6 +29,13 @@ class AllocationMode(str, Enum):
     FUZZY = "fuzzy"
     PROPORTIONAL = "proportional"
     OPTIMIZED = "optimized"
+
+
+class RuleScenario(str, Enum):
+    """Scenario selector for rule-based dispatch."""
+    BEST = "best"
+    NORMAL = "normal"
+    WORST = "worst"
 
 
 # Database Models
@@ -262,6 +269,10 @@ class DispatchPlanResponse(BaseModel):
     total_units: int = Field(ge=0)
     max_units_per_zone: Optional[int] = Field(ge=1, default=None)
     global_flood_probability: float = Field(ge=0.0, le=1.0)
+    scenario: RuleScenario = Field(
+        default=RuleScenario.NORMAL,
+        description="Scenario (best/normal/worst) used when selecting the prediction level",
+    )
     last_prediction: Optional[Dict[str, Any]] = None
     resource_summary: ResourceSummary
     fairness_level: Optional[float] = Field(ge=0.0, le=1.0, default=None)
@@ -326,6 +337,76 @@ class ResourceCapacityUpdate(BaseModel):
         for resource_id, capacity in v.items():
             if capacity < 0:
                 raise ValueError(f"Capacity for {resource_id} must be non-negative")
+        return v
+
+
+class ZoneParametersUpdate(BaseModel):
+    """Model for updating zone parameters."""
+    zones: Dict[str, Dict[str, Any]] = Field(description="Map of zone_id to updated parameters")
+
+    @field_validator('zones')
+    @classmethod
+    def validate_zones(cls, v):
+        for zone_id, params in v.items():
+            # Validate numeric parameters are within bounds
+            if 'river_proximity' in params:
+                val = params['river_proximity']
+                if not (0.0 <= val <= 1.0):
+                    raise ValueError(f"river_proximity for {zone_id} must be between 0 and 1")
+            if 'elevation_risk' in params:
+                val = params['elevation_risk']
+                if not (0.0 <= val <= 1.0):
+                    raise ValueError(f"elevation_risk for {zone_id} must be between 0 and 1")
+            if 'pop_density' in params:
+                val = params['pop_density']
+                if not (0.0 <= val <= 1.0):
+                    raise ValueError(f"pop_density for {zone_id} must be between 0 and 1")
+            if 'crit_infra_score' in params:
+                val = params['crit_infra_score']
+                if not (0.0 <= val <= 1.0):
+                    raise ValueError(f"crit_infra_score for {zone_id} must be between 0 and 1")
+            if 'hospital_count' in params:
+                val = params['hospital_count']
+                if not (isinstance(val, int) and val >= 0):
+                    raise ValueError(f"hospital_count for {zone_id} must be a non-negative integer")
+        return v
+
+
+class ThresholdConfig(BaseModel):
+    """Model for flood threshold configuration."""
+    flood_minor: float = Field(default=16.0, ge=0, description="Minor flood level in feet")
+    flood_moderate: float = Field(default=22.0, ge=0, description="Moderate flood level in feet")
+    flood_major: float = Field(default=28.0, ge=0, description="Major flood level in feet")
+    critical_probability: float = Field(default=0.8, ge=0, le=1, description="Critical flood probability threshold")
+    warning_probability: float = Field(default=0.6, ge=0, le=1, description="Warning flood probability threshold")
+    advisory_probability: float = Field(default=0.3, ge=0, le=1, description="Advisory flood probability threshold")
+
+    @field_validator('flood_moderate')
+    @classmethod
+    def validate_moderate(cls, v, info):
+        if v <= info.data.get('flood_minor', 0):
+            raise ValueError('flood_moderate must be greater than flood_minor')
+        return v
+
+    @field_validator('flood_major')
+    @classmethod
+    def validate_major(cls, v, info):
+        if v <= info.data.get('flood_moderate', 0):
+            raise ValueError('flood_major must be greater than flood_moderate')
+        return v
+
+    @field_validator('critical_probability')
+    @classmethod
+    def validate_critical(cls, v, info):
+        if v <= info.data.get('warning_probability', 0):
+            raise ValueError('critical_probability must be greater than warning_probability')
+        return v
+
+    @field_validator('warning_probability')
+    @classmethod
+    def validate_warning(cls, v, info):
+        if v <= info.data.get('advisory_probability', 0):
+            raise ValueError('warning_probability must be greater than advisory_probability')
         return v
 
 

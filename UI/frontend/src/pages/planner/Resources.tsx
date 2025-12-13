@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
+import { RULE_SCENARIO_LABELS } from '@/types';
 
 interface ResourceType {
   resource_id: string;
@@ -34,10 +35,23 @@ interface ZoneAllocation {
 }
 
 interface DispatchResult {
+  lead_time_days?: number;
   mode: string;
   use_optimizer: boolean;
+  fuzzy_engine_available?: boolean;
   fairness_level?: number;
   global_flood_probability: number;
+  total_units?: number;
+  last_prediction?: {
+    forecast_date?: string;
+    date?: string;
+    predicted_level?: number;
+    lower_bound_80?: number;
+    upper_bound_80?: number;
+    flood_probability?: number;
+    days_ahead?: number;
+    created_at?: string;
+  };
   resource_summary: {
     total_allocated_units: number;
     per_resource_type: Record<string, number>;
@@ -45,6 +59,31 @@ interface DispatchResult {
   };
   zones: ZoneAllocation[];
   resource_metadata: Record<string, ResourceType>;
+}
+
+const IMPACT_ORDER: Record<string, number> = {
+  CRITICAL: 0,
+  WARNING: 1,
+  ADVISORY: 2,
+  NORMAL: 3,
+};
+
+function formatPct(value?: number) {
+  if (value === undefined || Number.isNaN(value)) return '—';
+  return `${(value * 100).toFixed(0)}%`;
+}
+
+function formatIsoDate(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 // Helper function to generate rule explanation based on antecedents
@@ -95,10 +134,24 @@ export function ResourcesPage() {
   const [heuristicResult, setHeuristicResult] = useState<DispatchResult | null>(null);
   const [optimizedResult, setOptimizedResult] = useState<DispatchResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const { leadTimeDays, setLeadTimeDays } = useAppContext();
+  const { leadTimeDays, setLeadTimeDays, scenario } = useAppContext();
   const [saving, setSaving] = useState(false);
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
+  const [zoneQuery, setZoneQuery] = useState('');
+  const [onlyShortages, setOnlyShortages] = useState(false);
   const { toast } = useToast();
+
+  const resourceCatalog = useMemo(() => {
+    const byId: Record<string, ResourceType> = {};
+    for (const r of resources) byId[r.resource_id] = r;
+
+    const fallback = heuristicResult?.resource_metadata || optimizedResult?.resource_metadata || {};
+    for (const [id, meta] of Object.entries(fallback)) {
+      if (!byId[id]) byId[id] = meta;
+    }
+
+    return Object.values(byId).sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
+  }, [resources, heuristicResult, optimizedResult]);
 
   // Fetch resource types
   const fetchResources = async () => {
@@ -142,16 +195,37 @@ export function ResourcesPage() {
     setLoading(true);
     try {
       // Fetch heuristic allocation (use selected lead time)
-      const heuristicRes = await fetch(`/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=${leadTimeDays}`);
-      const heuristicData = await heuristicRes.json();
-      setHeuristicResult(heuristicData);
+      const heuristicParams = new URLSearchParams({
+        total_units: '100',
+        mode: 'fuzzy',
+        lead_time: String(leadTimeDays),
+        scenario,
+      });
+      const heuristicRes = await fetch(`/api/rule-based/dispatch?${heuristicParams.toString()}`);
+      if (!heuristicRes.ok) {
+        const body = await heuristicRes.text();
+        throw new Error(`Heuristic dispatch failed (HTTP ${heuristicRes.status}): ${body}`);
+      }
+      setHeuristicResult(await heuristicRes.json());
 
       // Fetch optimized allocation (use selected lead time)
-      const optimizedRes = await fetch(`/api/rule-based/dispatch?use_optimizer=true&lead_time=${leadTimeDays}`);
-      const optimizedData = await optimizedRes.json();
-      setOptimizedResult(optimizedData);
+      const optimizedParams = new URLSearchParams({
+        total_units: '100',
+        mode: 'fuzzy',
+        lead_time: String(leadTimeDays),
+        scenario,
+        use_optimizer: 'true',
+      });
+      const optimizedRes = await fetch(`/api/rule-based/dispatch?${optimizedParams.toString()}`);
+      if (!optimizedRes.ok) {
+        const body = await optimizedRes.text();
+        throw new Error(`Optimized dispatch failed (HTTP ${optimizedRes.status}): ${body}`);
+      }
+      setOptimizedResult(await optimizedRes.json());
     } catch (error) {
       console.error('Failed to fetch allocations:', error);
+      setHeuristicResult(null);
+      setOptimizedResult(null);
       toast({
         title: 'Error',
         description: 'Failed to load resource allocations',
@@ -164,13 +238,12 @@ export function ResourcesPage() {
 
   useEffect(() => {
     fetchResources();
-    fetchAllocations();
   }, []);
 
-  // Re-fetch allocations when lead time changes
+  // Re-fetch allocations when lead time or scenario changes
   useEffect(() => {
     fetchAllocations();
-  }, [leadTimeDays]);
+  }, [leadTimeDays, scenario]);
 
   const handleCapacityChange = (resourceId: string, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -249,6 +322,65 @@ export function ResourcesPage() {
     return shortages;
   };
 
+  const getZoneRows = (result: DispatchResult | null) => {
+    const query = zoneQuery.trim().toLowerCase();
+    const zones = (result?.zones || []).filter((z) => {
+      if (!query) return true;
+      return `${z.zone_name} ${z.zone_id}`.toLowerCase().includes(query);
+    });
+
+    const withShortages =
+      onlyShortages && result
+        ? zones.filter((z) => checkResourceShortage(z, result).length > 0)
+        : zones;
+
+    return withShortages.sort((a, b) => {
+      const impactA = IMPACT_ORDER[a.impact_level] ?? 999;
+      const impactB = IMPACT_ORDER[b.impact_level] ?? 999;
+      if (impactA !== impactB) return impactA - impactB;
+      return (b.units_allocated || 0) - (a.units_allocated || 0);
+    });
+  };
+
+  const renderZoneResources = (
+    zone: ZoneAllocation,
+    meta: Record<string, ResourceType>,
+    options?: { maxItems?: number },
+  ) => {
+    const entries = Object.entries(zone.resource_units || {})
+      .filter(([, value]) => (value || 0) > 0)
+      .sort((a, b) => (b[1] || 0) - (a[1] || 0));
+
+    if (entries.length === 0) return <span className="text-muted-foreground">—</span>;
+
+    const maxItems = options?.maxItems;
+    const shown = maxItems ? entries.slice(0, maxItems) : entries;
+    const remaining = maxItems ? entries.length - shown.length : 0;
+
+    return (
+      <div className="flex flex-wrap gap-1">
+        {shown.map(([resourceId, value]) => {
+          const r = meta[resourceId];
+          return (
+            <span
+              key={resourceId}
+              className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-xs"
+              title={r?.name || resourceId}
+            >
+              <span className="text-base leading-none">{r?.icon || '•'}</span>
+              <span className="font-semibold">{value}</span>
+            </span>
+          );
+        })}
+        {remaining > 0 && (
+          <span className="inline-flex items-center rounded border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+            +{remaining}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -258,7 +390,7 @@ export function ResourcesPage() {
             Manage resource capacities and view allocation strategies
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2">
             <Label className="text-sm">Lead time (days)</Label>
             <select
@@ -271,10 +403,13 @@ export function ResourcesPage() {
               <option value={3}>3</option>
             </select>
           </div>
+          <div className="text-xs text-muted-foreground">
+            Scenario: <span className="font-semibold text-foreground">{RULE_SCENARIO_LABELS[scenario]}</span>
+          </div>
           <Button onClick={fetchAllocations} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -305,7 +440,7 @@ export function ResourcesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(resources || []).map(resource => (
+                {(resourceCatalog || []).map(resource => (
                   <div key={resource.resource_id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start space-x-3">
                       <span className="text-3xl">{resource.icon}</span>
@@ -356,7 +491,7 @@ export function ResourcesPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                     <div>
                       <p className="text-sm text-muted-foreground">Mode</p>
                       <p className="text-2xl font-bold capitalize">{heuristicResult.mode}</p>
@@ -371,7 +506,13 @@ export function ResourcesPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Flood Probability</p>
-                      <p className="text-2xl font-bold">{(heuristicResult.global_flood_probability * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">{formatPct(heuristicResult.global_flood_probability)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Last Updated</p>
+                      <p className="text-sm font-semibold">
+                        {formatIsoDate(heuristicResult.last_prediction?.created_at)}
+                      </p>
                     </div>
                   </div>
 
@@ -380,6 +521,7 @@ export function ResourcesPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                       {Object.entries(heuristicResult?.resource_summary?.per_resource_type || {}).map(([resourceId, count]) => {
                         const meta = heuristicResult.resource_metadata[resourceId];
+                        if (!meta) return null;
                         return (
                           <div key={resourceId} className="border rounded p-3">
                             <div className="flex items-center space-x-2 mb-2">
@@ -398,55 +540,80 @@ export function ResourcesPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Zone Allocations</CardTitle>
+                  <CardDescription>
+                    Search zones, then expand a row for rule explanation
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {(heuristicResult?.zones || []).map(zone => {
-                      const explanation = getRuleExplanation(zone);
-                      return (
-                        <div key={zone.zone_id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold">{zone.zone_name}</h4>
-                              <Badge className={getImpactColor(zone.impact_level)}>
-                                {zone.impact_level}
-                              </Badge>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold">{zone.units_allocated}</p>
-                              <p className="text-xs text-muted-foreground">units allocated</p>
-                            </div>
-                          </div>
-                          
-                          {/* Rule Explanation */}
-                          <div className="mb-3 p-3 bg-muted/50 rounded-md border border-muted">
-                            <div className="flex items-start space-x-2">
-                              <Info className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
-                              <div className="text-sm space-y-1">
-                                <p className="font-semibold text-blue-900 dark:text-blue-100">{explanation.title}</p>
-                                <div className="text-muted-foreground space-y-0.5">
-                                  {(explanation?.details || []).map((detail, idx) => (
-                                    <p key={idx} className="text-xs leading-relaxed">{detail}</p>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                            {resources.map(resource => {
-                              const allocated = zone.resource_units[resource.resource_id] || 0;
-                              return (
-                                <div key={resource.resource_id} className="text-center border rounded p-2">
-                                  <div className="text-xl">{resource.icon}</div>
-                                  <div className="text-lg font-semibold">{allocated}</div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground">Search zones</Label>
+                      <Input
+                        value={zoneQuery}
+                        onChange={(e) => setZoneQuery(e.target.value)}
+                        placeholder="e.g. North Riverfront or Z1N"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Showing <span className="font-semibold text-foreground">{getZoneRows(heuristicResult).length}</span> /{' '}
+                      <span className="font-semibold text-foreground">{heuristicResult.zones.length}</span> zones
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="py-2 text-left font-semibold">Zone</th>
+                          <th className="py-2 text-left font-semibold">Impact</th>
+                          <th className="py-2 text-right font-semibold">Units</th>
+                          <th className="py-2 text-left font-semibold">Resources</th>
+                          <th className="py-2 text-left font-semibold">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getZoneRows(heuristicResult).map((zone) => {
+                          const explanation = getRuleExplanation(zone);
+                          return (
+                            <tr key={zone.zone_id} className="border-b align-top">
+                              <td className="py-3 pr-3">
+                                <div className="font-semibold">{zone.zone_name}</div>
+                                <div className="text-xs text-muted-foreground">{zone.zone_id}</div>
+                              </td>
+                              <td className="py-3 pr-3">
+                                <Badge className={getImpactColor(zone.impact_level)}>{zone.impact_level}</Badge>
+                              </td>
+                              <td className="py-3 pr-3 text-right">
+                                <div className="text-lg font-bold leading-none">{zone.units_allocated}</div>
+                                <div className="text-xs text-muted-foreground">units</div>
+                              </td>
+                              <td className="py-3 pr-3">
+                                {renderZoneResources(zone, heuristicResult.resource_metadata, { maxItems: 4 })}
+                              </td>
+                              <td className="py-3">
+                                <details className="rounded-md border bg-muted/20 px-3 py-2">
+                                  <summary className="cursor-pointer select-none text-xs font-semibold text-blue-700">
+                                    View rules
+                                  </summary>
+                                  <div className="mt-2 flex items-start gap-2">
+                                    <Info className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                                    <div className="space-y-1">
+                                      <div className="text-xs font-semibold">{explanation.title}</div>
+                                      <div className="space-y-0.5 text-xs text-muted-foreground">
+                                        {explanation.details.map((detail, idx) => (
+                                          <div key={idx}>{detail}</div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </details>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
@@ -473,7 +640,11 @@ export function ResourcesPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Fairness Level</p>
-                      <p className="text-2xl font-bold">{((optimizedResult.fairness_level || 0) * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">
+                        {optimizedResult.fairness_level === undefined || optimizedResult.fairness_level === null
+                          ? '—'
+                          : formatPct(optimizedResult.fairness_level)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Units</p>
@@ -485,7 +656,7 @@ export function ResourcesPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Flood Probability</p>
-                      <p className="text-2xl font-bold">{(optimizedResult.global_flood_probability * 100).toFixed(0)}%</p>
+                      <p className="text-2xl font-bold">{formatPct(optimizedResult.global_flood_probability)}</p>
                     </div>
                   </div>
 
@@ -494,6 +665,7 @@ export function ResourcesPage() {
                     <div className="space-y-3">
                       {Object.entries(optimizedResult?.resource_summary?.per_resource_type || {}).map(([resourceId, allocated]) => {
                         const meta = optimizedResult.resource_metadata[resourceId];
+                        if (!meta) return null;
                         const capacity = optimizedResult.resource_summary.available_capacity?.[resourceId] || 0;
                         const percentage = capacity > 0 ? (allocated / capacity) * 100 : 0;
                         return (
@@ -519,68 +691,114 @@ export function ResourcesPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Zone Allocations with Warnings</CardTitle>
+                  <CardDescription>
+                    Filter and scan shortages quickly (expand a row for full resource breakdown)
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {(optimizedResult?.zones || []).map(zone => {
-                      const shortages = checkResourceShortage(zone, optimizedResult);
-                      const hasShortages = shortages.length > 0;
-                      return (
-                        <div key={zone.zone_id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <h4 className="font-semibold">{zone.zone_name}</h4>
-                                {hasShortages && (
-                                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                                )}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Badge className={getImpactColor(zone.impact_level)}>
-                                  {zone.impact_level}
-                                </Badge>
-                                {zone.satisfaction_level !== undefined && (
-                                  <Badge variant="outline" className="flex items-center space-x-1">
-                                    {zone.satisfaction_level >= 0.99 ? (
-                                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                    ) : (
-                                      <AlertCircle className="h-3 w-3 text-orange-500" />
-                                    )}
-                                    <span>{(zone.satisfaction_level * 100).toFixed(0)}% satisfied</span>
-                                  </Badge>
-                                )}
-                              </div>
-                              {hasShortages && (
-                                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-                                  <strong>⚠️ Missing resources:</strong> {shortages.join(', ')}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground">Search zones</Label>
+                      <Input
+                        value={zoneQuery}
+                        onChange={(e) => setZoneQuery(e.target.value)}
+                        placeholder="e.g. South Riverfront or Z1S"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={onlyShortages}
+                          onChange={(e) => setOnlyShortages(e.target.checked)}
+                        />
+                        Only shortages
+                      </label>
+                      <div className="text-xs text-muted-foreground">
+                        Showing{' '}
+                        <span className="font-semibold text-foreground">{getZoneRows(optimizedResult).length}</span> /{' '}
+                        <span className="font-semibold text-foreground">{optimizedResult.zones.length}</span> zones
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="py-2 text-left font-semibold">Zone</th>
+                          <th className="py-2 text-left font-semibold">Impact</th>
+                          <th className="py-2 text-right font-semibold">Units</th>
+                          <th className="py-2 text-left font-semibold">Satisfaction</th>
+                          <th className="py-2 text-left font-semibold">Shortages</th>
+                          <th className="py-2 text-left font-semibold">Resources</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getZoneRows(optimizedResult).map((zone) => {
+                          const shortages = checkResourceShortage(zone, optimizedResult);
+                          const hasShortages = shortages.length > 0;
+                          const satisfaction = zone.satisfaction_level;
+                          return (
+                            <tr key={zone.zone_id} className="border-b align-top">
+                              <td className="py-3 pr-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-semibold">{zone.zone_name}</div>
+                                  {hasShortages && <AlertTriangle className="h-4 w-4 text-orange-500" />}
                                 </div>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold">{zone.units_allocated}</p>
-                              <p className="text-xs text-muted-foreground">units allocated</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                            {resources.map(resource => {
-                              const allocated = zone.resource_units[resource.resource_id] || 0;
-                              const isMissing = allocated === 0 && shortages.includes(resource.name);
-                              return (
-                                <div 
-                                  key={resource.resource_id} 
-                                  className={`text-center border rounded p-2 ${isMissing ? 'bg-orange-50 border-orange-300' : ''}`}
-                                >
-                                  <div className="text-xl">{resource.icon}</div>
-                                  <div className={`text-lg font-semibold ${allocated === 0 ? 'text-muted-foreground' : ''}`}>
-                                    {allocated}
+                                <div className="text-xs text-muted-foreground">{zone.zone_id}</div>
+                              </td>
+                              <td className="py-3 pr-3">
+                                <Badge className={getImpactColor(zone.impact_level)}>{zone.impact_level}</Badge>
+                              </td>
+                              <td className="py-3 pr-3 text-right">
+                                <div className="text-lg font-bold leading-none">{zone.units_allocated}</div>
+                                <div className="text-xs text-muted-foreground">units</div>
+                              </td>
+                              <td className="py-3 pr-3">
+                                {satisfaction === undefined ? (
+                                  <span className="text-muted-foreground">—</span>
+                                ) : (
+                                  <div className="min-w-[10rem] space-y-1">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      {satisfaction >= 0.99 ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-4 w-4 text-orange-500" />
+                                      )}
+                                      <span className="font-semibold">{formatPct(satisfaction)}</span>
+                                    </div>
+                                    <Progress value={Math.max(0, Math.min(100, satisfaction * 100))} className="h-2" />
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
+                                )}
+                              </td>
+                              <td className="py-3 pr-3">
+                                {hasShortages ? (
+                                  <div className="space-y-1">
+                                    <div className="inline-flex items-center gap-1 rounded border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
+                                      <AlertTriangle className="h-3.5 w-3.5" />
+                                      Missing {shortages.length}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">{shortages.join(', ')}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </td>
+                              <td className="py-3">
+                                <details className="rounded-md border bg-muted/20 px-3 py-2">
+                                  <summary className="cursor-pointer select-none text-xs font-semibold">
+                                    View breakdown
+                                  </summary>
+                                  <div className="mt-2">{renderZoneResources(zone, optimizedResult.resource_metadata)}</div>
+                                </details>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>

@@ -5,7 +5,7 @@ import json
 import logging
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import numpy as np
@@ -78,6 +78,7 @@ from .schemas import (
     Allocation,
     AllocationMode,
     ImpactLevel,
+    RuleScenario,
     DispatchRequest,
     DispatchPlanResponse,
     ResourceSummary,
@@ -97,6 +98,7 @@ from .db import (
     get_all_resource_types,
     get_last_30_days_raw_data,
     get_all_raw_data,
+    get_last_raw_data_date,
     get_latest_prediction,
     get_prediction_history,
     get_prediction_history_with_actuals,
@@ -256,6 +258,19 @@ async def raw_data():
         success=True,
         message="Raw data retrieved successfully",
         data={"rows": _safe_df_records(data)}
+    )
+
+
+@app.get("/raw-data/last-date", response_model=ApiResponse)
+async def last_raw_data_date():
+    """Return the date of the last row in the raw_data table."""
+    last_date = get_last_raw_data_date()
+    if last_date is None:
+        raise HTTPException(status_code=404, detail="No raw data found")
+    return ApiResponse(
+        success=True,
+        message="Last raw data date retrieved successfully",
+        data={"last_date": last_date}
     )
 
 
@@ -531,6 +546,10 @@ async def rule_based_dispatch(
         description="Allocation mode used by the rule-based planner",
     ),
     lead_time: int = Query(1, ge=1, le=7, description="Lead time (days ahead) for the cached prediction"),
+    scenario: RuleScenario = Query(
+        RuleScenario.NORMAL,
+        description="Which scenario (best/normal/worst) determines the interval level used by the rule-based planner",
+    ),
     global_pf: Optional[float] = Query(
         None,
         ge=0.0,
@@ -549,6 +568,45 @@ async def rule_based_dispatch(
     ),
 ):
     """Build a rule-based dispatch plan using the latest cached prediction."""
+    def _resolve_prediction_from_cached(prediction: Dict[str, Any], scenario_value: RuleScenario) -> Tuple[float, str, float]:
+        def _to_float(val: Any, default: float = 0.0) -> float:
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return default
+
+        median_level = prediction.get("predicted_level")
+        lower_bound = prediction.get("lower_bound_80")
+        upper_bound = prediction.get("upper_bound_80")
+
+        selected_level = median_level
+        source = "median"
+
+        if scenario_value == RuleScenario.BEST and lower_bound is not None:
+            selected_level = lower_bound
+            source = "prediction_interval_lower"
+        elif scenario_value == RuleScenario.WORST and upper_bound is not None:
+            selected_level = upper_bound
+            source = "prediction_interval_upper"
+
+        if selected_level is None:
+            if median_level is not None:
+                selected_level = median_level
+                source = "median"
+            elif lower_bound is not None:
+                selected_level = lower_bound
+                source = "prediction_interval_lower"
+            elif upper_bound is not None:
+                selected_level = upper_bound
+                source = "prediction_interval_upper"
+            else:
+                selected_level = 0.0
+                source = "fallback"
+
+        probability = max(0.0, min(1.0, _to_float(prediction.get("flood_probability"), 0.0)))
+        return _to_float(selected_level, 0.0), source, probability
+
+    last_prediction_summary: Optional[Dict[str, Any]] = None
     latest = get_latest_prediction(days_ahead=lead_time)
 
     # Use explicit override if provided
@@ -591,12 +649,22 @@ async def rule_based_dispatch(
                 detail=f"No cached prediction available for the {lead_time}-day horizon",
             )
 
-        global_pf = latest.get("flood_probability")
-        if global_pf is None:
-            logger.warning("Latest prediction for %s-day lead time missing flood_probability", lead_time)
-            global_pf = 0.0
-
-        global_pf = max(0.0, min(1.0, float(global_pf)))
+        selected_level, level_source, selected_probability = _resolve_prediction_from_cached(latest, scenario)
+        global_pf = max(0.0, min(1.0, selected_probability))
+        last_prediction_summary = {
+            **latest,
+            "scenario": scenario.value,
+            "selected_level": selected_level,
+            "selected_level_source": level_source,
+            "selected_probability": selected_probability,
+        }
+        logger.debug(
+            "Rule-based dispatch scenario=%s used level=%.2f (%s) with pf=%.3f",
+            scenario.value,
+            selected_level,
+            level_source,
+            selected_probability,
+        )
 
     zone_rows = get_all_zones()
     if not zone_rows:
@@ -710,7 +778,8 @@ async def rule_based_dispatch(
         total_units=total_units if not use_optimizer else total_allocated_units,
         max_units_per_zone=max_units_per_zone,
         global_flood_probability=global_pf,
-        last_prediction=latest,
+        scenario=scenario,
+        last_prediction=last_prediction_summary or latest,
         resource_summary=ResourceSummary(
             total_allocated_units=total_allocated_units,
             per_resource_type=aggregated_resources,
