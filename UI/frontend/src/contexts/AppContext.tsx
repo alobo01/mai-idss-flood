@@ -6,6 +6,8 @@ interface AppContextType {
   setSelectedZone: (zone: string | null) => void;
   timeHorizon: TimeHorizon;
   setTimeHorizon: (horizon: TimeHorizon) => void;
+  leadTimeDays: number;
+  setLeadTimeDays: (d: number) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
 }
@@ -14,7 +16,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
-  const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('12h');
+  const [timeHorizon, setTimeHorizon] = useState<TimeHorizon>('1d');
+  const [leadTimeDays, setLeadTimeDays] = useState<number>(1);
   const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
@@ -33,6 +36,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSelectedZone,
     timeHorizon,
     setTimeHorizon,
+    leadTimeDays,
+    setLeadTimeDays,
     darkMode,
     toggleDarkMode,
   };

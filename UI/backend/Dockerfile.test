@@ -1,0 +1,51 @@
+# Test Dockerfile for flood prediction backend
+# Includes testing dependencies and runs test suite
+
+FROM python:3.9-slim as base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTEST_ADDOPTS="--cov=app --cov-report=term-missing --cov-report=html:htmlcov"
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install production dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install development and testing dependencies
+RUN pip install --no-cache-dir \
+    pytest==7.4.3 \
+    pytest-asyncio==0.21.1 \
+    pytest-cov==4.1.0 \
+    httpx==0.25.2 \
+    factory-boy==3.3.0 \
+    freezegun==1.2.2 \
+    black==23.11.0 \
+    flake8==6.1.0 \
+    mypy==1.7.1
+
+# Copy source code
+COPY . .
+
+# Create test directory (this should exist from COPY . . but let's ensure)
+RUN mkdir -p /app/tests
+
+# Run linters and type checkers (exit on failure)
+RUN flake8 app/ --max-line-length=120 --exclude=__pycache__
+RUN black --check app/
+RUN mypy app/ --ignore-missing-imports --no-error-summary
+
+# Run tests with coverage
+# Note: This will fail if test database connection is required but not available
+CMD ["pytest", "-v", "--cov=app", "--cov-report=term-missing", "--cov-report=html:htmlcov", "tests/"]

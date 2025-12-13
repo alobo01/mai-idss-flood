@@ -1,5 +1,5 @@
 // Simplified types for the planner map view
-export type TimeHorizon = '6h' | '12h' | '24h' | '48h';
+export type TimeHorizon = '1d' | '2d' | '3d';
 
 export interface ZoneProperties {
   id: string;

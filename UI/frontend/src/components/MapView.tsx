@@ -37,36 +37,22 @@ const MapController: React.FC<{
   onZoneSelect?: (zoneId: string) => void;
   selectedZone?: string | null;
   zones: GeoJSONType;
-}> = ({ onZoneSelect, selectedZone, zones }) => {
+}> = () => {
   const map = useMap();
+  const [viewInitialized, setViewInitialized] = useState(false);
 
   useEffect(() => {
-    // Fit map to show all zones when data loads
-    if (zones?.features?.length > 0) {
+    // Only set view once on initial load to preserve user position during data updates
+    if (!viewInitialized) {
       try {
-        const bounds = L.latLngBounds([]);
-        zones.features.forEach((feature) => {
-          if (feature.geometry?.coordinates?.[0]) {
-            feature.geometry.coordinates[0].forEach((coord: number[]) => {
-              bounds.extend([coord[1], coord[0]]);
-            });
-          }
-        });
-
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 11 });
-        }
+        map.setView([38.627, -90.199], 13);
+        setViewInitialized(true);
       } catch (error) {
-        console.warn('Could not fit map to bounds:', error);
-        // Fall back to default center/zoom
-        map.setView([38.627, -90.199], 11);
+        console.warn('Could not set map view to St. Louis center:', error);
       }
-    } else {
-      // If no zones, ensure we're centered on St. Louis
-      map.setView([38.627, -90.199], 11);
     }
 
-    const handleClick = (e: any) => {
+    const handleClick = () => {
       // This will be handled by GeoJSON layer events
     };
 
@@ -74,7 +60,7 @@ const MapController: React.FC<{
     return () => {
       map.off('click', handleClick);
     };
-  }, [map, zones]);
+  }, [map]);
 
   return null;
 };
@@ -85,13 +71,12 @@ export function MapView({
   ruleData = [],
   selectedZone,
   onZoneSelect,
-  timeHorizon = '12h',
   layers = { zones: true, risk: true, rule: true, gauges: true },
   gauges = [],
   className = ''
 }: MapViewProps) {
   const [mapCenter] = useState<[number, number]>([38.627, -90.199]); // St. Louis
-  const [mapZoom] = useState(11);
+  const [mapZoom] = useState(15);
 
   // Validate zones data
   if (!zones || !zones.features || zones.features.length === 0) {
@@ -184,12 +169,15 @@ export function MapView({
     // Bind popup to the layer
     const zoneName = feature.properties.name || feature.properties.zone_id || zoneId;
     const population = feature.properties.population ?? feature.properties.pop_density;
+    const zipCode = feature.properties.zip_code || feature.properties.zip || feature.properties.zipCode;
     const rulePoint = ruleData.find(r => r.zone_id === zoneId);
     const riskPoint = riskData.find(r => r.zoneId === zoneId);
 
     let popupContent = `
       <div class="p-3 min-w-[200px]">
         <h3 class="font-semibold text-sm mb-2">${zoneName}</h3>
+        <p class="text-xs text-gray-600 mb-1">Zone ID: ${zoneId}</p>
+        ${zipCode ? `<p class="text-xs text-gray-600 mb-2">ZIP Code: ${zipCode}</p>` : ''}
         <p class="text-xs text-gray-600 mb-2">Population: ${population ? Number(population).toLocaleString() : '—'}</p>
     `;
 
@@ -221,14 +209,6 @@ export function MapView({
 
     popupContent += `</div>`;
     layer.bindPopup(popupContent);
-  };
-
-  // Calculate polygon centroid
-  const getPolygonCentroid = (coordinates: number[][][]): [number, number] => {
-    const coords = coordinates[0]; // Exterior ring
-    const latSum = coords.reduce((sum, coord) => sum + coord[1], 0);
-    const lngSum = coords.reduce((sum, coord) => sum + coord[0], 0);
-    return [latSum / coords.length, lngSum / coords.length];
   };
 
   // Gauge markers only
@@ -275,12 +255,12 @@ export function MapView({
                 style={getZoneStyle}
                 onEachFeature={handleZoneClick}
                 eventHandlers={{
-                  add: (e) => {
+                  add: () => {
                     // Ensure proper layer ordering when zones are added
                     console.log('GeoJSON layer added successfully');
                   },
-                  error: (e) => {
-                    console.error('GeoJSON layer error:', e);
+                  error: () => {
+                    console.error('GeoJSON layer error');
                   }
                 }}
               />
@@ -290,88 +270,31 @@ export function MapView({
             {gaugeMarkers()}
           </MapContainer>
 
-          {/* Map controls overlay */}
-          <div className="absolute top-4 right-4 space-y-3 z-[1000]">
-            <Card className="p-4 border-2 border-border shadow-lg bg-card">
-              <div className="status-indicator text-sm">
-                <Clock className="h-4 w-4" aria-hidden="true" />
-                <span className="font-bold">Forecast:</span>
-                <Badge variant="outline" className="button-emergency">{timeHorizon}</Badge>
-              </div>
-            </Card>
-
-            <Card className="p-4 border-2 border-border shadow-lg bg-card">
-              <div className="status-indicator text-sm mb-3">
-                <Layers className="h-4 w-4" aria-hidden="true" />
-                <span className="font-bold">Layers:</span>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="status-indicator">
-                  <div className={`w-4 h-4 rounded border-2 ${layers.zones ? 'bg-blue-600 border-blue-700' : 'bg-gray-400 border-gray-500'}`} aria-hidden="true" />
-                  <span>Zones</span>
-                </div>
-                <div className="status-indicator">
-                  <div className={`w-4 h-4 rounded border-2 ${layers.rule ? 'bg-orange-600 border-orange-700' : 'bg-gray-400 border-gray-500'}`} aria-hidden="true" />
-                  <span>Rule-based</span>
-                </div>
-                <div className="status-indicator">
-                  <div className={`w-4 h-4 rounded border-2 ${layers.risk ? 'bg-red-600 border-red-700' : 'bg-gray-400 border-gray-500'}`} aria-hidden="true" />
-                  <span>Risk</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Legends */}
-          {(layers.rule || layers.risk) && (
-            <div className="absolute bottom-4 left-4 space-y-4 z-[1000]">
-              {layers.rule && (
-                <Card className="p-4 border-2 border-border shadow-lg bg-card">
-                  <div className="text-sm font-bold mb-3 text-foreground">Rule-based categories</div>
-                  <div className="space-y-2">
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-red-700" style={{ backgroundColor: getRuleColor('CRITICAL') }} aria-hidden="true" />
-                      <span className="font-medium">Critical</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-orange-700" style={{ backgroundColor: getRuleColor('WARNING') }} aria-hidden="true" />
-                      <span className="font-medium">Warning</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-yellow-700" style={{ backgroundColor: getRuleColor('ADVISORY') }} aria-hidden="true" />
-                      <span className="font-medium">Advisory</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-green-700" style={{ backgroundColor: getRuleColor('NORMAL') }} aria-hidden="true" />
-                      <span className="font-medium">Normal</span>
-                    </div>
+  
+          {/* Risk Level Legend */}
+          {layers.rule && (
+            <div className="absolute bottom-4 left-4 z-[1000]">
+              <Card className="p-4 border-2 border-border shadow-lg bg-card">
+                <div className="text-sm font-bold mb-3 text-foreground">Risk Level</div>
+                <div className="space-y-2">
+                  <div className="status-indicator">
+                    <div className="w-5 h-5 rounded border-2 border-red-700" style={{ backgroundColor: getRuleColor('CRITICAL') }} aria-hidden="true" />
+                    <span className="font-medium">Critical</span>
                   </div>
-                </Card>
-              )}
-
-              {layers.risk && (
-                <Card className="p-4 border-2 border-border shadow-lg bg-card">
-                  <div className="text-sm font-bold mb-3 text-foreground">Risk Levels</div>
-                  <div className="space-y-2">
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-red-700 bg-red-600" aria-hidden="true" />
-                      <span className="font-medium">Severe (&gt;75%)</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-orange-700 bg-orange-600" aria-hidden="true" />
-                      <span className="font-medium">High (50-75%)</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-yellow-700 bg-yellow-600" aria-hidden="true" />
-                      <span className="font-medium">Moderate (25-50%)</span>
-                    </div>
-                    <div className="status-indicator">
-                      <div className="w-5 h-5 rounded border-2 border-green-700 bg-green-600" aria-hidden="true" />
-                      <span className="font-medium">Low (&lt;25%)</span>
-                    </div>
+                  <div className="status-indicator">
+                    <div className="w-5 h-5 rounded border-2 border-orange-700" style={{ backgroundColor: getRuleColor('WARNING') }} aria-hidden="true" />
+                    <span className="font-medium">Warning</span>
                   </div>
-                </Card>
-              )}
+                  <div className="status-indicator">
+                    <div className="w-5 h-5 rounded border-2 border-yellow-700" style={{ backgroundColor: getRuleColor('ADVISORY') }} aria-hidden="true" />
+                    <span className="font-medium">Advisory</span>
+                  </div>
+                  <div className="status-indicator">
+                    <div className="w-5 h-5 rounded border-2 border-green-700" style={{ backgroundColor: getRuleColor('NORMAL') }} aria-hidden="true" />
+                    <span className="font-medium">Normal</span>
+                  </div>
+                </div>
+              </Card>
             </div>
           )}
         </div>

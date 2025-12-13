@@ -1,19 +1,6 @@
-from dataclasses import dataclass
 from typing import Any, Dict, List
 
-
-@dataclass
-class Zone:
-    id: str
-    name: str
-    pf: float
-    vulnerability: float
-    is_critical_infra: bool
-    hospital_count: int
-    river_proximity: float
-    elevation_risk: float
-    pop_density: float
-    crit_infra_score: float
+from ..schemas import Zone as ZoneModel
 
 
 def _ensure_float(value: Any) -> float:
@@ -52,8 +39,8 @@ def compute_pf_by_zone_from_global(rows: List[Dict[str, Any]], global_pf: float)
     return pf_by_zone
 
 
-def build_zones_from_data(rows: List[Dict[str, Any]], pf_by_zone: Dict[str, float]) -> List[Zone]:
-    zones: List[Zone] = []
+def build_zones_from_data(rows: List[Dict[str, Any]], pf_by_zone: Dict[str, float]) -> List[ZoneModel]:
+    zones: List[ZoneModel] = []
     for row in rows:
         zone_id = row.get("zone_id")
         if not isinstance(zone_id, str):
@@ -72,7 +59,7 @@ def build_zones_from_data(rows: List[Dict[str, Any]], pf_by_zone: Dict[str, floa
         pf = pf_by_zone.get(zone_id, 0.0)
 
         zones.append(
-            Zone(
+            ZoneModel(
                 id=zone_id,
                 name=name,
                 pf=pf,

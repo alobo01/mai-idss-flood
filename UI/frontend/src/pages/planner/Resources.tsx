@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface ResourceType {
   resource_id: string;
@@ -27,6 +28,9 @@ interface ZoneAllocation {
   satisfaction_level?: number;
   priority_index: number;
   impact_level: string;
+  pf?: number;
+  vulnerability?: number;
+  is_critical_infra?: boolean;
 }
 
 interface DispatchResult {
@@ -43,11 +47,55 @@ interface DispatchResult {
   resource_metadata: Record<string, ResourceType>;
 }
 
+// Helper function to generate rule explanation based on antecedents
+function getRuleExplanation(zone: ZoneAllocation): { title: string; details: string[] } {
+  const pf = zone.pf ?? 0;
+  const vulnerability = zone.vulnerability ?? 0;
+  const iz = pf * vulnerability; // Impact zone (flood probability × vulnerability)
+  const isCriticalInfra = zone.is_critical_infra ?? false;
+  const impact = zone.impact_level;
+
+  const details: string[] = [];
+  
+  // Antecedent 1: Flood probability
+  details.push(`Flood probability (PF): ${(pf * 100).toFixed(1)}%`);
+  
+  // Antecedent 2: Vulnerability
+  details.push(`Zone vulnerability: ${vulnerability.toFixed(2)}`);
+  
+  // Derived impact zone
+  details.push(`Impact zone (PF × Vulnerability): ${iz.toFixed(3)}`);
+  
+  // Antecedent 3: Critical infrastructure status
+  if (isCriticalInfra) {
+    details.push(`⚠️ Critical infrastructure present (+10% allocation boost)`);
+  }
+  
+  // Rule classification
+  let ruleTitle = '';
+  if (iz < 0.3) {
+    ruleTitle = 'Rule: NORMAL (IZ < 0.3) → 0% base allocation';
+  } else if (iz < 0.6) {
+    ruleTitle = 'Rule: ADVISORY (0.3 ≤ IZ < 0.6) → 10% base allocation';
+  } else if (iz < 0.8) {
+    ruleTitle = 'Rule: WARNING (0.6 ≤ IZ < 0.8) → 30% base allocation';
+  } else {
+    const criticalBonus = isCriticalInfra ? ' + 10% critical infra bonus' : '';
+    ruleTitle = `Rule: CRITICAL (IZ ≥ 0.8) → ${isCriticalInfra ? '60%' : '50%'} base allocation${criticalBonus}`;
+  }
+  
+  return {
+    title: ruleTitle,
+    details
+  };
+}
+
 export function ResourcesPage() {
   const [resources, setResources] = useState<ResourceType[]>([]);
   const [heuristicResult, setHeuristicResult] = useState<DispatchResult | null>(null);
   const [optimizedResult, setOptimizedResult] = useState<DispatchResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const { leadTimeDays, setLeadTimeDays } = useAppContext();
   const [saving, setSaving] = useState(false);
   const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const { toast } = useToast();
@@ -56,13 +104,24 @@ export function ResourcesPage() {
   const fetchResources = async () => {
     try {
       const response = await fetch('/api/resource-types');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       const data = await response.json();
-      setResources(data.rows);
-      
+
+      // Check if data and data.rows exist and are arrays
+      const resourceRows = data?.data?.rows || data?.rows || [];
+      if (!Array.isArray(resourceRows)) {
+        console.error('Invalid resource data structure:', data);
+        throw new Error('Invalid resource data format received');
+      }
+
+      setResources(resourceRows);
+
       // Initialize edited capacities
       const capacities: Record<string, number> = {};
-      data.rows.forEach((r: ResourceType) => {
-        capacities[r.resource_id] = r.capacity;
+      resourceRows.forEach((r: ResourceType) => {
+        capacities[r.resource_id] = r.capacity || 0;
       });
       setEditedCapacities(capacities);
     } catch (error) {
@@ -72,6 +131,9 @@ export function ResourcesPage() {
         description: 'Failed to load resource types',
         variant: 'destructive',
       });
+      // Set empty arrays to prevent further errors
+      setResources([]);
+      setEditedCapacities({});
     }
   };
 
@@ -79,13 +141,13 @@ export function ResourcesPage() {
   const fetchAllocations = async () => {
     setLoading(true);
     try {
-      // Fetch heuristic allocation
-      const heuristicRes = await fetch('/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=1');
+      // Fetch heuristic allocation (use selected lead time)
+      const heuristicRes = await fetch(`/api/rule-based/dispatch?total_units=100&mode=fuzzy&lead_time=${leadTimeDays}`);
       const heuristicData = await heuristicRes.json();
       setHeuristicResult(heuristicData);
 
-      // Fetch optimized allocation
-      const optimizedRes = await fetch('/api/rule-based/dispatch?use_optimizer=true&lead_time=1');
+      // Fetch optimized allocation (use selected lead time)
+      const optimizedRes = await fetch(`/api/rule-based/dispatch?use_optimizer=true&lead_time=${leadTimeDays}`);
       const optimizedData = await optimizedRes.json();
       setOptimizedResult(optimizedData);
     } catch (error) {
@@ -104,6 +166,11 @@ export function ResourcesPage() {
     fetchResources();
     fetchAllocations();
   }, []);
+
+  // Re-fetch allocations when lead time changes
+  useEffect(() => {
+    fetchAllocations();
+  }, [leadTimeDays]);
 
   const handleCapacityChange = (resourceId: string, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -171,7 +238,7 @@ export function ResourcesPage() {
       return shortages;
     }
     
-    Object.entries(zone.resource_scores).forEach(([resourceId, score]) => {
+    Object.entries(zone.resource_scores || {}).forEach(([resourceId, score]) => {
       if (score > 0.05) {  // Fuzzy system says this resource is necessary
         const allocated = zone.resource_units[resourceId] || 0;
         if (allocated === 0 && result.resource_metadata[resourceId]) {
@@ -191,10 +258,24 @@ export function ResourcesPage() {
             Manage resource capacities and view allocation strategies
           </p>
         </div>
-        <Button onClick={fetchAllocations} disabled={loading}>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">Lead time (days)</Label>
+            <select
+              value={leadTimeDays}
+              onChange={(e) => setLeadTimeDays(parseInt(e.target.value))}
+              className="border rounded px-2 py-1 bg-white"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </div>
+          <Button onClick={fetchAllocations} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="capacity" className="space-y-4">
@@ -224,7 +305,7 @@ export function ResourcesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {resources.map(resource => (
+                {(resources || []).map(resource => (
                   <div key={resource.resource_id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start space-x-3">
                       <span className="text-3xl">{resource.icon}</span>
@@ -297,7 +378,7 @@ export function ResourcesPage() {
                   <div className="space-y-4">
                     <h4 className="font-semibold">Resource Distribution</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {Object.entries(heuristicResult.resource_summary.per_resource_type).map(([resourceId, count]) => {
+                      {Object.entries(heuristicResult?.resource_summary?.per_resource_type || {}).map(([resourceId, count]) => {
                         const meta = heuristicResult.resource_metadata[resourceId];
                         return (
                           <div key={resourceId} className="border rounded p-3">
@@ -320,33 +401,52 @@ export function ResourcesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {heuristicResult.zones.map(zone => (
-                      <div key={zone.zone_id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-semibold">{zone.zone_name}</h4>
-                            <Badge className={getImpactColor(zone.impact_level)}>
-                              {zone.impact_level}
-                            </Badge>
+                    {(heuristicResult?.zones || []).map(zone => {
+                      const explanation = getRuleExplanation(zone);
+                      return (
+                        <div key={zone.zone_id} className="border rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-semibold">{zone.zone_name}</h4>
+                              <Badge className={getImpactColor(zone.impact_level)}>
+                                {zone.impact_level}
+                              </Badge>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold">{zone.units_allocated}</p>
+                              <p className="text-xs text-muted-foreground">units allocated</p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold">{zone.units_allocated}</p>
-                            <p className="text-xs text-muted-foreground">units allocated</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                          {resources.map(resource => {
-                            const allocated = zone.resource_units[resource.resource_id] || 0;
-                            return (
-                              <div key={resource.resource_id} className="text-center border rounded p-2">
-                                <div className="text-xl">{resource.icon}</div>
-                                <div className="text-lg font-semibold">{allocated}</div>
+                          
+                          {/* Rule Explanation */}
+                          <div className="mb-3 p-3 bg-muted/50 rounded-md border border-muted">
+                            <div className="flex items-start space-x-2">
+                              <Info className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                              <div className="text-sm space-y-1">
+                                <p className="font-semibold text-blue-900 dark:text-blue-100">{explanation.title}</p>
+                                <div className="text-muted-foreground space-y-0.5">
+                                  {(explanation?.details || []).map((detail, idx) => (
+                                    <p key={idx} className="text-xs leading-relaxed">{detail}</p>
+                                  ))}
+                                </div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
+                            {resources.map(resource => {
+                              const allocated = zone.resource_units[resource.resource_id] || 0;
+                              return (
+                                <div key={resource.resource_id} className="text-center border rounded p-2">
+                                  <div className="text-xl">{resource.icon}</div>
+                                  <div className="text-lg font-semibold">{allocated}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -392,7 +492,7 @@ export function ResourcesPage() {
                   <div className="space-y-4">
                     <h4 className="font-semibold">Resource Utilization</h4>
                     <div className="space-y-3">
-                      {Object.entries(optimizedResult.resource_summary.per_resource_type).map(([resourceId, allocated]) => {
+                      {Object.entries(optimizedResult?.resource_summary?.per_resource_type || {}).map(([resourceId, allocated]) => {
                         const meta = optimizedResult.resource_metadata[resourceId];
                         const capacity = optimizedResult.resource_summary.available_capacity?.[resourceId] || 0;
                         const percentage = capacity > 0 ? (allocated / capacity) * 100 : 0;
@@ -422,7 +522,7 @@ export function ResourcesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {optimizedResult.zones.map(zone => {
+                    {(optimizedResult?.zones || []).map(zone => {
                       const shortages = checkResourceShortage(zone, optimizedResult);
                       const hasShortages = shortages.length > 0;
                       return (

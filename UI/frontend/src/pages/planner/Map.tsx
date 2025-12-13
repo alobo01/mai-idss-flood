@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, TrendingUp, MapPin, Clock } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Clock } from 'lucide-react';
 import { MapView } from '@/components/MapView';
 import { StLouisFloodPanel } from '@/components/StLouisFloodPanel';
 import { HistoricalDataPanel } from '@/components/HistoricalDataPanel';
 import { useAppContext } from '@/contexts/AppContext';
 import { useSimulatedTimeline } from '@/hooks/useSimulatedTimeline';
 import { useRuleBasedPipeline } from '@/hooks/useRuleBased';
-import { mockRiskData, mockAlerts } from '@/lib/mockData';
+import { mockRiskData } from '@/lib/mockData';
 import { useZones } from '@/hooks/useZones';
 import type { TimeHorizon } from '@/types';
 
@@ -18,19 +18,21 @@ export function PlannerMap() {
   const { timestamp: simulatedTimestamp, label: simulatedLabel, speedLabel } = useSimulatedTimeline();
   const [layers, setLayers] = useState({
     zones: true,
-    risk: true,
-    rule: true,
+    risk: false, // Hide traditional risk layer to reduce clutter
+    rule: true,  // Show only rule-based categories as "risk level"
     gauges: true,
     alerts: true,
   });
   const { zones, zonesGeo, gauges } = useZones();
 
-  // Get mock data
+  const { leadTimeDays } = useAppContext();
+
+  // Get fuzzy logic derived states
   const { data: rulePipeline } = useRuleBasedPipeline({
-    globalPf: 0.55,
     totalUnits: 12,
-    mode: 'crisp',
+    mode: 'fuzzy', // Always use fuzzy logic derived states
     maxUnitsPerZone: 6,
+    leadTime: leadTimeDays,
   });
 
   const handleLayerToggle = (layer: keyof typeof layers) => {
@@ -45,11 +47,7 @@ export function PlannerMap() {
     setSelectedZone(zoneId);
   };
 
-  const selectedZoneData = zones.find(zone => zone.zone_id === selectedZone);
-  const selectedRiskData = mockRiskData.find(risk => risk.zoneId === selectedZone);
-  const selectedRuleData = rulePipeline?.allocations?.find(allocation => allocation.zone_id === selectedZone);
-  const selectedZoneAlerts = mockAlerts.filter(alert => alert.zoneId === selectedZone);
-
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -59,28 +57,38 @@ export function PlannerMap() {
             Interactive flood risk assessment and scenario planning
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className="flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
-            <span>{timeHorizon} forecast</span>
-          </Badge>
-          {selectedZone && (
-            <Badge variant="secondary" className="flex items-center space-x-1">
-              <MapPin className="h-3 w-3" />
-              <span>{selectedZoneData?.name}</span>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="flex items-center space-x-1">
+              <Clock className="h-3 w-3" />
+              <span>{timeHorizon === '1d' ? '1 Day' : timeHorizon === '2d' ? '2 Days' : '3 Days'} forecast</span>
             </Badge>
-          )}
-        </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium">Forecast:</span>
+            {(['1d', '2d', '3d'] as TimeHorizon[]).map((horizon) => (
+              <button
+                key={horizon}
+                onClick={() => handleTimeHorizonChange(horizon)}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  timeHorizon === horizon
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {horizon === '1d' ? '1 Day' : horizon === '2d' ? '2 Days' : '3 Days'}
+              </button>
+            ))}
+          </div>
+          </div>
       </div>
-
-      <StLouisFloodPanel />
 
       <Tabs defaultValue="map" className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <TabsList>
             <TabsTrigger value="map">Risk Map</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
-            <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
+            {/* Scenarios feature not implemented yet - removed */}
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
@@ -102,124 +110,8 @@ export function PlannerMap() {
             layers={layers}
           />
 
-          {/* Zone Details Panel */}
-          {selectedZoneData && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5" />
-                  <span>{selectedZoneData.name}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Zone Information</h4>
-                    <dl className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Population:</dt>
-                        <dd>{selectedZoneData ? Math.round(selectedZoneData.pop_density * 1000).toLocaleString() : '—'}</dd>
-                      </div>
-                    </dl>
-                  </div>
-
-                  {selectedRiskData && (
-                    <div>
-                      <h4 className="font-medium mb-2">Risk Assessment</h4>
-                      <dl className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Risk Level:</dt>
-                          <dd className="font-medium">
-                            {(selectedRiskData.risk * 100).toFixed(0)}%
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Category:</dt>
-                          <dd>
-                            <Badge
-                              variant={
-                                selectedRiskData.thresholdBand === 'Severe' ? 'destructive' :
-                                selectedRiskData.thresholdBand === 'High' ? 'default' :
-                                selectedRiskData.thresholdBand === 'Moderate' ? 'secondary' : 'outline'
-                              }
-                            >
-                              {selectedRiskData.thresholdBand}
-                            </Badge>
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">ETA:</dt>
-                          <dd>{selectedRiskData.etaHours} hours</dd>
-                        </div>
-                      </dl>
-                    </div>
-                  )}
-
-                  {selectedRuleData && (
-                    <div>
-                      <h4 className="font-medium mb-2">Rule-based response</h4>
-                      <dl className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Impact:</dt>
-                          <dd>
-                            <Badge variant="outline" className="text-xs">
-                              {(selectedRuleData.impact_level || '').toUpperCase()}
-                            </Badge>
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-muted-foreground">Units allocated:</dt>
-                          <dd className="font-medium">{selectedRuleData.units_allocated}</dd>
-                        </div>
-                        {selectedRuleData.pf !== undefined && (
-                          <div className="flex justify-between">
-                            <dt className="text-muted-foreground">PF:</dt>
-                            <dd>{(selectedRuleData.pf * 100).toFixed(0)}%</dd>
-                          </div>
-                        )}
-                        {selectedRuleData.vulnerability !== undefined && (
-                          <div className="flex justify-between">
-                            <dt className="text-muted-foreground">Vulnerability:</dt>
-                            <dd>{selectedRuleData.vulnerability.toFixed(2)}</dd>
-                          </div>
-                        )}
-                      </dl>
-                    </div>
-                  )}
-
-                  <div>
-                    <h4 className="font-medium mb-2">Active Alerts</h4>
-                    <div className="space-y-1">
-                      {selectedZoneAlerts && selectedZoneAlerts.length > 0 ? (
-                        selectedZoneAlerts.slice(0, 3).map(alert => (
-                          <div key={alert.id} className="text-xs p-2 bg-muted rounded">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium">{alert.title}</span>
-                              <Badge
-                                variant={alert.severity === 'Severe' ? 'destructive' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {alert.severity}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-muted-foreground">No active alerts</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <h4 className="font-medium mb-2">Critical Infrastructure</h4>
-                  <Badge variant={selectedZoneData.critical_infra ? 'destructive' : 'outline'} className="text-xs">
-                    {selectedZoneData.critical_infra ? 'Yes' : 'None listed'}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* St. Louis Dashboard - placed under the map */}
+          <StLouisFloodPanel />
         </TabsContent>
 
         <TabsContent value="analysis">
@@ -275,22 +167,7 @@ export function PlannerMap() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="scenarios">
-          <Card>
-            <CardHeader>
-              <CardTitle>Scenario Planning</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-12 w-12 mx-auto mb-4" />
-                <p>Scenario planning tools will be implemented here</p>
-                <p className="text-sm mt-2">
-                  This will include "what-if" analysis, mitigation scenarios, and resource allocation planning
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Scenarios tab removed — feature not implemented */}
 
         <TabsContent value="history">
           <HistoricalDataPanel />

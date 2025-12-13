@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 import logging
 
-from .zones import Zone
+from ..schemas import Zone as ZoneModel
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def get_resource_types() -> List[str]:
 RESOURCE_TYPES = get_resource_types()
 
 
-def _get_zone_attrs(zone: Zone) -> Dict[str, float]:
+def _get_zone_attrs(zone: ZoneModel) -> Dict[str, float]:
     return {
         "river_proximity": zone.river_proximity,
         "elevation_risk": zone.elevation_risk,
@@ -68,7 +68,7 @@ def _get_zone_attrs(zone: Zone) -> Dict[str, float]:
 
 # PROPORTIONAL MODE
 
-def recommend_resources_proportional(zone: Zone, total_units: int, iz: float, sum_iz: float) -> Dict:
+def recommend_resources_proportional(zone: ZoneModel, total_units: int, iz: float, sum_iz: float) -> Dict:
     units = 0 if sum_iz <= 0 else int(round(total_units * (iz / sum_iz)))
     return {
         "zone_id": zone.id,
@@ -102,7 +102,7 @@ def _crisp_fraction(impact: str, is_critical_infra: bool) -> float:
     return 0.6 if is_critical_infra else 0.5
 
 
-def recommend_resources_crisp(zone: Zone, total_units: int) -> Dict:
+def recommend_resources_crisp(zone: ZoneModel, total_units: int) -> Dict:
     impact = classify_impact(zone.pf, zone.vulnerability)
     fraction = _crisp_fraction(impact, zone.is_critical_infra)
     units = max(0, int(total_units * fraction))
@@ -150,7 +150,7 @@ def _fuzzy_fraction(iz: float, is_critical_infra: bool) -> float:
     return max(0.0, min(base, 0.6))
 
 
-def recommend_resources_fuzzy(zone: Zone, total_units: int) -> Dict:
+def recommend_resources_fuzzy(zone: ZoneModel, total_units: int) -> Dict:
     iz = zone.pf * zone.vulnerability
     units = int(round(total_units * _fuzzy_fraction(iz, zone.is_critical_infra)))
     if iz >= 0.3 and units == 0:
@@ -273,7 +273,7 @@ else:
     _RESOURCE_FS = None
 
 
-def fuzzy_resource_scores(zone: Zone) -> Dict[str, float]:
+def fuzzy_resource_scores(zone: ZoneModel) -> Dict[str, float]:
     """
     Compute resource priority scores in [0,1] using the simpful fuzzy system.
 
@@ -318,7 +318,7 @@ def fuzzy_resource_scores(zone: Zone) -> Dict[str, float]:
     return scores
 
 
-def old_rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
+def old_rule_based_resource_scores(zone: ZoneModel) -> Dict[str, float]:
     """Fallback crisp rule-based scoring if simpful is not available."""
     attrs = _get_zone_attrs(zone)
     river, elev, pop, ci = (
@@ -356,7 +356,7 @@ def old_rule_based_resource_scores(zone: Zone) -> Dict[str, float]:
     return scores
 
 
-def resource_priority_list(zone: Zone, threshold: float = 0.05) -> Dict:
+def resource_priority_list(zone: ZoneModel, threshold: float = 0.05) -> Dict:
     """
     Return resource priorities for a zone.
 
@@ -387,7 +387,7 @@ def resource_priority_list(zone: Zone, threshold: float = 0.05) -> Dict:
 # DISPATCH
 
 def build_dispatch_plan(
-    zones: List[Zone],
+    zones: List[ZoneModel],
     total_units: int,
     mode: str = "fuzzy",
     max_units_per_zone: Optional[int] = None,
@@ -407,7 +407,7 @@ def build_dispatch_plan(
 
 
 def _build_optimized_dispatch(
-    zones: List[Zone],
+    zones: List[ZoneModel],
     priorities: Dict[str, Dict],
     resource_capacities: Dict[str, int]
 ) -> List[Dict]:
@@ -487,7 +487,7 @@ def _build_optimized_dispatch(
 
 
 def _build_heuristic_dispatch(
-    zones: List[Zone],
+    zones: List[ZoneModel],
     total_units: int,
     mode: str,
     max_units_per_zone: Optional[int],
@@ -562,7 +562,7 @@ def _rebalance_units(
 
 
 def allocate_resources(
-    zones: List[Zone],
+    zones: List[ZoneModel],
     total_units: int,
     mode: str = "crisp",
     max_units_per_zone: Optional[int] = None,
