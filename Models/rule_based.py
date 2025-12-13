@@ -102,7 +102,7 @@ def classify_impact(pf: float, vulnerability: float) -> str:
         return "NORMAL"
     elif iz < 0.6:
         return "ADVISORY"
-    elif iz < 0.8:
+    elif iz < 0.7:
         return "WARNING"
     return "CRITICAL"
 
