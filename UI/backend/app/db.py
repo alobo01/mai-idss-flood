@@ -14,6 +14,7 @@ from .schemas import (
     ZoneMetadata,
     ResourceType,
     PredictionRecord,
+    ThresholdConfig,
 )
 from .db_models import (
     DatabaseQueryParams,
@@ -678,3 +679,139 @@ def insert_raw_data_batch(records: List[RawDataInsert]) -> int:
     except Exception as e:
         logger.error(f"Failed to insert raw data batch: {e}")
         return 0
+
+
+def get_threshold_config(config_name: str = 'default') -> Optional[ThresholdConfig]:
+    """Get threshold configuration from the database."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT flood_minor, flood_moderate, flood_major,
+                   critical_probability, warning_probability, advisory_probability
+            FROM threshold_config
+            WHERE config_name = %s
+        """
+        cursor.execute(query, (config_name,))
+        result = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if result:
+            return ThresholdConfig(
+                flood_minor=result[0],
+                flood_moderate=result[1],
+                flood_major=result[2],
+                critical_probability=result[3],
+                warning_probability=result[4],
+                advisory_probability=result[5]
+            )
+        else:
+            logger.warning(f"No threshold configuration found for '{config_name}'")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to get threshold configuration: {e}")
+        return None
+
+
+def update_threshold_config(thresholds: ThresholdConfig, config_name: str = 'default', updated_by: str = 'system') -> bool:
+    """Update threshold configuration in the database."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            UPDATE threshold_config
+            SET
+                flood_minor = %s,
+                flood_moderate = %s,
+                flood_major = %s,
+                critical_probability = %s,
+                warning_probability = %s,
+                advisory_probability = %s,
+                updated_by = %s
+            WHERE config_name = %s
+        """
+        cursor.execute(query, (
+            thresholds.flood_minor,
+            thresholds.flood_moderate,
+            thresholds.flood_major,
+            thresholds.critical_probability,
+            thresholds.warning_probability,
+            thresholds.advisory_probability,
+            updated_by,
+            config_name
+        ))
+
+        rows_affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        if rows_affected > 0:
+            logger.info(f"Updated threshold configuration '{config_name}'")
+            return True
+        else:
+            logger.warning(f"No threshold configuration found for '{config_name}'")
+            return False
+
+    except Exception as e:
+        logger.error(f"Failed to update threshold configuration: {e}")
+        return False
+
+
+def create_threshold_config(thresholds: ThresholdConfig, config_name: str = 'default', updated_by: str = 'system') -> bool:
+    """Create a new threshold configuration in the database."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO threshold_config
+            (config_name, flood_minor, flood_moderate, flood_major,
+             critical_probability, warning_probability, advisory_probability, updated_by)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            config_name,
+            thresholds.flood_minor,
+            thresholds.flood_moderate,
+            thresholds.flood_major,
+            thresholds.critical_probability,
+            thresholds.warning_probability,
+            thresholds.advisory_probability,
+            updated_by
+        ))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        logger.info(f"Created threshold configuration '{config_name}'")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to create threshold configuration: {e}")
+        return False
+
+
+def ensure_default_threshold_config() -> ThresholdConfig:
+    """Ensure default threshold configuration exists and return it."""
+    # Try to get existing config
+    config = get_threshold_config('default')
+
+    if config is None:
+        # Create default config if it doesn't exist
+        default_config = ThresholdConfig()
+        if create_threshold_config(default_config, 'default', 'system'):
+            config = default_config
+            logger.info("Created default threshold configuration")
+        else:
+            logger.error("Failed to create default threshold configuration")
+            # Return hardcoded defaults as fallback
+            config = default_config
+
+    return config

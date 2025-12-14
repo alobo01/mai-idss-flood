@@ -141,8 +141,8 @@ export function MapView({
         <Card className="overflow-hidden">
           <div className="h-[600px] flex items-center justify-center bg-gray-100 dark:bg-gray-800">
             <div className="text-center">
-              <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-300">No zone data available</p>
+              <MapPin className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-700 dark:text-gray-300">No zone data available</p>
             </div>
           </div>
         </Card>
@@ -253,9 +253,9 @@ export function MapView({
     let popupContent = `
       <div class="p-3 min-w-[200px]">
         <h3 class="font-semibold text-sm mb-2">${zoneName}</h3>
-        <p class="text-xs text-gray-600 mb-1">Zone ID: ${zoneId}</p>
-        ${zipCode ? `<p class="text-xs text-gray-600 mb-2">ZIP Code: ${zipCode}</p>` : ''}
-        <p class="text-xs text-gray-600 mb-2">Population: ${population ? Number(population).toLocaleString() : '—'}</p>
+        <p class="text-xs text-gray-900 mb-1">Zone ID: ${zoneId}</p>
+        ${zipCode ? `<p class="text-xs text-gray-900 mb-2">ZIP Code: ${zipCode}</p>` : ''}
+        <p class="text-xs text-gray-900 mb-2">Population: ${population ? Number(population).toLocaleString() : '—'}</p>
     `;
 
     if (rulePoint && layers.rule) {
@@ -266,9 +266,10 @@ export function MapView({
           <span style="color: ${ruleColor}" class="ml-1 font-bold">${(rulePoint.impact_level || '').toUpperCase()}</span>
           <span class="text-xs ml-1 px-1 py-0.5 rounded" style="background-color: ${ruleColor}20">${rulePoint.allocation_mode}</span>
         </div>
-        <div class="text-xs text-gray-600 space-y-1">
+        <div class="text-xs text-gray-900 space-y-1">
           <p>Units allocated: ${rulePoint.units_allocated}</p>
-          ${rulePoint.pf !== undefined ? `<p>PF: ${(rulePoint.pf * 100).toFixed(0)}%</p>` : ''}
+          ${rulePoint.pf !== undefined ? `<p>Zone Flood Probability: ${(rulePoint.pf * 100).toFixed(0)}%</p>` : ''}
+          ${selectedProbability != null ? `<p>Regional Flood Probability: ${(selectedProbability * 100).toFixed(0)}%</p>` : ''}
           ${rulePoint.vulnerability !== undefined ? `<p>Vulnerability: ${rulePoint.vulnerability.toFixed(2)}</p>` : ''}
         </div>
       `;
@@ -280,7 +281,8 @@ export function MapView({
           <span style="color: ${riskColor}" class="ml-1 font-bold">${(riskPoint.risk * 100).toFixed(0)}%</span>
           <span class="text-xs ml-1 px-1 py-0.5 rounded" style="background-color: ${riskColor}20">${riskPoint.thresholdBand}</span>
         </div>
-        <p class="text-xs text-gray-600">ETA: ${riskPoint.etaHours}h</p>
+        <p class="text-xs text-gray-900">ETA: ${riskPoint.etaHours}h</p>
+        ${selectedProbability != null ? `<p class="text-xs text-gray-900">Regional Flood Probability: ${(selectedProbability * 100).toFixed(0)}%</p>` : ''}
       `;
     }
 
@@ -306,7 +308,7 @@ export function MapView({
         <Popup>
           <div className="p-2">
             <h4 className="font-semibold text-sm mb-1">{g.name}</h4>
-            <p className="text-xs text-gray-600">USGS {g.usgs_id}</p>
+            <p className="text-xs text-gray-700">USGS {g.usgs_id}</p>
             <Badge variant="secondary" className="text-xs">Gauge</Badge>
           </div>
         </Popup>
@@ -400,7 +402,7 @@ export function MapView({
                   <span className="font-semibold text-foreground">{scenarioPiRangeLabel}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Probability</span>
+                  <span>Regional Flood Prob.</span>
                   <span className="font-semibold text-foreground">{scenarioProbabilityLabel}</span>
                 </div>
               </div>

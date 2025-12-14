@@ -63,6 +63,26 @@ Notes:
 - `UI/scripts/fetch_and_store_zip_geojson.py`: pulls ZIP polygons from the ArcGIS endpoint and upserts into `zip_geojson`. Optional `--output` writes the GeoJSON file too. Environment defaults match `docker-compose.yml` (`host localhost`, port `5439`, db `flood_prediction`, user `flood_user`, password `flood_password`).
 - `UI/scripts/load_raw_dataset.py`: loads `database/demo_data/raw_dataset.csv` into `raw_data` with upserts on `date`.
 
+### Database export/import
+- **Scripts**: `UI/scripts/db_export.sh` and `UI/scripts/db_import.sh` — helpers to export and import the `flood_prediction` database from the running Postgres container.
+- **Export (host file)**: `./UI/scripts/db_export.sh [output-file] [container-name]`
+	- Default `output-file`: `flood_prediction.dump`
+	- Default `container-name`: `flood-postgres`
+	- Example: `./UI/scripts/db_export.sh mybackup.dump`
+- **Import (from host file)**: `./UI/scripts/db_import.sh [dump-file] [container-name]`
+	- Default `dump-file`: `flood_prediction.dump`
+	- Example: `./UI/scripts/db_import.sh mybackup.dump`
+- **What they do**: `db_export.sh` runs `pg_dump -Fc` inside the container and writes a Postgres custom-format dump to the host (streamed). `db_import.sh` streams the dump back into the container and runs `pg_restore -d flood_prediction`.
+- **docker-compose alternatives**: if you prefer not to use the scripts, run these from the `UI/` directory:
+
+```bash
+docker compose exec -T postgres pg_dump -U flood_user -d flood_prediction -Fc > flood_prediction.dump
+docker compose exec -T postgres pg_restore -U flood_user -d flood_prediction -v < flood_prediction.dump
+```
+
+- **Notes**: pass the container name if your compose project uses a different name; make the scripts executable with `chmod +x UI/scripts/*.sh`.
+
+
 ### Running with docker-compose
 From `UI/`:
 ```bash

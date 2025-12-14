@@ -27,12 +27,14 @@ export const useRuleBasedPipeline = ({
   maxUnitsPerZone = 6,
   leadTime = 1,
   scenario = 'normal',
+  asOfDate,
 }: {
   totalUnits?: number;
   mode?: 'crisp' | 'fuzzy' | 'proportional';
   maxUnitsPerZone?: number;
   leadTime?: number;
   scenario?: RuleScenario;
+  asOfDate?: string;
 }) => {
   const [data, setData] = React.useState<{
     allocations: PipelineRuleBasedAllocation[];
@@ -54,6 +56,7 @@ export const useRuleBasedPipeline = ({
       lead_time: String(leadTime),
       max_units_per_zone: String(maxUnitsPerZone),
       scenario,
+      ...(asOfDate && { as_of_date: asOfDate }),
     });
     const url = `${API_URL}/rule-based/dispatch?${qs.toString()}`;
 
@@ -92,7 +95,7 @@ export const useRuleBasedPipeline = ({
     return () => {
       mounted = false;
     };
-  }, [totalUnits, mode, maxUnitsPerZone, leadTime, scenario]);
+  }, [totalUnits, mode, maxUnitsPerZone, leadTime, scenario, asOfDate]);
 
   return { data, isLoading, error };
 };

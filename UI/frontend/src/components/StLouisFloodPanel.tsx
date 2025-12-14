@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { AlertTriangle, Clock, Activity, Droplets, TrendingUp, ShieldHalf, Waves, Calendar } from 'lucide-react';
@@ -51,12 +51,14 @@ const Sparkline: React.FC<{
   upper?: number[];
   lower?: number[];
   dates?: string[];
+  medianValue?: number | null;
 }> = ({
   series,
   predictions = [],
   upper = [],
   lower = [],
   dates = [],
+  medianValue,
 }) => {
   const width = 900;
   const height = 200;
@@ -164,6 +166,34 @@ const Sparkline: React.FC<{
         </>
       )}
 
+      {/* Median line */}
+      {medianValue != null && (
+        <g>
+          <line
+            x1={margin.left}
+            x2={width - margin.right}
+            y1={scaleY(medianValue)}
+            y2={scaleY(medianValue)}
+            stroke="#6b7280"
+            strokeWidth="2"
+            strokeDasharray="8 4"
+            strokeOpacity="0.7"
+          />
+          <text
+            x={margin.left + 4}
+            y={scaleY(medianValue) - 3}
+            fontSize="10"
+            fill="#6b7280"
+            stroke="#ffffff"
+            strokeWidth="3"
+            paintOrder="stroke"
+            fontWeight="600"
+          >
+            Median {medianValue.toFixed(1)}ft
+          </text>
+        </g>
+      )}
+
 	      {/* Flood stage thresholds (drawn after PI, but lightly so PI stays readable) */}
 	      {FLOOD_STAGES.map((s) => {
 	        const y = scaleY(s.valueFt);
@@ -206,34 +236,54 @@ const Sparkline: React.FC<{
         strokeWidth="1"
       />
 
-      {/* X-axis date labels - show every 15 days */}
-      {dates.length > 0 && (() => {
+      {/* X-axis date labels - show exactly 4 ticks with smart date formatting */}
+      {(() => {
         const totalPoints = series.length + predictions.length;
-        const labelInterval = Math.max(1, Math.floor(15 / (30 / totalPoints))); // Approximate every 15 days
+        const tickCount = 4;
         const dateLabels = [];
 
-        for (let i = 0; i < dates.length; i += labelInterval) {
-          const x = scaleX(i, dates.length);
+        // Calculate indices for exactly 4 evenly spaced ticks
+        for (let i = 0; i < tickCount; i++) {
+          const index = Math.round((i / (tickCount - 1)) * (totalPoints - 1));
+          const x = scaleX(index, totalPoints);
+
+          // Use dates array if available, otherwise generate dates
+          let date;
+          if (dates.length > 0 && dates[index]) {
+            date = new Date(dates[index]);
+          } else {
+            // Generate fallback date if no dates provided
+            const today = new Date();
+            date = new Date(today.getTime() - (60 - index * 15) * 24 * 60 * 60 * 1000);
+          }
+
           dateLabels.push({
             x,
-            date: new Date(dates[i]),
-            index: i
+            date,
+            index
           });
         }
+
+        // Determine if we need to show year
+        const firstYear = dateLabels[0].date.getFullYear();
+        const lastYear = dateLabels[dateLabels.length - 1].date.getFullYear();
+        const showYear = firstYear !== lastYear;
+        const labelY = height - margin.bottom + 25; // More space for labels
 
         return dateLabels.map((label) => (
           <g key={label.index}>
             <text
               x={label.x}
-              y={height - margin.bottom + 15}
+              y={labelY}
               textAnchor="middle"
-              fontSize="9"
+              fontSize="10"
               fill="#64748b"
-              transform={`rotate(-45 ${label.x} ${height - margin.bottom + 15})`}
+              dominantBaseline="middle"
             >
               {label.date.toLocaleDateString('en-US', {
                 month: 'short',
-                day: 'numeric'
+                day: 'numeric',
+                year: showYear ? 'numeric' : undefined
               })}
             </text>
             {/* Small tick mark */}
@@ -241,7 +291,7 @@ const Sparkline: React.FC<{
               x1={label.x}
               y1={height - margin.bottom}
               x2={label.x}
-              y2={height - margin.bottom + 3}
+              y2={height - margin.bottom + 5}
               stroke="#94a3b8"
               strokeWidth="1"
             />
@@ -252,25 +302,69 @@ const Sparkline: React.FC<{
   );
 };
 
-export function StLouisFloodPanel() {
-  const { predictions, rawData, latestObservation, history, loading, error } = useBackendData();
+interface StLouisFloodPanelProps {
+  selectedDate?: string;
+}
+
+export function StLouisFloodPanel({ selectedDate }: StLouisFloodPanelProps) {
+  const { predictions, rawData, latestObservation, history, loading, error } = useBackendData(selectedDate);
   const forecastCards = predictions?.predictions || [];
 
-  const historySeries = useMemo(() => rawData.map(r => r.target_level_max), [rawData]);
+  // Filter to show only last 60 days of data (from the latest available data)
+  const filteredRawData = useMemo(() => {
+    if (!rawData.length) return [];
+
+    // Find the latest date in the actual data
+    const dataDates = rawData.map(r => new Date(r.date).getTime());
+    const latestDataDate = new Date(Math.max(...dataDates));
+
+    // If selectedDate is provided and is within data range, use it
+    // Otherwise, use the latest available data date
+    const referenceDate = selectedDate && new Date(selectedDate) <= latestDataDate
+      ? new Date(selectedDate)
+      : latestDataDate;
+
+    const sixtyDaysAgo = new Date(referenceDate);
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    return rawData.filter((r) => {
+      const rowDate = new Date(r.date);
+      return rowDate >= sixtyDaysAgo && rowDate <= referenceDate;
+    });
+  }, [rawData, selectedDate]);
+
+  const historySeries = useMemo(() => filteredRawData.map(r => r.target_level_max), [filteredRawData]);
   const predictedSeries = useMemo(() => forecastCards.map(p => p.forecast?.median ?? NaN).filter(n => !Number.isNaN(n)), [forecastCards]);
   const predictedUpper = useMemo(() => forecastCards.map(p => p.prediction_interval_80pct?.upper ?? NaN).filter(n => !Number.isNaN(n)), [forecastCards]);
   const predictedLower = useMemo(() => forecastCards.map(p => p.prediction_interval_80pct?.lower ?? NaN).filter(n => !Number.isNaN(n)), [forecastCards]);
-  const historyDates = useMemo(() => rawData.map(r => r.date), [rawData]);
+  const historyDates = useMemo(() => filteredRawData.map(r => r.date), [filteredRawData]);
+
+  // Calculate median of all observed values
+  const medianValue = useMemo(() => {
+    if (historySeries.length === 0) return null;
+    const sorted = [...historySeries].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+  }, [historySeries]);
 
   const levelTrend = useMemo(() => {
-    if (rawData.length < 2) return null;
-    const last = rawData[rawData.length - 1].target_level_max;
-    const prev = rawData[rawData.length - 2].target_level_max;
+    if (filteredRawData.length < 2) return null;
+
+    // Find the last two valid target_level_max values
+    const validData = filteredRawData.filter(r => r.target_level_max != null && !Number.isNaN(r.target_level_max));
+
+    if (validData.length < 2) return null;
+
+    const last = validData[validData.length - 1].target_level_max;
+    const prev = validData[validData.length - 2].target_level_max;
+
     return last - prev;
-  }, [rawData]);
+  }, [filteredRawData]);
 
   const bottomTable = useMemo(() => {
-    const recent = rawData.slice(-10);
+    const recent = filteredRawData.slice(-10);
     const predictedRows = forecastCards.map(p => ({
       date: p.forecast_date,
       target_level_max: p.forecast?.median ?? null,
@@ -283,7 +377,7 @@ export function StLouisFloodPanel() {
       prob: p.flood_risk?.probability,
     }));
     return [...recent.map(r => ({ ...r, isForecast: false } as any)), ...predictedRows];
-  }, [rawData, forecastCards]);
+  }, [filteredRawData, forecastCards]);
 
   const historyRows = useMemo(() => history.slice(0, 30), [history]);
 
@@ -295,7 +389,7 @@ export function StLouisFloodPanel() {
             <AlertTriangle className="h-5 w-5 text-amber-600" />
             St. Louis River Dashboard
           </CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-900">
             Database readings with 1–3 day forecasts and uncertainty
           </p>
         </div>
@@ -304,54 +398,51 @@ export function StLouisFloodPanel() {
             <Activity className="h-3 w-3" />
             Backend
           </Badge>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {predictions?.timestamp ? new Date(predictions.timestamp).toLocaleString() : '—'}
-          </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {loading && <div className="text-sm text-gray-500">Loading real data…</div>}
+        {loading && <div className="text-sm text-gray-900">Loading real data…</div>}
         {error && <div className="text-sm text-red-600">Error: {error}</div>}
 
+      
         {!loading && !error && (
           <>
             {/* Snapshot */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="p-4 border border-gray-200/80 shadow-sm bg-white/90">
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Latest level</div>
+                <div className="text-xs uppercase tracking-wide text-gray-900 mb-1">Latest level</div>
                 <div className="text-3xl font-semibold text-gray-900">{formatFt(latestObservation?.target_level_max)}</div>
-                <div className="text-xs text-gray-500">St. Louis · {latestObservation?.date ? new Date(latestObservation.date).toLocaleDateString() : '—'}</div>
+                <div className="text-xs text-gray-900">St. Louis · {latestObservation?.date ? new Date(latestObservation.date).toLocaleDateString() : '—'}</div>
               </Card>
               <Card className="p-4 border border-gray-200/80 shadow-sm bg-white/90">
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Day-over-day</div>
+                <div className="text-xs uppercase tracking-wide text-gray-900 mb-1">Day-over-day</div>
                 <div className="text-3xl font-semibold text-amber-700 flex items-center gap-1">
                   <TrendingUp className="h-4 w-4" />
                   {levelTrend !== null ? `${levelTrend >= 0 ? '+' : ''}${levelTrend?.toFixed(2)} ft` : '—'}
                 </div>
-                <div className="text-xs text-gray-500">Positive = rising</div>
+                <div className="text-xs text-gray-900">Positive = rising</div>
               </Card>
               <Card className="p-4 border border-gray-200/80 shadow-sm bg-white/90">
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Hermann gauge</div>
+                <div className="text-xs uppercase tracking-wide text-gray-900 mb-1">Hermann gauge</div>
                 <div className="text-3xl font-semibold text-gray-900">{formatFt(latestObservation?.hermann_level)}</div>
-                <div className="text-xs text-gray-500">Upstream signal</div>
+                <div className="text-xs text-gray-900">Upstream signal</div>
               </Card>
               <Card className="p-4 border border-gray-200/80 shadow-sm bg-white/90">
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">24h precip</div>
+                <div className="text-xs uppercase tracking-wide text-gray-900 mb-1">24h precip</div>
                 <div className="text-3xl font-semibold text-sky-700 flex items-center gap-1">
                   <Droplets className="h-4 w-4" />
                   {latestObservation?.daily_precip !== undefined ? `${latestObservation.daily_precip.toFixed(2)} mm` : '—'}
                 </div>
-                <div className="text-xs text-gray-500">Local loading</div>
+                <div className="text-xs text-gray-900">Local loading</div>
               </Card>
             </div>
 
             {/* History + forecasts chart */}
             {historySeries.length > 0 && (
               <Card className="p-4 border border-gray-200/80 bg-white/90 shadow-sm">
-	                <div className="flex items-center justify-between text-sm text-gray-700 mb-3">
-	                  <span className="font-semibold">30-day history + forecast cone</span>
+	                <div className="flex items-center justify-between text-sm text-gray-900 mb-3">
+	                  <span className="font-semibold">60-day history + forecast cone</span>
 	                  <div className="flex items-center gap-4 text-xs">
 	                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-slate-800 rounded" /> Observed</span>
 	                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-sky-600 rounded border border-sky-600 border-dashed" /> Forecast</span>
@@ -359,21 +450,30 @@ export function StLouisFloodPanel() {
 	                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 rounded" style={{ backgroundColor: '#ef4444' }} /> Stages</span>
 	                  </div>
 	                </div>
-                <div className="mb-3 grid grid-cols-1 gap-2 text-xs text-gray-700 md:grid-cols-2">
-                  {FLOOD_STAGES.map((s) => (
-                    <div key={s.name} className="flex items-start justify-between gap-3 rounded border bg-white px-3 py-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-                          <span className="font-semibold">{s.name} Stage</span>
-                          <Badge variant="outline">{s.valueFt} ft</Badge>
+                <div className="flex gap-6">
+                  {/* Threshold legend on the left */}
+                  <div className="w-80 flex-shrink-0">
+                    <div className="space-y-2 text-xs">
+                      <div className="font-semibold text-sm mb-2">Flood Stage Thresholds</div>
+                      {FLOOD_STAGES.map((s) => (
+                        <div key={s.name} className="flex items-start gap-3 rounded border bg-white px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
+                              <span className="font-semibold">{s.name} Stage</span>
+                              <Badge variant="outline" className="text-xs">{s.valueFt} ft</Badge>
+                            </div>
+                            <div className="mt-1 text-gray-900">{s.implication}</div>
+                          </div>
                         </div>
-                        <div className="mt-1 text-gray-500">{s.implication}</div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
+                  {/* Chart on the right */}
+                  <div className="flex-1 min-w-0">
+                    <Sparkline series={historySeries} predictions={predictedSeries} upper={predictedUpper} lower={predictedLower} dates={historyDates} medianValue={medianValue} />
+                  </div>
                 </div>
-                <Sparkline series={historySeries} predictions={predictedSeries} upper={predictedUpper} lower={predictedLower} dates={historyDates} />
               </Card>
             )}
 
@@ -389,13 +489,13 @@ export function StLouisFloodPanel() {
                   ) : (
                     <div className="space-y-2">
                       <div className="text-3xl font-semibold text-gray-900">{formatFt(p.forecast?.median)}</div>
-                      <div className="flex items-center text-xs text-gray-600 gap-2">
+                      <div className="flex items-center text-xs text-gray-900 gap-2">
                         <span className="font-semibold text-gray-800">PI80</span>
                         <span>{p.prediction_interval_80pct ? `${p.prediction_interval_80pct.lower.toFixed(2)} – ${p.prediction_interval_80pct.upper.toFixed(2)} ft` : '—'}</span>
-                        <span className="text-gray-400">({p.prediction_interval_80pct?.width?.toFixed(2)} ft)</span>
+                        <span className="text-gray-900">({p.prediction_interval_80pct?.width?.toFixed(2)} ft)</span>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        Flood probability: {p.flood_risk?.probability != null ? `${(p.flood_risk.probability * 100).toFixed(1)}%` : '—'} {p.flood_risk?.risk_indicator}
+                      <div className="text-xs text-gray-900">
+                        River flood probability: {p.flood_risk?.probability != null ? `${(p.flood_risk.probability * 100).toFixed(1)}%` : '—'} {p.flood_risk?.risk_indicator}
                       </div>
                     </div>
                   )}
@@ -421,7 +521,7 @@ export function StLouisFloodPanel() {
                       <th scope="col">Grafton</th>
                       <th scope="col">Precip</th>
                       <th scope="col">PI80</th>
-                      <th scope="col">Flood prob</th>
+                      <th scope="col">River flood prob</th>
                       <th scope="col">Type</th>
                     </tr>
                   </thead>

@@ -13,7 +13,11 @@ import { useZones } from '@/hooks/useZones';
 import type { TimeHorizon, RuleScenario, RiskPoint } from '@/types';
 import { RULE_SCENARIO_LABELS } from '@/types';
 
-export function PlannerMap() {
+interface PlannerMapProps {
+  selectedDate?: string;
+}
+
+export function PlannerMap({ selectedDate }: PlannerMapProps) {
   const {
     selectedZone,
     setSelectedZone,
@@ -45,6 +49,7 @@ export function PlannerMap() {
     maxUnitsPerZone: 6,
     leadTime: leadTimeDays,
     scenario,
+    asOfDate: selectedDate,
   });
 
   const selectedLevel = rulePipeline?.lastPrediction?.selected_level;
@@ -237,7 +242,7 @@ export function PlannerMap() {
           />
 
           {/* St. Louis Dashboard - placed under the map */}
-          <StLouisFloodPanel />
+          <StLouisFloodPanel selectedDate={selectedDate} />
         </TabsContent>
 
         <TabsContent value="analysis">

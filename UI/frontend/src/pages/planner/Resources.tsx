@@ -2,11 +2,10 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Save, RefreshCw, Settings, BarChart3, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { AlertTriangle, RefreshCw, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
 import { RULE_SCENARIO_LABELS } from '@/types';
@@ -129,85 +128,23 @@ function getRuleExplanation(zone: ZoneAllocation): { title: string; details: str
   };
 }
 
-export function ResourcesPage() {
-  const [resources, setResources] = useState<ResourceType[]>([]);
-  const [heuristicResult, setHeuristicResult] = useState<DispatchResult | null>(null);
+interface ResourcesPageProps {
+  selectedDate?: string;
+}
+
+export function ResourcesPage({ selectedDate }: ResourcesPageProps) {
   const [optimizedResult, setOptimizedResult] = useState<DispatchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const { leadTimeDays, setLeadTimeDays, scenario } = useAppContext();
-  const [saving, setSaving] = useState(false);
-  const [editedCapacities, setEditedCapacities] = useState<Record<string, number>>({});
   const [zoneQuery, setZoneQuery] = useState('');
   const [onlyShortages, setOnlyShortages] = useState(false);
   const { toast } = useToast();
 
-  const resourceCatalog = useMemo(() => {
-    const byId: Record<string, ResourceType> = {};
-    for (const r of resources) byId[r.resource_id] = r;
-
-    const fallback = heuristicResult?.resource_metadata || optimizedResult?.resource_metadata || {};
-    for (const [id, meta] of Object.entries(fallback)) {
-      if (!byId[id]) byId[id] = meta;
-    }
-
-    return Object.values(byId).sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
-  }, [resources, heuristicResult, optimizedResult]);
-
-  // Fetch resource types
-  const fetchResources = async () => {
-    try {
-      const response = await fetch('/api/resource-types');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      const data = await response.json();
-
-      // Check if data and data.rows exist and are arrays
-      const resourceRows = data?.data?.rows || data?.rows || [];
-      if (!Array.isArray(resourceRows)) {
-        console.error('Invalid resource data structure:', data);
-        throw new Error('Invalid resource data format received');
-      }
-
-      setResources(resourceRows);
-
-      // Initialize edited capacities
-      const capacities: Record<string, number> = {};
-      resourceRows.forEach((r: ResourceType) => {
-        capacities[r.resource_id] = r.capacity || 0;
-      });
-      setEditedCapacities(capacities);
-    } catch (error) {
-      console.error('Failed to fetch resources:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load resource types',
-        variant: 'destructive',
-      });
-      // Set empty arrays to prevent further errors
-      setResources([]);
-      setEditedCapacities({});
-    }
-  };
-
+  
   // Fetch allocations
   const fetchAllocations = async () => {
     setLoading(true);
     try {
-      // Fetch heuristic allocation (use selected lead time)
-      const heuristicParams = new URLSearchParams({
-        total_units: '100',
-        mode: 'fuzzy',
-        lead_time: String(leadTimeDays),
-        scenario,
-      });
-      const heuristicRes = await fetch(`/api/rule-based/dispatch?${heuristicParams.toString()}`);
-      if (!heuristicRes.ok) {
-        const body = await heuristicRes.text();
-        throw new Error(`Heuristic dispatch failed (HTTP ${heuristicRes.status}): ${body}`);
-      }
-      setHeuristicResult(await heuristicRes.json());
-
       // Fetch optimized allocation (use selected lead time)
       const optimizedParams = new URLSearchParams({
         total_units: '100',
@@ -215,6 +152,7 @@ export function ResourcesPage() {
         lead_time: String(leadTimeDays),
         scenario,
         use_optimizer: 'true',
+        ...(selectedDate && { as_of_date: selectedDate }),
       });
       const optimizedRes = await fetch(`/api/rule-based/dispatch?${optimizedParams.toString()}`);
       if (!optimizedRes.ok) {
@@ -224,7 +162,6 @@ export function ResourcesPage() {
       setOptimizedResult(await optimizedRes.json());
     } catch (error) {
       console.error('Failed to fetch allocations:', error);
-      setHeuristicResult(null);
       setOptimizedResult(null);
       toast({
         title: 'Error',
@@ -236,60 +173,10 @@ export function ResourcesPage() {
     }
   };
 
-  useEffect(() => {
-    fetchResources();
-  }, []);
-
-  // Re-fetch allocations when lead time or scenario changes
+  // Re-fetch allocations when lead time, scenario, or selected date changes
   useEffect(() => {
     fetchAllocations();
-  }, [leadTimeDays, scenario]);
-
-  const handleCapacityChange = (resourceId: string, value: string) => {
-    const numValue = parseInt(value) || 0;
-    setEditedCapacities(prev => ({ ...prev, [resourceId]: numValue }));
-  };
-
-  const handleSaveCapacities = async () => {
-    setSaving(true);
-    try {
-      const response = await fetch('/api/resource-types/capacities', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          capacities: editedCapacities
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update capacities');
-      }
-
-      const data = await response.json();
-      
-      // Update local state with response
-      setResources(data.resources);
-
-      toast({
-        title: 'Success',
-        description: `Updated ${data.updated_count} resource capacities`,
-      });
-
-      // Refresh allocations
-      fetchAllocations();
-    } catch (error) {
-      console.error('Failed to save capacities:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update resource capacities',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [leadTimeDays, scenario, selectedDate]);
 
   const getImpactColor = (level: string) => {
     switch (level) {
@@ -385,9 +272,9 @@ export function ResourcesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Resource Management</h1>
+          <h1 className="text-3xl font-bold">Resource Allocation</h1>
           <p className="text-muted-foreground">
-            Manage resource capacities and view allocation strategies
+            View optimized resource allocation and capacity utilization
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -396,7 +283,7 @@ export function ResourcesPage() {
             <select
               value={leadTimeDays}
               onChange={(e) => setLeadTimeDays(parseInt(e.target.value))}
-              className="border rounded px-2 py-1 bg-white"
+              className="border rounded px-2 py-1 bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value={1}>1</option>
               <option value={2}>2</option>
@@ -413,218 +300,90 @@ export function ResourcesPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="capacity" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="capacity">
-            <Settings className="h-4 w-4 mr-2" />
-            Capacity Settings
-          </TabsTrigger>
-          <TabsTrigger value="heuristic">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Heuristic Allocation
-          </TabsTrigger>
-          <TabsTrigger value="optimized">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Optimized Allocation
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Capacity Settings Tab */}
-        <TabsContent value="capacity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resource Capacity Configuration</CardTitle>
-              <CardDescription>
-                Set the available capacity for each resource type
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(resourceCatalog || []).map(resource => (
-                  <div key={resource.resource_id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-3xl">{resource.icon}</span>
-                      <div className="flex-1">
-                        <Label htmlFor={`capacity-${resource.resource_id}`} className="font-semibold">
-                          {resource.name}
-                        </Label>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {resource.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`capacity-${resource.resource_id}`} className="text-xs">
-                        Available Units
-                      </Label>
-                      <Input
-                        id={`capacity-${resource.resource_id}`}
-                        type="number"
-                        min="0"
-                        value={editedCapacities[resource.resource_id] || 0}
-                        onChange={(e) => handleCapacityChange(resource.resource_id, e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={handleSaveCapacities} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save Capacities'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Heuristic Allocation Tab */}
-        <TabsContent value="heuristic" className="space-y-4">
-          {heuristicResult && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Heuristic Allocation Summary</CardTitle>
-                  <CardDescription>
-                    Fuzzy logic-based allocation (100 total units)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Mode</p>
-                      <p className="text-2xl font-bold capitalize">{heuristicResult.mode}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Units</p>
-                      <p className="text-2xl font-bold">{heuristicResult.resource_summary.total_allocated_units}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Zones</p>
-                      <p className="text-2xl font-bold">{heuristicResult.zones.length}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Flood Probability</p>
-                      <p className="text-2xl font-bold">{formatPct(heuristicResult.global_flood_probability)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Last Updated</p>
-                      <p className="text-sm font-semibold">
-                        {formatIsoDate(heuristicResult.last_prediction?.created_at)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-semibold">Resource Distribution</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {Object.entries(heuristicResult?.resource_summary?.per_resource_type || {}).map(([resourceId, count]) => {
-                        const meta = heuristicResult.resource_metadata[resourceId];
-                        if (!meta) return null;
-                        return (
-                          <div key={resourceId} className="border rounded p-3">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-2xl">{meta.icon}</span>
-                              <span className="text-sm font-medium">{meta.name}</span>
-                            </div>
-                            <p className="text-2xl font-bold">{count} units</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Zone Allocations</CardTitle>
-                  <CardDescription>
-                    Search zones, then expand a row for rule explanation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div className="flex-1">
-                      <Label className="text-xs text-muted-foreground">Search zones</Label>
-                      <Input
-                        value={zoneQuery}
-                        onChange={(e) => setZoneQuery(e.target.value)}
-                        placeholder="e.g. North Riverfront or Z1N"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Showing <span className="font-semibold text-foreground">{getZoneRows(heuristicResult).length}</span> /{' '}
-                      <span className="font-semibold text-foreground">{heuristicResult.zones.length}</span> zones
-                    </div>
-                  </div>
-
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="py-2 text-left font-semibold">Zone</th>
-                          <th className="py-2 text-left font-semibold">Impact</th>
-                          <th className="py-2 text-right font-semibold">Units</th>
-                          <th className="py-2 text-left font-semibold">Resources</th>
-                          <th className="py-2 text-left font-semibold">Details</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getZoneRows(heuristicResult).map((zone) => {
-                          const explanation = getRuleExplanation(zone);
-                          return (
-                            <tr key={zone.zone_id} className="border-b align-top">
-                              <td className="py-3 pr-3">
-                                <div className="font-semibold">{zone.zone_name}</div>
-                                <div className="text-xs text-muted-foreground">{zone.zone_id}</div>
-                              </td>
-                              <td className="py-3 pr-3">
-                                <Badge className={getImpactColor(zone.impact_level)}>{zone.impact_level}</Badge>
-                              </td>
-                              <td className="py-3 pr-3 text-right">
-                                <div className="text-lg font-bold leading-none">{zone.units_allocated}</div>
-                                <div className="text-xs text-muted-foreground">units</div>
-                              </td>
-                              <td className="py-3 pr-3">
-                                {renderZoneResources(zone, heuristicResult.resource_metadata, { maxItems: 4 })}
-                              </td>
-                              <td className="py-3">
-                                <details className="rounded-md border bg-muted/20 px-3 py-2">
-                                  <summary className="cursor-pointer select-none text-xs font-semibold text-blue-700">
-                                    View rules
-                                  </summary>
-                                  <div className="mt-2 flex items-start gap-2">
-                                    <Info className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
-                                    <div className="space-y-1">
-                                      <div className="text-xs font-semibold">{explanation.title}</div>
-                                      <div className="space-y-0.5 text-xs text-muted-foreground">
-                                        {explanation.details.map((detail, idx) => (
-                                          <div key={idx}>{detail}</div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </details>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </TabsContent>
-
-        {/* Optimized Allocation Tab */}
-        <TabsContent value="optimized" className="space-y-4">
+      <div className="space-y-4">
+        {/* Optimized Allocation */}
           {optimizedResult && (
             <>
+              {/* Capacity Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Capacity Overview</CardTitle>
+                  <CardDescription>
+                    Comparison of actual available capacity vs. needed capacity by optimized allocation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(optimizedResult?.resource_summary?.per_resource_type || {}).map(([resourceId, allocated]) => {
+                      const meta = optimizedResult.resource_metadata[resourceId];
+                      if (!meta) return null;
+                      const capacity = optimizedResult.resource_summary.available_capacity?.[resourceId] || 0;
+                      const shortage = Math.max(0, allocated - capacity);
+                      const surplus = Math.max(0, capacity - allocated);
+                      const utilizationPercentage = capacity > 0 ? (allocated / capacity) * 100 : 0;
+                      const hasShortage = shortage > 0;
+
+                      return (
+                        <div key={resourceId} className={`border rounded-lg p-4 ${hasShortage ? 'border-red-300 bg-red-100' : ''}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-2xl">{meta.icon}</span>
+                              <span className={`font-semibold text-sm ${hasShortage ? 'text-red-900' : ''}`}>{meta.name}</span>
+                            </div>
+                            {hasShortage && (
+                              <Badge variant="destructive" className="text-xs">
+                                Shortage
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className={`text-muted-foreground ${hasShortage ? 'text-red-700' : ''}`}>Available:</span>
+                              <span className={`font-semibold ${hasShortage ? 'text-red-900' : ''}`}>{capacity} units</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className={`text-muted-foreground ${hasShortage ? 'text-red-700' : ''}`}>Needed:</span>
+                              <span className={`font-semibold ${hasShortage ? 'text-red-900' : ''}`}>{allocated} units</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className={`text-muted-foreground ${hasShortage ? 'text-red-700' : ''}`}>
+                                {hasShortage ? 'Shortage:' : surplus > 0 ? 'Surplus:' : 'Utilization:'}
+                              </span>
+                              <span className={`font-semibold ${hasShortage ? 'text-red-900 font-bold' : surplus > 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                                {hasShortage ? `-${shortage}` : surplus > 0 ? `+${surplus}` : `${utilizationPercentage.toFixed(0)}%`}
+                              </span>
+                            </div>
+                            <Progress
+                              value={Math.min(100, utilizationPercentage)}
+                              className={`h-2 ${hasShortage ? 'bg-red-200' : ''}`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* If no resources allocated */}
+                    {Object.keys(optimizedResult?.resource_summary?.per_resource_type || {}).length === 0 && (
+                      <div className="col-span-full text-center text-muted-foreground py-8">
+                        No resource allocations to display
+                      </div>
+                    )}
+                  </div>
+                  {Object.entries(optimizedResult?.resource_summary?.per_resource_type || {}).some(([resourceId, allocated]) => {
+                    const capacity = optimizedResult.resource_summary.available_capacity?.[resourceId] || 0;
+                    return allocated > capacity;
+                  }) && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          Resource shortages detected - some allocations exceed available capacity
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Optimized Fair Allocation Summary</CardTitle>
@@ -804,8 +563,7 @@ export function ResourcesPage() {
               </Card>
             </>
           )}
-        </TabsContent>
-      </Tabs>
+    </div>
     </div>
   );
 }

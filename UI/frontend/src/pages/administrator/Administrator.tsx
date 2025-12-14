@@ -36,7 +36,11 @@ interface ThresholdConfig {
   description: string;
 }
 
-export function AdministratorPage() {
+interface AdministratorPageProps {
+  selectedDate?: string;
+}
+
+export function AdministratorPage({ selectedDate }: AdministratorPageProps) {
   const [resources, setResources] = useState<ResourceType[]>([]);
   const [zones, setZones] = useState<ZoneData[]>([]);
   const [thresholds, setThresholds] = useState<ThresholdConfig[]>([]);
@@ -83,22 +87,45 @@ export function AdministratorPage() {
         setEditedZones(zonesMap);
       }
 
-      // Initialize default thresholds (these could be fetched from a config endpoint)
-      const defaultThresholds: ThresholdConfig[] = [
-        { id: 'flood_minor', name: 'Minor Flood Level', value: 16, unit: 'ft', description: 'River level for minor flooding' },
-        { id: 'flood_moderate', name: 'Moderate Flood Level', value: 22, unit: 'ft', description: 'River level for moderate flooding' },
-        { id: 'flood_major', name: 'Major Flood Level', value: 28, unit: 'ft', description: 'River level for major flooding' },
-        { id: 'critical_probability', name: 'Critical Flood Probability', value: 0.8, unit: '%', description: 'Probability threshold for critical risk' },
-        { id: 'warning_probability', name: 'Warning Flood Probability', value: 0.6, unit: '%', description: 'Probability threshold for warning level' },
-        { id: 'advisory_probability', name: 'Advisory Flood Probability', value: 0.3, unit: '%', description: 'Probability threshold for advisory level' },
-      ];
-      setThresholds(defaultThresholds);
+      // Fetch thresholds from API
+      const thresholdResponse = await fetch('/api/thresholds');
+      if (thresholdResponse.ok) {
+        const thresholdData = await thresholdResponse.json();
+        const thresholdValues = thresholdData?.data?.thresholds || {};
 
-      const thresholdsMap: Record<string, number> = {};
-      defaultThresholds.forEach((t) => {
-        thresholdsMap[t.id] = t.value;
-      });
-      setEditedThresholds(thresholdsMap);
+        const defaultThresholds: ThresholdConfig[] = [
+          { id: 'flood_minor', name: 'Minor Flood Level', value: thresholdValues.flood_minor || 16, unit: 'ft', description: 'River level for minor flooding' },
+          { id: 'flood_moderate', name: 'Moderate Flood Level', value: thresholdValues.flood_moderate || 22, unit: 'ft', description: 'River level for moderate flooding' },
+          { id: 'flood_major', name: 'Major Flood Level', value: thresholdValues.flood_major || 28, unit: 'ft', description: 'River level for major flooding' },
+          { id: 'critical_probability', name: 'Critical Flood Probability', value: thresholdValues.critical_probability || 0.8, unit: '%', description: 'Probability threshold for critical risk' },
+          { id: 'warning_probability', name: 'Warning Flood Probability', value: thresholdValues.warning_probability || 0.6, unit: '%', description: 'Probability threshold for warning level' },
+          { id: 'advisory_probability', name: 'Advisory Flood Probability', value: thresholdValues.advisory_probability || 0.3, unit: '%', description: 'Probability threshold for advisory level' },
+        ];
+        setThresholds(defaultThresholds);
+
+        const thresholdsMap: Record<string, number> = {};
+        defaultThresholds.forEach((t) => {
+          thresholdsMap[t.id] = t.value;
+        });
+        setEditedThresholds(thresholdsMap);
+      } else {
+        // Fallback to default values
+        const defaultThresholds: ThresholdConfig[] = [
+          { id: 'flood_minor', name: 'Minor Flood Level', value: 16, unit: 'ft', description: 'River level for minor flooding' },
+          { id: 'flood_moderate', name: 'Moderate Flood Level', value: 22, unit: 'ft', description: 'River level for moderate flooding' },
+          { id: 'flood_major', name: 'Major Flood Level', value: 28, unit: 'ft', description: 'River level for major flooding' },
+          { id: 'critical_probability', name: 'Critical Flood Probability', value: 0.8, unit: '%', description: 'Probability threshold for critical risk' },
+          { id: 'warning_probability', name: 'Warning Flood Probability', value: 0.6, unit: '%', description: 'Probability threshold for warning level' },
+          { id: 'advisory_probability', name: 'Advisory Flood Probability', value: 0.3, unit: '%', description: 'Probability threshold for advisory level' },
+        ];
+        setThresholds(defaultThresholds);
+
+        const thresholdsMap: Record<string, number> = {};
+        defaultThresholds.forEach((t) => {
+          thresholdsMap[t.id] = t.value;
+        });
+        setEditedThresholds(thresholdsMap);
+      }
 
     } catch (error) {
       console.error('Failed to fetch configuration data:', error);
@@ -170,10 +197,20 @@ export function AdministratorPage() {
   const saveZoneParameters = async () => {
     setSaving(true);
     try {
-      // This would need a backend endpoint to update zones
+      const response = await fetch('/api/zones/parameters', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zones: editedZones }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update zone parameters');
+
+      const data = await response.json();
+      setZones(data.zones);
+
       toast({
-        title: 'Info',
-        description: 'Zone parameter saving not yet implemented in backend',
+        title: 'Success',
+        description: `Updated parameters for ${data.updated_count} zones`,
       });
     } catch (error) {
       toast({
@@ -189,10 +226,28 @@ export function AdministratorPage() {
   const saveThresholds = async () => {
     setSaving(true);
     try {
-      // This would need a backend endpoint to update thresholds
+      const thresholdData = {
+        flood_minor: editedThresholds.flood_minor || 16,
+        flood_moderate: editedThresholds.flood_moderate || 22,
+        flood_major: editedThresholds.flood_major || 28,
+        critical_probability: editedThresholds.critical_probability || 0.8,
+        warning_probability: editedThresholds.warning_probability || 0.6,
+        advisory_probability: editedThresholds.advisory_probability || 0.3,
+      };
+
+      const response = await fetch('/api/thresholds', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(thresholdData),
+      });
+
+      if (!response.ok) throw new Error('Failed to update thresholds');
+
+      const data = await response.json();
+
       toast({
-        title: 'Info',
-        description: 'Threshold saving not yet implemented in backend',
+        title: 'Success',
+        description: 'Threshold configuration updated successfully',
       });
     } catch (error) {
       toast({
@@ -210,7 +265,7 @@ export function AdministratorPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">System Configuration</h1>
-          <p className="text-muted-foreground">
+          <p className="text-gray-900">
             Administrator settings for resources, thresholds, and zone parameters
           </p>
         </div>
@@ -255,7 +310,7 @@ export function AdministratorPage() {
                         <Label htmlFor={`capacity-${resource.resource_id}`} className="font-semibold">
                           {resource.name}
                         </Label>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-gray-700 mt-1">
                           {resource.description}
                         </p>
                       </div>
@@ -314,9 +369,9 @@ export function AdministratorPage() {
                             onChange={(e) => handleThresholdChange(threshold.id, e.target.value)}
                             className="w-24"
                           />
-                          <span className="text-sm text-muted-foreground">{threshold.unit}</span>
+                          <span className="text-sm text-gray-700">{threshold.unit}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{threshold.description}</p>
+                        <p className="text-xs text-gray-700">{threshold.description}</p>
                       </div>
                     ))}
                   </div>
@@ -341,11 +396,11 @@ export function AdministratorPage() {
                             onChange={(e) => handleThresholdChange(threshold.id, e.target.value)}
                             className="w-24"
                           />
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-gray-700">
                             {((editedThresholds[threshold.id] || 0) * 100).toFixed(0)}%
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{threshold.description}</p>
+                        <p className="text-xs text-gray-700">{threshold.description}</p>
                       </div>
                     ))}
                   </div>
@@ -389,50 +444,50 @@ export function AdministratorPage() {
                       <tr key={zone.zone_id} className="border-b">
                         <td className="py-3 pr-3">
                           <div className="font-semibold">{zone.name}</div>
-                          <div className="text-xs text-muted-foreground">{zone.zone_id}</div>
+                          <div className="text-xs text-gray-700">{zone.zone_id}</div>
                         </td>
                         <td className="py-3 pr-3">
                           <Input
                             type="number"
-                            step="0.1"
+                            step="0.01"
                             min="0"
                             max="1"
                             value={editedZones[zone.zone_id]?.river_proximity || 0}
                             onChange={(e) => handleZoneChange(zone.zone_id, 'river_proximity', e.target.value)}
-                            className="w-16"
+                            className="w-20"
                           />
                         </td>
                         <td className="py-3 pr-3">
                           <Input
                             type="number"
-                            step="0.1"
+                            step="0.01"
                             min="0"
                             max="1"
                             value={editedZones[zone.zone_id]?.elevation_risk || 0}
                             onChange={(e) => handleZoneChange(zone.zone_id, 'elevation_risk', e.target.value)}
-                            className="w-16"
+                            className="w-20"
                           />
                         </td>
                         <td className="py-3 pr-3">
                           <Input
                             type="number"
-                            step="0.1"
+                            step="0.01"
                             min="0"
                             max="1"
                             value={editedZones[zone.zone_id]?.pop_density || 0}
                             onChange={(e) => handleZoneChange(zone.zone_id, 'pop_density', e.target.value)}
-                            className="w-16"
+                            className="w-20"
                           />
                         </td>
                         <td className="py-3 pr-3">
                           <Input
                             type="number"
-                            step="0.1"
+                            step="0.01"
                             min="0"
                             max="1"
                             value={editedZones[zone.zone_id]?.crit_infra_score || 0}
                             onChange={(e) => handleZoneChange(zone.zone_id, 'crit_infra_score', e.target.value)}
-                            className="w-16"
+                            className="w-20"
                           />
                         </td>
                         <td className="py-3 pr-3">
@@ -441,7 +496,7 @@ export function AdministratorPage() {
                             min="0"
                             value={editedZones[zone.zone_id]?.hospital_count || 0}
                             onChange={(e) => handleZoneChange(zone.zone_id, 'hospital_count', e.target.value)}
-                            className="w-16"
+                            className="w-20"
                           />
                         </td>
                         <td className="py-3 pr-3">
