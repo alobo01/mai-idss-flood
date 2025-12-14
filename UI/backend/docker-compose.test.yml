@@ -22,34 +22,37 @@ services:
       - test-db
     networks:
       - test-network
-    command: >
-      sh -c "
-        echo 'Waiting for database...' &&
-        python -c '
-import time
-import psycopg2
-import os
-for i in range(30):
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get(\"DB_HOST\", \"localhost\"),
-            port=int(os.environ.get(\"DB_PORT\", 5439)),
-            database=os.environ.get(\"DB_NAME\", \"test_flood_prediction\"),
-            user=os.environ.get(\"DB_USER\", \"test_user\"),
-            password=os.environ.get(\"DB_PASSWORD\", \"test_password\")
-        )
-        conn.close()
-        print(\"Database is ready!\")
-        break
-    except Exception as e:
-        if i == 29:
-            raise
-        time.sleep(1)
-        ' &&
-        echo 'Running tests...' &&
-        pytest -v --cov=app --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:test-reports/coverage.xml --junit-xml=test-reports/junit.xml tests/ &&
-        echo 'Tests completed successfully!'
-      "
+    command:
+      - sh
+      - -c
+      - |
+          set -euo pipefail
+          echo 'Waiting for database...'
+          python - <<'PY'
+          import os
+          import time
+          import psycopg2
+
+          for i in range(30):
+              try:
+                  conn = psycopg2.connect(
+                      host=os.environ.get("DB_HOST", "localhost"),
+                      port=int(os.environ.get("DB_PORT", 5439)),
+                      database=os.environ.get("DB_NAME", "test_flood_prediction"),
+                      user=os.environ.get("DB_USER", "test_user"),
+                      password=os.environ.get("DB_PASSWORD", "test_password"),
+                  )
+                  conn.close()
+                  print("Database is ready!")
+                  break
+              except Exception:
+                  if i == 29:
+                      raise
+                  time.sleep(1)
+          PY
+          echo 'Running tests...'
+          pytest -v --cov=app --cov-report=term-missing --cov-report=html:htmlcov --cov-report=xml:test-reports/coverage.xml --junit-xml=test-reports/junit.xml tests/
+          echo 'Tests completed successfully!'
 
   test-db:
     image: postgis/postgis:13-3.1

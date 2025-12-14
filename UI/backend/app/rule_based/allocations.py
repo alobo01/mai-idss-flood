@@ -411,78 +411,125 @@ def _build_optimized_dispatch(
     priorities: Dict[str, Dict],
     resource_capacities: Dict[str, int]
 ) -> List[Dict]:
-    """Build dispatch plan using LP optimizer for fair allocation."""
+    """Build dispatch plan using LP optimizer for fair + necessity-aware allocation."""
     from .optimizer import optimize_fair_allocation
-    
+
     # Prepare inputs for optimizer
     zone_list = [{"zone_id": z.id, "zone_name": z.name} for z in zones]
-    
-    # Extract resource scores from priorities
-    resource_scores = {}
-    nominal_allocations = {}
-    
+
+    resource_types = list(get_resource_types())
+
+    # Total available capacity (across all resource types)
+    total_available = int(sum(resource_capacities.values()))
+
+    # Extract resource scores and build nominal allocations as fuzzy-estimated demand
+    resource_scores: Dict[str, Dict[str, float]] = {}
+    nominal_allocations: Dict[str, float] = {}
+
     for z in zones:
         zone_id = z.id
         pr = priorities.get(zone_id, {})
+
+        # Zone-specific resource relevance / preference profile from fuzzy rules
         resource_scores[zone_id] = pr.get("resource_scores", {})
-        # Use priority index as nominal allocation weight
-        nominal_allocations[zone_id] = pr.get("priority_index", 0.0) * 10  # Scale up
-    
-    resource_types = list(get_resource_types())
-    
+
+        # IMPORTANT: zone demand comes from fuzzy "units_allocated"
+        # (this is the R_j used to scale the ideal bundle a_ij)
+        fuzzy_need = recommend_resources_fuzzy(z, total_available)["units_allocated"]
+        nominal_allocations[zone_id] = float(max(0, fuzzy_need))
+
+    # If every zone has 0 need (e.g., NORMAL everywhere), return empty allocation
+    if sum(nominal_allocations.values()) <= 0:
+        dispatch = []
+        for z in zones:
+            dispatch.append({
+                "zone_id": z.id,
+                "zone_name": z.name,
+                "impact_level": classify_impact(z.pf, z.vulnerability),
+                "allocation_mode": "OPTIMIZED",
+                "units_allocated": 0,
+                "priority_index": priorities.get(z.id, {}).get("priority_index", 0.0),
+                "resource_priority": priorities.get(z.id, {}).get("resource_priority", []),
+                "resource_units": {r: 0 for r in resource_types},
+                "resource_scores": priorities.get(z.id, {}).get("resource_scores", {}),
+                "satisfaction_level": 0.0,
+                "fairness_level": 0.0,
+            })
+        return dispatch
+
+    # Use the same threshold as resource_priority_list default (keeps gating consistent)
+    score_threshold = 0.05
+
     # Run optimization
     try:
+        allocations, satisfaction_levels, fairness_level = optimize_fair_allocation(
+            zone_list=zone_list,                 # if your function signature is positional, remove keywords
+            resource_scores=resource_scores,
+            nominal_allocations=nominal_allocations,
+            capacities=resource_capacities,
+            resource_types=resource_types,
+            score_threshold=score_threshold,
+        )
+
+        logger.info(f"Optimization complete. Fairness level: {fairness_level:.3f}")
+
+    except TypeError:
+        # Backwards compatibility if optimize_fair_allocation is positional-only
         allocations, satisfaction_levels, fairness_level = optimize_fair_allocation(
             zone_list,
             resource_scores,
             nominal_allocations,
             resource_capacities,
-            resource_types
+            resource_types,
+            score_threshold=score_threshold,
         )
-        
-        logger.info(f"Optimization complete. Fairness level: {fairness_level:.3f}")
+
     except Exception as e:
         logger.error(f"Optimization failed: {e}", exc_info=True)
-        # Fallback to heuristic
-        return _build_heuristic_dispatch(zones, sum(resource_capacities.values()), 
-                                        "fuzzy", None, priorities)
-    
+        return _build_heuristic_dispatch(
+            zones,
+            sum(resource_capacities.values()),
+            "fuzzy",
+            None,
+            priorities,
+        )
+
     # Build dispatch response
-    dispatch = []
-    
+    dispatch: List[Dict] = []
+
     for z in zones:
         zone_id = z.id
         pr = priorities.get(zone_id, {})
         zone_alloc = allocations.get(zone_id, {})
-        
-        # Round allocations to integers
-        resource_units = {}
-        total_units = 0
+
+        # Round allocations to integers (LP is continuous)
+        resource_units: Dict[str, int] = {}
+        total_units_alloc = 0
+
         for resource_id in resource_types:
-            amount = zone_alloc.get(resource_id, 0.0)
+            amount = float(zone_alloc.get(resource_id, 0.0))
             rounded = int(round(amount))
-            if rounded > 0:
-                resource_units[resource_id] = rounded
-                total_units += rounded
-            else:
-                resource_units[resource_id] = 0
-        
-        satisfaction = satisfaction_levels.get(zone_id, 0.0)
-        
+            if rounded < 0:
+                rounded = 0
+            resource_units[resource_id] = rounded
+            total_units_alloc += rounded
+
+        satisfaction = float(satisfaction_levels.get(zone_id, 0.0))
+
         dispatch.append({
             "zone_id": zone_id,
             "zone_name": z.name,
             "impact_level": classify_impact(z.pf, z.vulnerability),
             "allocation_mode": "OPTIMIZED",
-            "units_allocated": total_units,
+            "units_allocated": total_units_alloc,
             "priority_index": pr.get("priority_index", 0.0),
             "resource_priority": pr.get("resource_priority", []),
             "resource_units": resource_units,
             "resource_scores": pr.get("resource_scores", {}),
             "satisfaction_level": round(satisfaction, 3),
-            "fairness_level": round(fairness_level, 3),
+            "fairness_level": round(float(fairness_level), 3),
         })
-    
+
     return dispatch
 
 

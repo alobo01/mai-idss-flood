@@ -65,7 +65,20 @@ export const HistoricalDataPanel: React.FC = () => {
     return Array.from(ys).sort();
   }, [rawData]);
 
-  const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const months = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
 
   const chartData = useMemo(() => {
     const dataMap = new Map<string, ChartDataPoint>();
@@ -112,6 +125,8 @@ export const HistoricalDataPanel: React.FC = () => {
         const probKey = `flood_prob_${pred.days_ahead}d` as keyof ChartDataPoint;
 
         (existing as any)[leadKey] = pred.predicted_level;
+        (existing as any)[lowerKey] = pred.lower_bound_80 ?? null;
+        (existing as any)[upperKey] = pred.upper_bound_80 ?? null;
         (existing as any)[probKey] = pred.flood_probability ? pred.flood_probability * 100 : null;
         existing.aboveThreshold = existing.aboveThreshold || ((pred.flood_probability || 0) >= threshold);
       }
@@ -197,16 +212,16 @@ export const HistoricalDataPanel: React.FC = () => {
               <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-slate-600" />
                 <label className="text-slate-700">Year</label>
-                <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} className="border rounded px-2 py-1 text-sm">
+                <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} className="border rounded px-2 py-1 text-sm bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                   <option value="all">All</option>
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-slate-700">Month</label>
-                <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="border rounded px-2 py-1 text-sm">
+                <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="border rounded px-2 py-1 text-sm bg-white text-gray-900 border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                   <option value="all">All</option>
-                  {months.map(m => <option key={m} value={m}>{m}</option>)}
+                  {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
               </div>
             </div>

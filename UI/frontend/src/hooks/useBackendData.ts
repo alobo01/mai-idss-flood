@@ -3,7 +3,26 @@ import { BackendPredictResponse, RawDataRow, PredictionHistoryItem } from '@/typ
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-export function useBackendData() {
+function extractRows<T>(json: any): T[] {
+  const rows = json?.data?.rows ?? json?.rows ?? [];
+  return Array.isArray(rows) ? (rows as T[]) : [];
+}
+
+function normalizePredictionHistory(rows: any[]): PredictionHistoryItem[] {
+  return rows
+    .map((r: any) => ({
+      date: r?.forecast_date ?? r?.date ?? '',
+      predicted_level: r?.predicted_level ?? null,
+      lower_bound_80: r?.lower_bound_80 ?? null,
+      upper_bound_80: r?.upper_bound_80 ?? null,
+      flood_probability: r?.flood_probability ?? null,
+      days_ahead: r?.lead_time_days ?? r?.days_ahead ?? 0,
+      created_at: r?.created_at ?? '',
+    }))
+    .filter((r) => Boolean(r.date) && typeof r.days_ahead === 'number' && r.days_ahead > 0);
+}
+
+export function useBackendData(selectedDate?: string) {
   const [predictions, setPredictions] = useState<BackendPredictResponse | null>(null);
   const [rawData, setRawData] = useState<RawDataRow[]>([]);
   const [history, setHistory] = useState<PredictionHistoryItem[]>([]);
@@ -22,9 +41,13 @@ export function useBackendData() {
       }
       setError(null);
       try {
+        // Build URLs with optional date parameter
+        const predictParams = selectedDate ? `?as_of_date=${selectedDate}` : '';
+        const rawDataParams = selectedDate ? `?as_of_date=${selectedDate}` : '';
+
         const [predRes, rawRes, histRes] = await Promise.all([
-          fetch(`${API_URL}/predict`),
-          fetch(`${API_URL}/raw-data`),
+          fetch(`${API_URL}/predict${predictParams}`),
+          fetch(`${API_URL}/raw-data${rawDataParams}`),
           fetch(`${API_URL}/prediction-history?limit=120`),
         ]);
 
@@ -38,8 +61,8 @@ export function useBackendData() {
 
         if (!cancelled) {
           setPredictions(predJson);
-          setRawData(rawJson.rows || []);
-          setHistory(histJson.rows || []);
+          setRawData(extractRows<RawDataRow>(rawJson));
+          setHistory(normalizePredictionHistory(extractRows<any>(histJson)));
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -65,7 +88,7 @@ export function useBackendData() {
       cancelled = true;
       if (intervalId !== undefined) window.clearInterval(intervalId);
     };
-  }, []);
+  }, [selectedDate]);
 
   const latestObservation = useMemo(() => {
     if (!rawData.length) return null;

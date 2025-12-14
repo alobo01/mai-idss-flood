@@ -524,6 +524,12 @@ def predict_all_historical(lead_times: List[int] = [1, 2, 3], skip_cached: bool 
                     predictions = predict_next_days(window_data, lead_times=[lead_time])
                     if predictions and len(predictions) > 0:
                         pred = predictions[0]
+                        # If `predict_next_days` returned a Pydantic model, convert
+                        # to a plain dict before mutating keys. This avoids errors
+                        # like "'Prediction' object does not support item assignment".
+                        if hasattr(pred, "model_dump"):
+                            pred = pred.model_dump()
+
                         pred["base_date"] = base_date.strftime('%Y-%m-%d')
                         pred["window_start"] = window_data['date'].iloc[0].strftime('%Y-%m-%d')
                         results["predictions_by_lead_time"][lead_time].append(pred)

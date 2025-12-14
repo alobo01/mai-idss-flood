@@ -114,6 +114,11 @@ def upsert_rows(conn, rows):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Load raw_dataset.csv into raw_data table")
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV, help="Path to raw_dataset.csv")
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete existing rows from the `raw_data` table before loading the CSV",
+    )
     args = parser.parse_args()
 
     csv_path = args.csv

@@ -1,5 +1,12 @@
 // Simplified types for the planner map view
 export type TimeHorizon = '1d' | '2d' | '3d';
+export type RuleScenario = 'best' | 'normal' | 'worst';
+
+export const RULE_SCENARIO_LABELS: Record<RuleScenario, string> = {
+  best: 'Best',
+  normal: 'Normal',
+  worst: 'Worst',
+};
 
 export interface ZoneProperties {
   id: string;
@@ -108,6 +115,8 @@ export interface PredictionHistoryItem {
   flood_probability: number | null;
   days_ahead: number;
   created_at: string;
+  lower_bound_80?: number | null;
+  upper_bound_80?: number | null;
 }
 
 export interface ZoneRow {

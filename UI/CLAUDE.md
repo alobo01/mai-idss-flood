@@ -175,3 +175,45 @@ docker compose exec backend python -m pytest -m "not external"
 # Run tests with specific output format
 docker compose exec backend python -m pytest --tb=short -v
 ```
+
+## Technology Stack
+
+### Backend
+- **FastAPI**: Modern Python web framework
+- **PostgreSQL**: Primary database with PostGIS for geospatial queries
+- **SQLAlchemy**: ORM and database interactions
+- **Pandas**: Data processing and analysis
+- **XGBoost**: Gradient boosted tree models
+- **TensorFlow**: Deep learning models (LSTM)
+- **Scikit-learn**: Machine learning utilities
+
+### Frontend
+- **React 18**: Modern React with TypeScript
+- **Vite**: Fast build tool and dev server
+- **Tailwind CSS**: Utility-first CSS framework
+- **React Leaflet**: Interactive maps
+- **Recharts**: Chart visualization library
+- **Radix UI**: Accessible component primitives
+
+### Infrastructure
+- **Docker Compose**: Multi-container orchestration
+- **Nginx**: Frontend reverse proxy (production)
+- **PostGIS**: Spatial database extensions
+
+## Frontend Build Commands
+```bash
+# In frontend container
+docker compose exec frontend npm run dev      # Development server
+docker compose exec frontend npm run build    # Production build
+docker compose exec frontend npm run preview  # Preview production build
+```
+
+## Data Loading Scripts
+- `UI/scripts/load_raw_dataset.py`: Load CSV data into raw_data table
+- `UI/scripts/fetch_and_store_zip_geojson.py`: Fetch and store geographic boundaries
+
+## Model Integration
+The backend loads trained models from the `Results/` directory structure:
+- `Results/L1d/models/`: 1-day forecast models
+- `Results/L2d/models/`: 2-day forecast models
+- `Results/L3d/models/`: 3-day forecast models

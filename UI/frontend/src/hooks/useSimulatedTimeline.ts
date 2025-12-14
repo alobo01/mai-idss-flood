@@ -1,48 +1,44 @@
 import { useState, useEffect } from 'react';
 
 export const useSimulatedTimeline = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-
-  // Mock timeline dates from 2019 flood event
-  const timelineDates = [
-    '2019-06-01T12:00:00Z',
-    '2019-06-02T12:00:00Z',
-    '2019-06-03T12:00:00Z',
-    '2019-06-04T12:00:00Z',
-    '2019-06-05T12:00:00Z',
-    '2019-06-06T12:00:00Z',
-    '2019-06-07T12:00:00Z',
-    '2019-06-08T12:00:00Z',
-    '2019-06-09T12:00:00Z',
-    '2019-06-10T12:00:00Z'
-  ];
+  const [lastDataDate, setLastDataDate] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    // Fetch the last raw data date from the API
+    const fetchLastDataDate = async () => {
+      try {
+        const response = await fetch('/api/raw-data/last-date');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.last_date) {
+            setLastDataDate(data.data.last_date);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch last data date:', error);
+      }
+    };
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % timelineDates.length);
-    }, 3000); // Change every 3 seconds
+    fetchLastDataDate();
+
+    // Refresh every 10 seconds
+    const interval = setInterval(fetchLastDataDate, 10000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, timelineDates.length]);
+  }, []);
 
-  const timestamp = timelineDates[currentIndex];
-  const label = new Date(timestamp).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-  const speedLabel = isPlaying ? 'Playing' : 'Paused';
+  // Format the date for display
+  const label = lastDataDate
+    ? new Date(lastDataDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    : 'Loading...';
 
   return {
-    timestamp,
+    timestamp: lastDataDate,
     label,
-    speedLabel,
-    currentIndex,
-    setCurrentIndex,
-    isPlaying,
-    setIsPlaying
+    lastDataDate
   };
 };

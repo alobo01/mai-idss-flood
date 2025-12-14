@@ -5,7 +5,7 @@ import json
 import logging
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import numpy as np
@@ -78,12 +78,15 @@ from .schemas import (
     Allocation,
     AllocationMode,
     ImpactLevel,
+    RuleScenario,
     DispatchRequest,
     DispatchPlanResponse,
     ResourceSummary,
     JobStatus,
     PredictAllRequest,
     ResourceCapacityUpdate,
+    ZoneParametersUpdate,
+    ThresholdConfig,
     HealthResponse,
     ApiResponse,
     GeoJsonFeatureCollection,
@@ -97,7 +100,9 @@ from .db import (
     get_all_resource_types,
     get_last_30_days_raw_data,
     get_all_raw_data,
+    get_last_raw_data_date,
     get_latest_prediction,
+    get_prediction,
     get_prediction_history,
     get_prediction_history_with_actuals,
 )
@@ -247,15 +252,54 @@ async def root():
     )
 
 @app.get("/raw-data", response_model=ApiResponse)
-async def raw_data():
-    """Return the most recent 30 days of raw sensor data from the database."""
-    data = get_last_30_days_raw_data()
-    if data is None or data.empty:
-        raise HTTPException(status_code=404, detail="No raw data found")
+async def raw_data(
+    as_of_date: Optional[str] = Query(
+        None,
+        description="Filter data as if we were on this date (YYYY-MM-DD format). If not provided, shows all data."
+    )
+):
+    """Return raw sensor data from the database.
+
+    Args:
+        as_of_date: Optional date to filter data as if we were on this date.
+                   If provided, only shows data up to this date.
+    """
+    if as_of_date:
+        # Filter data up to the specified date
+        data = get_all_raw_data()
+        if data is None or data.empty:
+            raise HTTPException(status_code=404, detail="No raw data found")
+
+        # Parse the date and filter
+        try:
+            filter_date = pd.to_datetime(as_of_date)
+            # Only keep data up to the specified date
+            data = data[data['date'] <= filter_date]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    else:
+        # Get all data instead of just last 30 days
+        data = get_all_raw_data()
+        if data is None or data.empty:
+            raise HTTPException(status_code=404, detail="No raw data found")
+
     return ApiResponse(
         success=True,
         message="Raw data retrieved successfully",
         data={"rows": _safe_df_records(data)}
+    )
+
+
+@app.get("/raw-data/last-date", response_model=ApiResponse)
+async def last_raw_data_date():
+    """Return the date of the last row in the raw_data table."""
+    last_date = get_last_raw_data_date()
+    if last_date is None:
+        raise HTTPException(status_code=404, detail="No raw data found")
+    return ApiResponse(
+        success=True,
+        message="Last raw data date retrieved successfully",
+        data={"last_date": last_date}
     )
 
 
@@ -531,6 +575,10 @@ async def rule_based_dispatch(
         description="Allocation mode used by the rule-based planner",
     ),
     lead_time: int = Query(1, ge=1, le=7, description="Lead time (days ahead) for the cached prediction"),
+    scenario: RuleScenario = Query(
+        RuleScenario.NORMAL,
+        description="Which scenario (best/normal/worst) determines the interval level used by the rule-based planner",
+    ),
     global_pf: Optional[float] = Query(
         None,
         ge=0.0,
@@ -547,9 +595,102 @@ async def rule_based_dispatch(
         False,
         description="Use LP optimizer for fair allocation (ignores total_units, uses resource capacities)",
     ),
+    as_of_date: Optional[str] = Query(
+        None,
+        description="Optional date to generate prediction as if we were on this date (YYYY-MM-DD format).",
+    ),
 ):
-    """Build a rule-based dispatch plan using the latest cached prediction."""
-    latest = get_latest_prediction(days_ahead=lead_time)
+    """Build a rule-based dispatch plan using the latest cached prediction or a historical prediction for a specific date."""
+    def _resolve_prediction_from_cached(prediction: Dict[str, Any], scenario_value: RuleScenario) -> Tuple[float, str, float]:
+        def _to_float(val: Any, default: float = 0.0) -> float:
+            try:
+                return float(val)
+            except (TypeError, ValueError):
+                return default
+
+        median_level = prediction.get("predicted_level")
+        lower_bound = prediction.get("lower_bound_80")
+        upper_bound = prediction.get("upper_bound_80")
+
+        selected_level = median_level
+        source = "median"
+
+        if scenario_value == RuleScenario.BEST and lower_bound is not None:
+            selected_level = lower_bound
+            source = "prediction_interval_lower"
+        elif scenario_value == RuleScenario.WORST and upper_bound is not None:
+            selected_level = upper_bound
+            source = "prediction_interval_upper"
+
+        if selected_level is None:
+            if median_level is not None:
+                selected_level = median_level
+                source = "median"
+            elif lower_bound is not None:
+                selected_level = lower_bound
+                source = "prediction_interval_lower"
+            elif upper_bound is not None:
+                selected_level = upper_bound
+                source = "prediction_interval_upper"
+            else:
+                selected_level = 0.0
+                source = "fallback"
+
+        probability = max(0.0, min(1.0, _to_float(prediction.get("flood_probability"), 0.0)))
+        return _to_float(selected_level, 0.0), source, probability
+
+    last_prediction_summary: Optional[Dict[str, Any]] = None
+
+    # Get prediction based on as_of_date or latest
+    if as_of_date:
+        # When as_of_date is provided, generate fresh predictions using data up to that date
+        # (same behavior as /predict endpoint to ensure consistency)
+        logger.info(f"Generating fresh predictions for as_of_date={as_of_date}, lead_time={lead_time}")
+        try:
+            from datetime import datetime, timedelta
+            # Validate date format
+            base_date = datetime.strptime(as_of_date, '%Y-%m-%d')
+
+            # Get raw data up to the as_of_date (same logic as /predict endpoint)
+            raw_data = get_all_raw_data()
+            if raw_data is None or raw_data.empty:
+                raise HTTPException(status_code=404, detail="No raw data found")
+
+            # Filter data up to the as_of_date
+            filter_date = pd.to_datetime(as_of_date)
+            raw_data = raw_data[raw_data['date'] <= filter_date]
+
+            if len(raw_data) < 30:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient data for {as_of_date}: need 30 days, got {len(raw_data)}"
+                )
+
+            # Generate fresh prediction using the prediction service
+            from .prediction_service import predict_next_days
+            predictions = predict_next_days(raw_data, lead_times=[lead_time])
+
+            if not predictions or len(predictions) == 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to generate prediction for historical date"
+                )
+
+            # Convert to dict format compatible with downstream processing
+            pred = predictions[0]
+            if hasattr(pred, "model_dump"):
+                pred = pred.model_dump()
+
+            latest = pred
+
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid as_of_date format. Use YYYY-MM-DD")
+        except Exception as e:
+            logger.error(f"Failed to generate prediction for {as_of_date}: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate prediction: {str(e)}")
+    else:
+        # Get latest prediction (existing behavior)
+        latest = get_latest_prediction(days_ahead=lead_time)
 
     # Use explicit override if provided
     if global_pf is not None:
@@ -591,12 +732,58 @@ async def rule_based_dispatch(
                 detail=f"No cached prediction available for the {lead_time}-day horizon",
             )
 
-        global_pf = latest.get("flood_probability")
-        if global_pf is None:
-            logger.warning("Latest prediction for %s-day lead time missing flood_probability", lead_time)
-            global_pf = 0.0
+        # Handle both cached predictions and fresh predictions (from predict_next_days)
+        if as_of_date and 'forecast' in latest:
+            # Fresh prediction structure from predict_next_days
+            forecast = latest.get('forecast', {})
+            flood_risk = latest.get('flood_risk', {})
 
-        global_pf = max(0.0, min(1.0, float(global_pf)))
+            selected_level = forecast.get('median')
+            level_source = "median"
+            selected_probability = flood_risk.get('probability', 0.0)
+
+            # Apply scenario adjustments to fresh predictions
+            prediction_interval = latest.get('prediction_interval_80pct', {})
+            if scenario == RuleScenario.BEST and prediction_interval.get('lower') is not None:
+                selected_level = prediction_interval.get('lower')
+                level_source = "prediction_interval_lower"
+            elif scenario == RuleScenario.WORST and prediction_interval.get('upper') is not None:
+                selected_level = prediction_interval.get('upper')
+                level_source = "prediction_interval_upper"
+
+            last_prediction_summary = {
+                "predicted_level": selected_level,
+                "lower_bound_80": prediction_interval.get('lower'),
+                "upper_bound_80": prediction_interval.get('upper'),
+                "flood_probability": selected_probability,
+                "days_ahead": lead_time,
+                "lead_time_days": lead_time,
+                "date": as_of_date,
+                "forecast_date": (datetime.strptime(as_of_date, '%Y-%m-%d') + timedelta(days=lead_time)).strftime('%Y-%m-%d'),
+                "scenario": scenario.value,
+                "selected_level": selected_level,
+                "selected_level_source": level_source,
+                "selected_probability": selected_probability,
+            }
+        else:
+            # Cached prediction structure (existing behavior)
+            selected_level, level_source, selected_probability = _resolve_prediction_from_cached(latest, scenario)
+            last_prediction_summary = {
+                **latest,
+                "scenario": scenario.value,
+                "selected_level": selected_level,
+                "selected_level_source": level_source,
+                "selected_probability": selected_probability,
+            }
+
+        global_pf = max(0.0, min(1.0, selected_probability))
+        logger.debug(
+            "Rule-based dispatch scenario=%s used level=%.2f (%s) with pf=%.3f",
+            scenario.value,
+            selected_level,
+            level_source,
+            selected_probability,
+        )
 
     zone_rows = get_all_zones()
     if not zone_rows:
@@ -710,7 +897,8 @@ async def rule_based_dispatch(
         total_units=total_units if not use_optimizer else total_allocated_units,
         max_units_per_zone=max_units_per_zone,
         global_flood_probability=global_pf,
-        last_prediction=latest,
+        scenario=scenario,
+        last_prediction=last_prediction_summary or latest,
         resource_summary=ResourceSummary(
             total_allocated_units=total_allocated_units,
             per_resource_type=aggregated_resources,
@@ -889,24 +1077,29 @@ async def predict(
     use_real_time_api: bool = Query(
         default=False,
         description="Use real-time APIs (USGS, weather) instead of database"
+    ),
+    as_of_date: Optional[str] = Query(
+        None,
+        description="Generate prediction as if we were on this date (YYYY-MM-DD format)"
     )
 ):
     """
     Generate flood predictions for the next 1-3 days
-    
+
     Args:
         use_real_time_api: If True, fetch live data from APIs. If False, use database.
-    
+        as_of_date: Optional date to generate prediction as if we were on this date.
+
     Returns:
         PredictionResponse with predictions for 1, 2, and 3 days ahead
-    
+
     Raises:
         HTTPException: If prediction fails or insufficient data
     """
-    
+
     try:
-        logger.info(f"Prediction request received (use_real_time_api={use_real_time_api})")
-        
+        logger.info(f"Prediction request received (use_real_time_api={use_real_time_api}, as_of_date={as_of_date})")
+
         # Get input data
         if use_real_time_api:
             logger.info("Fetching data from real-time APIs...")
@@ -915,17 +1108,32 @@ async def predict(
             data_source = "real-time APIs (USGS, Open-Meteo)"
         else:
             logger.info("Fetching data from database...")
-            raw_data = get_last_30_days_raw_data()
-            data_source = "database (raw_data table)"
-        
+            if as_of_date:
+                # Get all data and filter up to as_of_date
+                raw_data = get_all_raw_data()
+                if raw_data is None or raw_data.empty:
+                    raise HTTPException(status_code=404, detail="No raw data found")
+
+                # Parse the date and filter
+                try:
+                    filter_date = pd.to_datetime(as_of_date)
+                    raw_data = raw_data[raw_data['date'] <= filter_date]
+                    data_source = f"database (raw_data table as of {as_of_date})"
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+            else:
+                # Get all data for full historical view
+                raw_data = get_all_raw_data()
+                data_source = "database (raw_data table)"
+
         if raw_data is None or len(raw_data) < 30:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient data: need 30 days, got {len(raw_data) if raw_data is not None else 0}"
             )
-        
+
         logger.info(f"Retrieved {len(raw_data)} days of data from {data_source}")
-        
+
         # Generate predictions for 1, 2, and 3 days (now returns Pydantic models directly)
         predictions = predict_next_days(raw_data, lead_times=[1, 2, 3])
 
@@ -938,9 +1146,9 @@ async def predict(
             data_source=data_source,
             predictions=[pred.model_dump() for pred in predictions]
         )
-        
+
         return response
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -949,6 +1157,123 @@ async def predict(
             status_code=500,
             detail=f"Prediction failed: {str(e)}"
         )
+
+
+@app.put("/zones/parameters", response_model=ApiResponse)
+async def update_zone_parameters(update: ZoneParametersUpdate):
+    """
+    Update parameters for multiple zones.
+    """
+    from .db import get_connection
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        updated_count = 0
+        for zone_id, params in update.zones.items():
+            # Build dynamic update query
+            set_clauses = []
+            values = []
+
+            for field, value in params.items():
+                if field in ['river_proximity', 'elevation_risk', 'pop_density', 'crit_infra_score',
+                           'hospital_count', 'critical_infra', 'name']:
+                    set_clauses.append(f"{field} = %s")
+                    values.append(value)
+
+            if set_clauses:
+                values.append(zone_id)
+                query = f"UPDATE zones SET {', '.join(set_clauses)} WHERE zone_id = %s"
+                cursor.execute(query, values)
+                updated_count += cursor.rowcount
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        logger.info(f"Updated parameters for {updated_count} zones")
+
+        # Return updated zones
+        zones = get_all_zones()
+        return ApiResponse(
+            success=True,
+            message=f"Updated parameters for {updated_count} zones",
+            data={
+                "updated_count": updated_count,
+                "zones": zones
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to update zone parameters: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update zone parameters: {e}")
+
+
+@app.get("/thresholds", response_model=ApiResponse)
+async def get_thresholds():
+    """
+    Get current flood threshold configuration.
+    """
+    try:
+        from .db import get_threshold_config, ensure_default_threshold_config
+
+        # Get threshold configuration from database
+        thresholds = get_threshold_config('default')
+
+        # If no configuration exists, create default one
+        if thresholds is None:
+            thresholds = ensure_default_threshold_config()
+
+        return ApiResponse(
+            success=True,
+            message="Threshold configuration retrieved",
+            data={
+                "thresholds": thresholds.model_dump()
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to get thresholds: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve thresholds: {e}")
+
+
+@app.put("/thresholds", response_model=ApiResponse)
+async def update_thresholds(update: ThresholdConfig):
+    """
+    Update flood threshold configuration.
+    """
+    try:
+        from .db import update_threshold_config, create_threshold_config, get_threshold_config
+
+        # Check if configuration exists
+        existing_config = get_threshold_config('default')
+
+        if existing_config:
+            # Update existing configuration
+            success = update_threshold_config(update, 'default', 'administrator')
+            action = "updated"
+        else:
+            # Create new configuration
+            success = create_threshold_config(update, 'default', 'administrator')
+            action = "created"
+
+        if success:
+            logger.info(f"Successfully {action} threshold configuration")
+            return ApiResponse(
+                success=True,
+                message=f"Threshold configuration {action} successfully",
+                data={
+                    "thresholds": update.model_dump()
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to {action.rstrip('d')} threshold configuration"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to update thresholds: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update thresholds: {e}")
 
 
 @app.get("/health", response_model=HealthResponse)
