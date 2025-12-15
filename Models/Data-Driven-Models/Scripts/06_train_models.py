@@ -21,7 +21,7 @@ args = parser.parse_args()
 
 LEAD_TIME = args.days
 DATA_DIR = f"Data/processed/L{LEAD_TIME}d"
-MODEL_DIR = f"./Results/L{LEAD_TIME}d/models"
+MODEL_DIR = f"Models/Data-Driven-Models/L{LEAD_TIME}d/models"
 
 print("=" * 70)
 print(f"STEP 06: TRAINING ALL MODELS (L{LEAD_TIME}d)")

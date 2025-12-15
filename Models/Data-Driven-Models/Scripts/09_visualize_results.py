@@ -17,7 +17,7 @@ print("=" * 70)
 # CONFIGURATION
 # =============================================================================
 FLOOD_THRESHOLD = 30.0
-OUTPUT_DIR = "../Results/Visualizations"
+OUTPUT_DIR = "Models/Data-Driven-Models/Results/Visualizations"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Set plotting style
@@ -28,7 +28,7 @@ sns.set_context("paper", font_scale=1.4)
 # 1. LOAD GLOBAL SUMMARY (METRICS)
 # =============================================================================
 print("1. Loading Summary Metrics...")
-summary_file = "../Results/Summary/global_comparison.csv"
+summary_file = "Models/Data-Driven-Models/Results/Summary/global_comparison.csv"
 
 if os.path.exists(summary_file):
     df_metrics = pd.read_csv(summary_file)

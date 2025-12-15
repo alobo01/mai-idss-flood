@@ -102,7 +102,7 @@ print(
 # 5. VISUALIZATION
 # =============================================================================
 
-os.makedirs("../Results/exploration", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/exploration", exist_ok=True)
 
 print("\n=== CREATING VISUALIZATIONS ===")
 
@@ -139,7 +139,7 @@ axes[2].xaxis.set_minor_locator(mdates.MonthLocator((1, 7)))  # Jan and Jul
 plt.setp(axes[2].xaxis.get_majorticklabels(), rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig('Results/exploration/01_timeseries_all_stations.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/exploration/01_timeseries_all_stations.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  → Saved: 01_timeseries_all_stations.png")
 
@@ -159,7 +159,7 @@ axes[1].set_title('PACF: Target St Louis (Daily Average)', fontsize=12, fontweig
 axes[1].set_xlabel('Lag (days)')
 
 plt.tight_layout()
-plt.savefig('Results/exploration/02_autocorrelation_target.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/exploration/02_autocorrelation_target.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  → Saved: 02_autocorrelation_target.png")
 
@@ -212,7 +212,7 @@ ax.set_title('Cross-Correlation: Upstream Stations vs Target St Louis', fontsize
 ax.legend(fontsize=10)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('Results/exploration/03_cross_correlation.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/exploration/03_cross_correlation.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  → Saved: 03_cross_correlation.png")
 
@@ -227,5 +227,5 @@ print(f"  Max correlation: {max(ccf_hermann):.3f} at lag {ccf_hermann.index(max(
 
 print("\nExploration complete! Check Results/exploration/ for plots.")
 
-os.makedirs("../Results/exploration", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/exploration", exist_ok=True)
 print("\nExploration complete!")

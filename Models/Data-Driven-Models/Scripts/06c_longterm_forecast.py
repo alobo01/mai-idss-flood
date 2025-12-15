@@ -239,7 +239,7 @@ for k in FORECAST_HORIZONS[1:]:  # Skip first (baseline)
 # =============================================================================
 
 print("\n6. Creating visualizations...")
-os.makedirs("Results/models", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/models", exist_ok=True)
 
 # Plot 1: Performance vs Horizon
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -265,7 +265,7 @@ axes[2].set_title('R² vs Horizon', fontsize=12, fontweight='bold')
 axes[2].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('Results/models/multihorizon_performance.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/models/multihorizon_performance.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: multihorizon_performance.png")
 
@@ -302,7 +302,7 @@ ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig('Results/models/multihorizon_example_forecasts.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/models/multihorizon_example_forecasts.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: multihorizon_example_forecasts.png")
 
@@ -344,7 +344,7 @@ ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
 plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig('Results/models/multihorizon_3year_timeline.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/models/multihorizon_3year_timeline.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: multihorizon_3year_timeline.png")
 
@@ -364,7 +364,7 @@ for i, k in enumerate(FORECAST_HORIZONS):
     axes[i].tick_params(axis='y', labelsize=8)
 
 plt.tight_layout()
-plt.savefig('Results/models/multihorizon_feature_importance.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/models/multihorizon_feature_importance.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: multihorizon_feature_importance.png")
 
@@ -391,7 +391,7 @@ if len(FORECAST_HORIZONS) < 6:
     axes[-1].axis('off')
 
 plt.tight_layout()
-plt.savefig('Results/models/multihorizon_scatter.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/models/multihorizon_scatter.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: multihorizon_scatter.png")
 
@@ -401,12 +401,12 @@ print("  ✓ Saved: multihorizon_scatter.png")
 
 print("\n7. Saving results...")
 
-degradation_df.to_csv('Results/models/multihorizon_performance.csv', index=False)
+degradation_df.to_csv('Models/Data-Driven-Models/Results/models/multihorizon_performance.csv', index=False)
 print("  ✓ Saved: multihorizon_performance.csv")
 
 for k in FORECAST_HORIZONS:
-    results[k]['model'].save_model(f'Results/models/multihorizon_model_{k}d.json')
-    results[k]['importance'].head(20).to_csv(f'Results/models/multihorizon_features_{k}d.csv', index=False)
+    results[k]['model'].save_model(f'Models/Data-Driven-Models/Results/multihorizon_model_{k}d.json')
+    results[k]['importance'].head(20).to_csv(f'Models/Data-Driven-Models/Results/multihorizon_features_{k}d.csv', index=False)
 
 print(f"  ✓ Saved: {len(FORECAST_HORIZONS)} models and feature lists")
 

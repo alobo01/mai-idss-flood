@@ -14,8 +14,8 @@ args = parser.parse_args()
 
 LEAD_TIME = args.days
 DATA_DIR = f"Data/processed/L{LEAD_TIME}d"
-MODEL_DIR = f"./Results/L{LEAD_TIME}d/models"
-RESULTS_DIR = f"./Results/L{LEAD_TIME}d"
+MODEL_DIR = f"Models/Data-Driven-Models/L{LEAD_TIME}d/models"
+RESULTS_DIR = f"Models/Data-Driven-Models/L{LEAD_TIME}d"
 
 print("=" * 70)
 print(f"STEP 07: EVALUATING ON TEST SET (L{LEAD_TIME}d)")

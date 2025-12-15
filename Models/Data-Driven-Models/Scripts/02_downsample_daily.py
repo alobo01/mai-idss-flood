@@ -312,7 +312,7 @@ print("\n11. Creating sanity check plots...")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-os.makedirs("../Results/data_quality", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/data_quality", exist_ok=True)
 
 # Plot 1: All river levels over time
 fig, axes = plt.subplots(3, 1, figsize=(15, 10), sharex=True)
@@ -342,7 +342,7 @@ axes[2].xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 plt.setp(axes[2].xaxis.get_majorticklabels(), rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/daily_dataset_timeseries.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/daily_dataset_timeseries.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: daily_dataset_timeseries.png")
 
@@ -364,7 +364,7 @@ axes[1].set_title('Grafton vs Target', fontsize=12, fontweight='bold')
 axes[1].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/daily_dataset_correlations.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/daily_dataset_correlations.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: daily_dataset_correlations.png")
 
@@ -399,7 +399,7 @@ axes[1,1].set_title('30-Day Precipitation Distribution')
 axes[1,1].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/daily_dataset_distributions.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/daily_dataset_distributions.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: daily_dataset_distributions.png")
 

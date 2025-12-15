@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 LEAD_TIME = args.days
 DATA_DIR = f"Data/processed/L{LEAD_TIME}d"
-RESULTS_DIR = f"./Results/L{LEAD_TIME}d"
+RESULTS_DIR = f"Models/Data-Driven-Models/Results/L{LEAD_TIME}d"
 VIZ_DIR = f"{RESULTS_DIR}/probability_plots"
 
 print("=" * 70)
