@@ -73,7 +73,7 @@ preds['LSTM'] = scaler_y.inverse_transform(pred_sc).flatten()
 
 # 6. Ensemble (Safety Max)
 stack = np.column_stack([preds['XGBoost'], preds['Bayesian'], preds['LSTM']])
-preds['Ensemble'] = np.max(stack, axis=1)
+preds['Ensemble'] = np.median(stack, axis=1)
 
 # 7. Metrics Calculation
 metrics = []

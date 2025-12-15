@@ -7,9 +7,10 @@ import joblib
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 import os
+import matplotlib.patches as mpatches
 
 print("=" * 70)
-print("GENERATING BEST-PRACTICE VISUALIZATIONS (FIXED LABELS)")
+print("GENERATING VISUALIZATIONS: ORDERED & GAPPED BUTTERFLY CHART")
 print("=" * 70)
 
 # =============================================================================
@@ -151,20 +152,55 @@ plt.savefig(f"{OUTPUT_DIR}/02_metric_degradation.png", dpi=300)
 print(f"  ✓ Saved {OUTPUT_DIR}/02_metric_degradation.png")
 
 # =============================================================================
-# 5. PLOT 3: SAFETY TRADE-OFF (CLEAN BUBBLE STYLE)
+# 5. PLOT 3: SAFETY TRADE-OFF (ORDERED + GAPPED)
 # =============================================================================
-print("5. Generating Safety Bubble Chart (Clean Style)...")
-import matplotlib.patheffects as pe
+print("5. Generating Safety Butterfly Chart (Explicit Layout)...")
 
-plt.figure(figsize=(14, 9))
+# 1. Prepare Data
+df_plot = df_metrics.copy()
+df_plot['Lead_Day_Int'] = df_plot['Lead Time'].str.extract('(\d+)').astype(int)
 
-# Jitter points slightly to separate identical scores
-# (We keep the jitter small so the label stays inside the dot)
-jitter_x = np.random.uniform(-0.3, 0.3, size=len(df_metrics))
-jitter_y = np.random.uniform(-0.05, 0.05, size=len(df_metrics))
+# 2. DEFINE PLOTTING ORDER
+# The user wants this specific order (Top to Bottom) within each group:
+desired_model_order = ['LSTM', 'XGBoost', 'Ensemble', 'Bayesian', 'Persistence']
+
+# We want groups ordered: 1 Day (Top), 2 Day (Middle), 3 Day (Bottom)
+# Since 'barh' plots from y=0 upwards, y=0 is the bottom.
+# So we need to calculate positions starting from the bottom-most group (3 Day)
+group_order_bottom_to_top = [3, 2, 1]
+
+# 3. CALCULATE Y-COORDINATES MANUALLY
+plot_data = []
+current_y = 0
+gap_size = 2.5  # Size of gap between groups (1.0 = standard bar spacing)
+
+for day in group_order_bottom_to_top:
+    day_subset = df_plot[df_plot['Lead_Day_Int'] == day]
+
+    # Within each group, we build from Bottom to Top.
+    # If desired order is LSTM(Top)...Persistence(Bot),
+    # then we must start plotting Persistence at y, then Bayesian at y+1, etc.
+    # So we iterate the desired list in REVERSE.
+    for model in reversed(desired_model_order):
+        row = day_subset[day_subset['Model'] == model]
+        if not row.empty:
+            d = row.iloc[0].to_dict()
+            d['y_pos'] = current_y
+            plot_data.append(d)
+            current_y += 1  # Move one slot up
+
+    # After finishing a group, add the gap
+    # (Subtract 1 because the loop adds 1 at the end, but we want 'gap_size' distance from the last bar)
+    current_y += (gap_size - 1)
+
+# Create a clean DataFrame for plotting based on these calculated positions
+df_final = pd.DataFrame(plot_data)
+
+# 4. PLOT
+fig, ax = plt.subplots(figsize=(14, 12))
 
 # Define Colors
-color_map = {
+model_colors = {
     'Ensemble': '#d62728',  # Red
     'XGBoost': '#1f77b4',  # Blue
     'LSTM': '#2ca02c',  # Green
@@ -172,63 +208,76 @@ color_map = {
     'Persistence': '#7f7f7f'  # Gray
 }
 
-# Plot Bubbles
-# s=600 makes them large enough to hold text
-scatter = plt.scatter(
-    df_metrics['False Alarms'] + jitter_x,
-    df_metrics['Missed Floods'] + jitter_y,
-    s=600,
-    c=df_metrics['Model'].map(color_map),
-    alpha=0.7,
-    edgecolors='black',
-    linewidth=1.5,
-    zorder=2
-)
+# Draw Bars using the explicit 'y_pos'
+for i, row in df_final.iterrows():
+    y = row['y_pos']
+    c = model_colors.get(row['Model'], 'black')
 
-# Reference Line
-plt.axhline(0, color='green', linestyle='--', linewidth=2, label='Target: 0 Misses', zorder=1)
+    # Left Bar (Missed Floods)
+    ax.barh(y, -row['Missed Floods'], color=c, alpha=0.85, height=0.6)
 
-# --- CLEAN LABELING (INSIDE BUBBLE) ---
-for i, row in df_metrics.iterrows():
-    # Simplest Label: Just the Lead Time (e.g., "1d")
-    # Extract digit from "1 Days" -> "1"
-    days_digit = "".join(filter(str.isdigit, str(row['Lead Time'])))
-    label = f"{days_digit}d"
+    # Right Bar (False Alarms)
+    ax.barh(y, row['False Alarms'], color=c, alpha=0.85, height=0.6)
 
-    # Text Setup
-    plt.text(
-        row['False Alarms'] + jitter_x[i],
-        row['Missed Floods'] + jitter_y[i],
-        label,
-        ha='center',
-        va='center',
-        fontsize=11,
-        fontweight='bold',
-        color='white',  # White text
-        path_effects=[pe.withStroke(linewidth=2, foreground='black')],  # Black outline
-        zorder=3
-    )
+    # Add Value Labels
+    # Left
+    val_l = int(row['Missed Floods'])
+    x_pos_l = -val_l - 1.5 if val_l > 0 else -0.5
+    ax.text(x_pos_l, y, str(val_l), ha='right', va='center',
+            fontsize=10, fontweight='bold', color=c)
 
-# Add 5% padding so bubbles aren't cut off
-plt.margins(0.05)
+    # Right
+    val_r = int(row['False Alarms'])
+    x_pos_r = val_r + 1.5
+    ax.text(x_pos_r, y, str(val_r), ha='left', va='center',
+            fontsize=10, fontweight='bold', color=c)
 
-plt.xlabel("False Alarms (Operational Cost)", fontsize=14, fontweight='bold')
-plt.ylabel("Missed Floods (Safety Risk)", fontsize=14, fontweight='bold')
-plt.title("The Safety Trade-off: Risk vs. Cost", fontsize=16, fontweight='bold')
-plt.grid(True, alpha=0.3)
+# Center Line
+ax.axvline(0, color='black', linewidth=1)
 
-# Manual Legend (To explain colors)
-from matplotlib.lines import Line2D
+# 5. Y-Axis Labels (Model Names)
+ax.set_yticks(df_final['y_pos'])
+ax.set_yticklabels(df_final['Model'], fontsize=11, fontweight='bold')
 
-legend_elements = [Line2D([0], [0], marker='o', color='w', label=k,
-                          markerfacecolor=v, markersize=15, alpha=0.7, markeredgecolor='k')
-                   for k, v in color_map.items()]
+# 6. Group Labels (Horizon Names)
+# Calculate the visual center of each group
+for day in group_order_bottom_to_top:
+    subset = df_final[df_final['Lead_Day_Int'] == day]
+    if not subset.empty:
+        # Average Y position of bars in this group
+        center_y = subset['y_pos'].min()
 
-# Place legend outside or in empty corner
-plt.legend(handles=legend_elements, loc='upper right', title="Model Type",
-           frameon=True, framealpha=0.9, shadow=True, fontsize=12)
+        # Place label on the far left
+        ax.text(-40, center_y, f"{day}d",
+                ha='right', va='center', fontsize=14, fontweight='bold',
+                color='#444444', style='italic')
 
-plt.tight_layout()
+        # Optional: Add faint separator line between groups
+        # Find the gap below this group (min_y - something)
+        # But since we have explicit gaps, we can just draw lines if needed.
+        # Here we just leave the whitespace as requested.
+
+# 7. Final Polish
+xticks = ax.get_xticks()
+ax.set_xticklabels([str(abs(int(x))) for x in xticks])
+ax.set_xlim(-45, 110)  # Adjust as needed
+ax.set_ylim(min(df_final['y_pos']) - 1, max(df_final['y_pos']) + 1)
+
+ax.set_xlabel("← Missed Floods (Safety Risk)       |       False Alarms (Operational Cost) →",
+              fontsize=13, fontweight='bold')
+ax.set_title("Forecast Performance by Time Horizon (Ordered)", fontsize=16, fontweight='bold')
+
+ax.grid(axis='x', linestyle='--', alpha=0.5)
+ax.grid(axis='y', alpha=0.0)
+
+# Legend
+legend_patches = [mpatches.Patch(color=model_colors[m], label=m) for m in desired_model_order]
+ax.legend(handles=legend_patches, loc='upper right', title="Model Type",
+          frameon=True, fontsize=11)
+
+# Add space on left for the horizon labels
+plt.subplots_adjust(left=0.18)
+
 plt.savefig(f"{OUTPUT_DIR}/03_safety_tradeoff.png", dpi=300)
 print(f"  ✓ Saved {OUTPUT_DIR}/03_safety_tradeoff.png")
 
