@@ -80,7 +80,7 @@ Data/*.json
 Data/*.csv
 !Data/.gitkeep
 
-Models/
+
 !Models/.gitkeep
 
 # Common model file extensions anywhere in repo

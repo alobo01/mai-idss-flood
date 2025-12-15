@@ -1,0 +1,6 @@
+Lead Time,Model,RMSE,Bias,Missed Floods,False Alarms
+3 Days,Persistence,2.69,0.01,20,20
+3 Days,XGBoost,2.49,1.54,0,41
+3 Days,Bayesian,3.38,3.01,0,95
+3 Days,LSTM,2.35,1.84,0,36
+3 Days,Ensemble,2.52,2.06,0,43
