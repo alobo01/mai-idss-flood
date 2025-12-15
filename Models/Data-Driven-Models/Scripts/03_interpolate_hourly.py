@@ -317,7 +317,7 @@ print("\n11. Creating sanity check plots...")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-os.makedirs("../Results/data_quality", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/data_quality", exist_ok=True)
 
 # Plot 1: Zoom in to see interpolation quality (pick a 2-week period)
 sample_start = pd.to_datetime('2008-06-01')
@@ -362,7 +362,7 @@ axes[1].legend()
 axes[1].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/hourly_interpolation_quality.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/hourly_interpolation_quality.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: hourly_interpolation_quality.png")
 
@@ -396,7 +396,7 @@ axes[2].xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 plt.setp(axes[2].xaxis.get_majorticklabels(), rotation=45, ha='right')
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/hourly_dataset_timeseries.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/hourly_dataset_timeseries.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: hourly_dataset_timeseries.png")
 
@@ -431,7 +431,7 @@ axes[1, 1].set_title('30-Day Precipitation Distribution')
 axes[1, 1].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('./Results/data_quality/hourly_dataset_distributions.png', dpi=150, bbox_inches='tight')
+plt.savefig('Models/Data-Driven-Models/Results/data_quality/hourly_dataset_distributions.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("  ✓ Saved: hourly_dataset_distributions.png")
 

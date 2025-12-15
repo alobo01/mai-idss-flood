@@ -13,8 +13,8 @@ args = parser.parse_args()
 
 LEAD_TIME = args.days
 DATA_DIR = f"Data/processed/L{LEAD_TIME}d"
-MODEL_DIR = f"./L{LEAD_TIME}d/models"
-RESULTS_DIR = f"./Results/L{LEAD_TIME}d"
+MODEL_DIR = f"Models/Data-Driven-Models/L{LEAD_TIME}d/models"
+RESULTS_DIR = f"Models/Data-Driven-Models/Results/L{LEAD_TIME}d"
 
 print("=" * 70)
 print(f"STEP 08b: CONFORMAL PREDICTION INTERVALS (L{LEAD_TIME}d)")

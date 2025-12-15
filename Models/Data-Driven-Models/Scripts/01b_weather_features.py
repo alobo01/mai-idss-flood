@@ -176,7 +176,7 @@ print(
 # 7. VISUALIZATIONS
 # =============================================================================
 
-os.makedirs("../Results/weather_features", exist_ok=True)
+os.makedirs("Models/Data-Driven-Models/Results/weather_features", exist_ok=True)
 
 print("\n=== CREATING VISUALIZATIONS ===")
 
@@ -267,7 +267,7 @@ if len(soil_corr) > 0:
         axes[1, 1].text(i, v + 0.01, f'{v:.3f}', ha='center', fontweight='bold')
 
 plt.tight_layout()
-plt.savefig('./Results/weather_features/01_precip_correlations.png', dpi=150)
+plt.savefig('Models/Data-Driven-Models/Results/weather_features/01_precip_correlations.png', dpi=150)
 plt.close()
 print("  → Saved: 01_precip_correlations.png")
 
@@ -294,7 +294,7 @@ axes[1].legend(title='Flood Level')
 axes[1].set_xticklabels(['No Heavy Rain', 'Heavy Rain'], rotation=0)
 
 plt.tight_layout()
-plt.savefig('./Results/weather_features/02_heavy_rain_floods.png', dpi=150)
+plt.savefig('Models/Data-Driven-Models/Results/weather_features/02_heavy_rain_floods.png', dpi=150)
 plt.close()
 print("  → Saved: 02_heavy_rain_floods.png")
 
@@ -338,7 +338,7 @@ for i, (idx, row) in enumerate(snowmelt_vs_level.iterrows()):
                  ha='center', fontsize=9)
 
 plt.tight_layout()
-plt.savefig('./Results/weather_features/03_snowmelt_analysis.png', dpi=150)
+plt.savefig('Models/Data-Driven-Models/Results/weather_features/03_snowmelt_analysis.png', dpi=150)
 plt.close()
 print("  → Saved: 03_snowmelt_analysis.png")
 
@@ -361,7 +361,7 @@ ax.axhline(y=MAJOR_FLOOD, color='red', linestyle='--', label='Major Flood (40 ft
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('./Results/weather_features/04_best_precip_feature.png', dpi=150)
+plt.savefig('Models/Data-Driven-Models/Results/weather_features/04_best_precip_feature.png', dpi=150)
 plt.close()
 print("  → Saved: 04_best_precip_feature.png")
 
@@ -376,7 +376,7 @@ print(f"\nTop 5 features:")
 print(correlations.sort_values(ascending=False).head())
 
 # Save summary
-with open('../Results/weather_features/feature_summary.txt', 'w') as f:
+with open('Models/Data-Driven-Models/Results/weather_features/feature_summary.txt', 'w') as f:
     f.write("WEATHER FEATURE ANALYSIS SUMMARY\n")
     f.write("=" * 70 + "\n\n")
     f.write(f"Best precipitation feature: {best_feature}\n")

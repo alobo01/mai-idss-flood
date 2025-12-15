@@ -12,17 +12,17 @@ for days in [1, 2, 3]:
     print(f"\n\n>>> PROCESSING {days}-DAY LEAD TIME <<<")
 
     steps = [
-        f"python Programs/04_create_features.py --days {days}",
-        f"python Programs/05_train_test_split.py --days {days}",
-        f"python Programs/06_train_models.py --days {days}",
-        f"python Programs/07_evaluate_test.py --days {days}"
+        f"python Models/Data-Driven-Models/Scripts/04_create_features.py --days {days}",
+        f"python Models/Data-Driven-Models/Scripts/05_train_test_split.py --days {days}",
+        f"python Models/Data-Driven-Models/Scripts/06_train_models.py --days {days}",
+        f"python Models/Data-Driven-Models/Scripts/07_evaluate_test.py --days {days}"
     ]
 
     for cmd in steps:
         subprocess.run(cmd, shell=True, check=True)
 
 # Finally, generate summary
-subprocess.run("python Programs/08_global_summary.py", shell=True, check=True)
-subprocess.run("python Programs/09_visualize_results.py", shell=True, check=True)
+subprocess.run("python Models/Data-Driven-Models/Scripts/08_global_summary.py", shell=True, check=True)
+subprocess.run("python Models/Data-Driven-Models/Scripts/09_visualize_results.py", shell=True, check=True)
 
 print("\n✅ EXPERIMENT COMPLETE.")

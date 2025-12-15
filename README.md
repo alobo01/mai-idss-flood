@@ -30,9 +30,9 @@ mai-idss-flood/
 ### Directory Descriptions
 
 - **Documentation/**: Contains all project documentation including design documents, API specifications, user guides, and weekly progress reports.
-- **docs/real-data-simulation.md**: How to generate risk snapshots from the real CSV, seed Postgres, and run curl smokes.
-- **docs/backend-api-testing.md**: How to run the full FastAPI pytest suite via docker-compose.
-- **docs/frontend-simulation.md**: How the UI playback loop works (St. Louis zones), and how to refresh it after regenerating risk data.
+  - **docs/real-data-simulation.md**: How to generate risk snapshots from the real CSV, seed Postgres, and run curl smokes.
+  - **docs/backend-api-testing.md**: How to run the full FastAPI pytest suite via docker-compose.
+  - **docs/frontend-simulation.md**: How the UI playback loop works (St. Louis zones), and how to refresh it after regenerating risk data.
 
 - **Data/**: Houses all data files including raw datasets, processed data, and intermediate outputs. Note: Data files are excluded from version control to maintain repository size.
 
@@ -91,7 +91,7 @@ The core flood prediction system is divided into two distinct phases: **Initiali
 
 This script builds the **static foundation** of the project by fetching and cleaning the raw data.
 ```bash
-    python Programs/run_initialization.py
+    python Models/Data-Driven-Models/Scripts/run_initialization.py
 ```
 
 #### What it does:
@@ -105,7 +105,7 @@ This script builds the **static foundation** of the project by fetching and clea
 
 This is the main execution script. It runs the complete machine learning pipeline for **1-Day, 2-Day, and 3-Day forecast horizons**.
 ```bash
-  python Programs/run_full_experiment.py
+  python Models/Data-Driven-Models/Scripts/run_full_experiment.py
 ```
 #### **Workflow for each lead time (24h, 48h, 72h):**
 
@@ -122,7 +122,7 @@ After running the pipeline_v3 inference pass (for example `python pipeline_v3/ma
 generate a quick visualization of the rule-based allocation CSVs with:
 
 ```bash
-python Programs/10_plot_allocations.py --lead L1d --zone Z1N
+python Models/Data-Driven-Models/Scripts/10_plot_allocations.py --lead L1d --zone Z1N
 ```
 
 - Loads the requested `pipeline_v3/outputs/rule_based/L*d_rule_based_allocations.csv`

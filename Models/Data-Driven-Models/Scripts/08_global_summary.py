@@ -23,9 +23,9 @@ final_df = pd.concat(all_results, ignore_index=True)
 final_df = final_df.sort_values(['Lead Time', 'Model'])
 
 # Save
-os.makedirs("../Results/Summary", exist_ok=True)
-final_df.to_csv("./Results/Summary/global_comparison.csv", index=False)
+os.makedirs("Models/Data-Driven-Models/Results/Summary", exist_ok=True)
+final_df.to_csv("Models/Data-Driven-Models/Results/Summary/global_comparison.csv", index=False)
 
 print("\nGLOBAL RESULTS TABLE:")
 print(final_df.to_string(index=False))
-print(f"\n  ✓ Saved to ./Results/Summary/global_comparison.csv")
+print(f"\n  ✓ Saved to Models/Data-Driven-Models/Results/Summary/global_comparison.csv")

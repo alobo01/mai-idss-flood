@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 RESULTS_ROOT = Path("pipeline_v3/outputs/rule_based")
-PLOTS_ROOT = Path("./Results/plots")
+PLOTS_ROOT = Path("Models/Data-Driven-Models/Results/plots")
 DEFAULT_METRIC = "predicted_level"
 VALID_METRICS = {
     "predicted_level": "Predicted river level",
